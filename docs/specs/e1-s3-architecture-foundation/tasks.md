@@ -84,22 +84,22 @@ Deliverable (code): under `InstantPlayer/Features/Feed/` — `Domain/MediaPlayer
 `Data/StubMediaPlayerService.swift`, `Data/StubMediaFolderRepository.swift`,
 `Presentation/FeedViewModel.swift`, `Presentation/FeedView.swift`.
 
-- [ ] **2.1** Load `swift-security` + `swift-performance` before editing.
-- [ ] **2.2** `MediaPlayerService.swift` per design §3.5 — the feature-owned player seam:
+- [x] **2.1** Load `swift-security` + `swift-performance` before editing.
+- [x] **2.2** `MediaPlayerService.swift` per design §3.5 — the feature-owned player seam:
   `protocol MediaPlayerService: Sendable` with `func wiringProbe() async -> String`. Swift-pure
   Domain (R10): no SwiftUI/AppKit/AVKit imports (no imports needed at all).
-- [ ] **2.3** Stubs per design §3.6: stateless `Sendable` structs; `wiringProbe()` returns the
+- [x] **2.3** Stubs per design §3.6: stateless `Sendable` structs; `wiringProbe()` returns the
   constants `"StubMediaPlayerService"` / `"StubMediaFolderRepository"`. Zero I/O — no FileManager,
   no URL, no AVKit, no networking anywhere in shipped code (design §7, R8).
-- [ ] **2.4** `FeedViewModel.swift` per design §3.7 — the house pattern: `@MainActor @Observable
+- [x] **2.4** `FeedViewModel.swift` per design §3.7 — the house pattern: `@MainActor @Observable
   final class`; `init(mediaPlayerService: any MediaPlayerService)`; `private(set) var probeResult:
   String?`; `func runWiringProbe() async` assigning `probeResult = await
   mediaPlayerService.wiringProbe()`.
-- [ ] **2.5** `FeedView.swift` per design §3.8 — a dumb binder: `let viewModel: FeedViewModel`;
+- [x] **2.5** `FeedView.swift` per design §3.8 — a dumb binder: `let viewModel: FeedViewModel`;
   body shows `Text(viewModel.probeResult ?? "Feed shell — wiring only, no product behavior yet")`,
   padded, with `.task { await viewModel.runWiringProbe() }` (the lifecycle pattern feature stories
   copy). No state of its own, no Data imports (R2), no `#Preview`, hosted nowhere yet (R13).
-- [ ] **2.6** No App-layer references — the shell compiles standalone against Core (task 1). Full
+- [x] **2.6** No App-layer references — the shell compiles standalone against Core (task 1). Full
   gate; fix; tick; commit: `feat(e1-s3): feed feature shell — domain seam, data stubs, view model,
   view`.
 
