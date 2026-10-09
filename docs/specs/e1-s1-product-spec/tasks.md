@@ -39,7 +39,7 @@
 
   Gate & commit: `git add docs/spec.md` + tick this task's checkbox here → `./scripts/validate.sh --staged` → fix any failure → commit as `docs(e1-s1): promote v1 product spec into docs/spec.md`.
 
-- [ ] **Task 2 `[P]` — Append ADR batch D7–D12 to `docs/decisions.md`**
+- [x] **Task 2 `[P]` — Append ADR batch D7–D12 to `docs/decisions.md`**
   *Deliverable:* `docs/decisions.md` (append-only) · *design:* §2 — coverage §2.1, planned entries §2.2, exclusions §2.3 · *wave:* 1 (independent)
 
   Append six ADRs after D6 — one per genuinely decision-shaped topic, absorbing the twelve stakeholder interview decisions:
