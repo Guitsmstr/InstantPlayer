@@ -23,7 +23,7 @@ it shows static placeholder text only.
 | R5 (single target, folder groups) | No `Package.swift` anywhere in `git ls-files`; one app target + two test targets; features are synchronized folder groups | §2 | **PASS** |
 | R6 (two features, Core, App) | `Features/Feed/` shipped; `Features/MediaList/` reserved (first MediaList story creates it, reconciliation §2.2); `Core/` + `App/` present | §2, §2.2 | **PASS** |
 | R7 (shared code in Core) | `Core/Protocols/MediaFolderRepository.swift` (the one ≥2-consumer seam); placement rules in `Core/{Models,Extensions,Utilities}/*.md` + [architecture.md](../../architecture.md) §3–4 | §2.1, §2.2, §3.4 | **PASS** |
-| R8 (no networking) | Zero network APIs in shipped code (all 12 Swift files inspected this session); no URL/URLSession/AVKit anywhere; D9 restates the exclusion | §7 | **PASS** |
+| R8 (no networking) | Zero network/file APIs in shipped code (all 13 tracked Swift files counted via `git ls-files '*.swift'`; 9 app-target + 2 unit-test files read and inspected; the 2 UI-test template files untouched by this story); no URL/URLSession/AVKit anywhere; D9 restates the exclusion | §7 | **PASS** |
 | R9 (composition root in App) | `App/AppDependencies.swift` (only non-test type referencing Data concretions / constructing view models); `App/InstantPlayerApp.swift` scene wiring; `App/RootView.swift` | §3.1–3.3 | **PASS** |
 | R10 (Domain Swift-pure) | `Features/Feed/Domain/MediaPlayerService.swift` — zero imports; no SwiftUI/AppKit/AVKit in any Domain file | §3.5 | **PASS** |
 | R11 (playback/filesystem via protocols) | `MediaPlayerService` (feature Domain) + `MediaFolderRepository` (Core) — the only two capability seams | §3.4, §3.5 | **PASS** |
@@ -34,6 +34,26 @@ it shows static placeholder text only.
 | R16 (compiling skeleton + gate + wiring tests) | Full inventory compiled by the gate; 7 wiring tests green (verbatim below); one empty-of-product-behavior feature shell | §2, §3, §5 | **PASS** |
 
 **Matrix verdict: 16/16 rows PASS, zero deviations open.**
+
+Verbatim basis for the R8 file count — actual output of `git ls-files '*.swift'`
+as run during this walk (13 files: 9 app-target + 2 `InstantPlayerTests` +
+2 `InstantPlayerUITests`):
+
+```
+InstantPlayer/App/AppDependencies.swift
+InstantPlayer/App/InstantPlayerApp.swift
+InstantPlayer/App/RootView.swift
+InstantPlayer/Core/Protocols/MediaFolderRepository.swift
+InstantPlayer/Features/Feed/Data/StubMediaFolderRepository.swift
+InstantPlayer/Features/Feed/Data/StubMediaPlayerService.swift
+InstantPlayer/Features/Feed/Domain/MediaPlayerService.swift
+InstantPlayer/Features/Feed/Presentation/FeedView.swift
+InstantPlayer/Features/Feed/Presentation/FeedViewModel.swift
+InstantPlayerTests/App/AppDependenciesTests.swift
+InstantPlayerTests/Features/Feed/FeedViewModelTests.swift
+InstantPlayerUITests/InstantPlayerUITests.swift
+InstantPlayerUITests/InstantPlayerUITestsLaunchTests.swift
+```
 
 Pillar assertions carried by this walk (AC6): zero launch work in shipped code
 (R13 row) and zero file/network access in shipped code (R8/R12 rows) — verified
