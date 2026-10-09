@@ -1,0 +1,6 @@
+# House SwiftLint config — baseline (E1-S2 will tune rules with the team).
+# Exclusions: never lint build artifacts or vendored/generated code.
+excluded:
+  - .deriveddata
+  - .build
+  - .swiftpm
