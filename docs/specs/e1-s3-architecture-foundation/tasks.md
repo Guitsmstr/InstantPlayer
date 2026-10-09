@@ -52,22 +52,29 @@ Deliverable (code): `InstantPlayer/Core/Protocols/MediaFolderRepository.swift` +
 `InstantPlayer/Core/Models/README.md`, `InstantPlayer/Core/Extensions/README.md`,
 `InstantPlayer/Core/Utilities/README.md`.
 
-- [ ] **1.1** Load `swift-security` + `swift-performance` before editing.
-- [ ] **1.2** Re-verify every design §1 fact against the repo (first task, per §1): synchronized
+- [x] **1.1** Load `swift-security` + `swift-performance` before editing.
+- [x] **1.2** Re-verify every design §1 fact against the repo (first task, per §1): synchronized
   root groups over `InstantPlayer/`, `InstantPlayerTests/`, `InstantPlayerUITests/`;
   `MACOSX_DEPLOYMENT_TARGET = 26.0` in every configuration; `SWIFT_VERSION = 5.0`; Swift Testing in
   the template test; baseline `.swiftlint.yml`. **Any drift (especially deployment target below 14
   or synchronized groups gone): stop and report — a design amendment is required.**
-- [ ] **1.3** `MediaFolderRepository.swift` exactly per design §3.4:
+  *(All facts hold: 3× PBXFileSystemSynchronizedRootGroup; 26.0 in all 4 configs; 5.0 in all 6;
+  Swift Testing template; baseline config present.)*
+- [x] **1.3** `MediaFolderRepository.swift` exactly per design §3.4:
   `protocol MediaFolderRepository: Sendable` with `func wiringProbe() async -> String`. Doc
   comments carry the §3.4 contract: the only sanctioned filesystem path (R11); security-scoped
   handling (bookmarks, start/stop access, sandbox-safe resolution) will be added *behind* the seam
   without changing callers (R12); real operations arrive with the feature stories that need them.
-- [ ] **1.4** The three READMEs per design §2.1: each states its group's purpose and the placement
+- [x] **1.4** The three READMEs per design §2.1: each states its group's purpose and the placement
   rule (when code goes here vs. a feature). Zero code, zero invented types — READMEs are the
   sanctioned placeholder because git cannot hold empty folders. They ride as bundle resources
   (§1 fact) — expected, no launch cost.
-- [ ] **1.5** Full gate `./scripts/validate.sh` — the new protocol must compile (that is what
+  *(Deviation for coordinator ratification: files named `Models.md` / `Extensions.md` /
+  `Utilities.md` instead of three `README.md` — synchronized groups copy bundle resources
+  flattened into `Contents/Resources/`, so three same-named files collide
+  ("Multiple commands produce …/Resources/README.md", first gate run failed). Content and
+  placement-rule intent unchanged; the §3.4 contract is untouched.)*
+- [x] **1.5** Full gate `./scripts/validate.sh` — the new protocol must compile (that is what
   proves target membership). Fix, tick this task's boxes, commit:
   `feat(e1-s3): core seam + reserved folders`.
 
