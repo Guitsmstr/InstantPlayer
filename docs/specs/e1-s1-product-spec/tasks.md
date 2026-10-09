@@ -1,5 +1,7 @@
 # E1-S1 · Product spec authoring — story tasks
 
+> **Parked (stakeholder decision, 2026-10-09):** implementation paused before Task 1 ran — story **E1-S3 · Architecture foundation** runs first (establish Clean Architecture + MVVM + Swift Concurrency before any implementation). Resume note for Task 2 (ADR batch D7–D12): those numbers may be taken by E1-S3's ADRs; renumber the batch to continue from the last ADR in `docs/decisions.md` at execution time.
+
 - **Story:** E1-S1 · Product spec authoring — E1 (Product foundation), `in progress` ([docs/backlog.md](../../backlog.md))
 - **Branch:** `feat/e1-s1-product-spec`
 - **Phase:** Implement — carry the approved [spec](spec.md) and [design](design.md) to done. Docs-only story: three documentation deliverables plus verification; no app code is written.
