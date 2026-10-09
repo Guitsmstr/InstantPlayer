@@ -213,19 +213,21 @@ Deliverable (docs): `docs/architecture.md` — new file.
 Deliverable (docs): `docs/specs/e1-s3-architecture-foundation/evidence.md` (new) +
 acceptance-criteria ticks in this file.
 
-- [ ] **7.1** Load `swift-security` + `swift-performance` (the walk covers the pillar rows).
-- [ ] **7.2** Walk design §11's traceability matrix **row by row** (R1–R16): for each row, name
+- [x] **7.1** Load `swift-security` + `swift-performance` (the walk covers the pillar rows).
+- [x] **7.2** Walk design §11's traceability matrix **row by row** (R1–R16): for each row, name
   the shipped artifact — file, ADR, or test — that satisfies it, with its design section. Record
-  the full table in evidence.md.
-- [ ] **7.3** Run the full gate with machine-readable evidence:
+  the full table in evidence.md. *(16/16 rows PASS.)*
+- [x] **7.3** Run the full gate with machine-readable evidence:
   `./scripts/validate.sh --json <tmp>/e1-s3-gate.json` (`<tmp>` = session temp dir outside the
   repo; the JSON is never committed). Quote it **verbatim** into evidence.md — `result` plus every
   step name and status. Evidence comes from tooling, never memory (SDD conventions).
-- [ ] **7.4** Confirm the SwiftLint and SwiftFormat steps read `pass` in that output and quote
+  *(Result `pass`; every step `ok` — quoted in evidence.md §2.)*
+- [x] **7.4** Confirm the SwiftLint and SwiftFormat steps read `pass` in that output and quote
   them. Any red step: reopen the owning task (fix → rerun → re-quote) before committing.
-- [ ] **7.5** Tick AC1–AC6 below and mirror them in evidence.md; leave the converge-owned AC7–AC9
+  *(Both `status: "ok"`, quoted in evidence.md §2.1.)*
+- [x] **7.5** Tick AC1–AC6 below and mirror them in evidence.md; leave the converge-owned AC7–AC9
   unticked.
-- [ ] **7.6** Commit (docs-only — the hook's staged docs checks cover it):
+- [x] **7.6** Commit (docs-only — the hook's staged docs checks cover it):
   `docs(e1-s3): evidence and acceptance — traceability walk + gate output`.
 
 ---
@@ -234,15 +236,15 @@ acceptance-criteria ticks in this file.
 
 Ticked by task 7, each backed by quoted gate evidence:
 
-- [ ] **AC1 · R16** — skeleton compiles; full gate `result: "pass"` with every step `pass`
+- [x] **AC1 · R16** — skeleton compiles; full gate `result: "pass"` with every step `pass`
   (verbatim JSON in evidence.md)
-- [ ] **AC2 · R16** — all design §5 wiring-test cases present and green (unit-test step `pass`,
+- [x] **AC2 · R16** — all design §5 wiring-test cases present and green (unit-test step `pass`,
   cases enumerated in evidence.md)
-- [ ] **AC3 · R14** — D7–D10 recorded in `docs/decisions.md` in house format (ADR-format step
+- [x] **AC3 · R14** — D7–D10 recorded in `docs/decisions.md` in house format (ADR-format step
   `pass`)
-- [ ] **AC4 · R15** — `docs/architecture.md` exists with design §9's eight sections
-- [ ] **AC5** — design §11 walked row-by-row (R1–R16) in evidence.md
-- [ ] **AC6 · pillars & style** — SwiftLint + SwiftFormat steps `pass` (quoted); the §11 walk
+- [x] **AC4 · R15** — `docs/architecture.md` exists with design §9's eight sections
+- [x] **AC5** — design §11 walked row-by-row (R1–R16) in evidence.md
+- [x] **AC6 · pillars & style** — SwiftLint + SwiftFormat steps `pass` (quoted); the §11 walk
   asserts zero launch work (R13) and zero file/network access (R8, R12) in shipped code
 
 Converge-owned — the coordinator ticks these; task 7 never does:
