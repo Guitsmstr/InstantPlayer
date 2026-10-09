@@ -109,14 +109,14 @@ Deliverable (code): `InstantPlayer/App/InstantPlayerApp.swift` (moved from targe
 rewritten), `InstantPlayer/App/AppDependencies.swift`, `InstantPlayer/App/RootView.swift`; delete
 `InstantPlayer/ContentView.swift`.
 
-- [ ] **3.1** Load `swift-security` + `swift-performance` before editing.
-- [ ] **3.2** Move `InstantPlayer/InstantPlayerApp.swift` → `InstantPlayer/App/` (plain disk move;
+- [x] **3.1** Load `swift-security` + `swift-performance` before editing.
+- [x] **3.2** Move `InstantPlayer/InstantPlayerApp.swift` → `InstantPlayer/App/` (plain disk move;
   synchronized group — no pbxproj edit) and rewrite per design §3.2: `@State private var
   dependencies = AppDependencies()` + `WindowGroup { RootView(dependencies: dependencies) }`. If
   the compiler flags MainActor isolation of the default initializer under the Swift 5 language
   mode: add an explicit `@MainActor` on the struct (sanctioned fallback, §3.2). No window styling —
-  feature-story work.
-- [ ] **3.3** `AppDependencies.swift` per design §3.1, exact contract: `@MainActor final class`;
+  feature-story work. *(Fallback not needed — build clean on first gate run.)*
+- [x] **3.3** `AppDependencies.swift` per design §3.1, exact contract: `@MainActor final class`;
   `let mediaPlayerService: any MediaPlayerService`; `let mediaFolderRepository: any
   MediaFolderRepository`; `init(mediaPlayerService: any MediaPlayerService =
   StubMediaPlayerService(), mediaFolderRepository: any MediaFolderRepository =
@@ -124,17 +124,17 @@ rewritten), `InstantPlayer/App/AppDependencies.swift`, `InstantPlayer/App/RootVi
   the binding rules (§3.1): the only non-test type allowed to reference feature Data concretions
   or construct feature view models; allocation-only construction (R13); the factory is called on
   demand — never at launch.
-- [ ] **3.4** `RootView.swift` per design §3.3: `let dependencies: AppDependencies`; body = padded
+- [x] **3.4** `RootView.swift` per design §3.3: `let dependencies: AppDependencies`; body = padded
   VStack with `Text("InstantPlayer")` + footnote `Text("Architecture skeleton — features land in
   E2 stories")`. Static text only — hosts no feature view (R13); the stored `dependencies` is
   intentionally unused by the body (it is the wiring guarantee later stories plug into).
-- [ ] **3.5** Delete `InstantPlayer/ContentView.swift` — template placeholder superseded by
+- [x] **3.5** Delete `InstantPlayer/ContentView.swift` — template placeholder superseded by
   `RootView` (disk deletion drops it from the target; no pbxproj edit).
-- [ ] **3.6** Keep `InstantPlayerTests/InstantPlayerTests.swift` until task 4: the template example
+- [x] **3.6** Keep `InstantPlayerTests/InstantPlayerTests.swift` until task 4: the template example
   test is replaced by the real wiring tests *in that task's same commit*, so the unit-test target
   is never empty at a commit boundary (the gate runs `xcodebuild test
   -only-testing:InstantPlayerTests` on every commit).
-- [ ] **3.7** Full gate; fix; tick; commit: `feat(e1-s3): app composition root — entry,
+- [x] **3.7** Full gate; fix; tick; commit: `feat(e1-s3): app composition root — entry,
   dependencies container, root view`.
 
 ## Task 4 — Wiring tests · design §2 (test tree), §5
