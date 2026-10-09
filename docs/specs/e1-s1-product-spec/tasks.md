@@ -58,7 +58,7 @@
 
   Gate & commit: `git add docs/decisions.md` + tick this task's checkbox here → `./scripts/validate.sh --staged` (the ADR-format step validates the six new headings) → fix any failure → commit as `docs(e1-s1): record product decisions D7–D12`.
 
-- [ ] **Task 3 `[P]` — Add the epic skeleton E2–E5 to `docs/backlog.md`**
+- [x] **Task 3 `[P]` — Add the epic skeleton E2–E5 to `docs/backlog.md`**
   *Deliverable:* `docs/backlog.md` (append-only below E1) · *design:* §3 — structure §3.1, story skeleton §3.2, cross-cutting §3.3, edit mechanics §3.4 · *wave:* 1 (independent)
 
   Append the feature-epic skeleton below E1. The E1-S1 and E1-S2 entries stay untouched — E1-S1's `done` transition is converge work, not this task's (§3.4):
