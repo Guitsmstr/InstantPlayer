@@ -1,7 +1,7 @@
 {
-  // Harness model tiering (adapted from an earlier project; D2, 2026-10-09 — spec-author
-  // re-pinned to the best available reasoning model per stakeholder request):
-  //   most   = opencode-go/glm-5.3                  (spec-author — product thinking)
+  // Harness model tiering (adapted from an earlier project; D2, 2026-10-09 — tiering per
+  // stakeholder requests; spec-author re-pinned to xiaomi-token-plan-sgp/mimo-v2.6-pro):
+  //   most   = xiaomi-token-plan-sgp/mimo-v2.6-pro     (spec-author — product thinking)
   //   medium = xiaomi-token-plan-sgp/mimo-v2.6-flash (validator)
   //            implementer runs zai-coding-plan/glm-5.3-flash (frontmatter)
   //            implementer-flash runs opencode-go/deepseek-v4.1-flash
@@ -11,7 +11,7 @@
   // Where an agent file's frontmatter pins a model, the frontmatter wins.
   "$schema": "https://opencode.ai/config.json",
   "agents": {
-    "spec-author": { "model": "opencode-go/glm-5.3" },
+    "spec-author": { "model": "xiaomi-token-plan-sgp/mimo-v2.6-pro" },
     "implementer": { "model": "xiaomi-token-plan-sgp/mimo-v2.6-flash" },
     "implementer-flash": { "model": "opencode-go/deepseek-v4.1-flash" },
     "validator": { "model": "xiaomi-token-plan-sgp/mimo-v2.6-flash" },
