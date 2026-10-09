@@ -79,7 +79,7 @@
 
   Gate & commit: `git add docs/backlog.md` + tick this task's checkbox here → `./scripts/validate.sh --staged` → fix any failure → commit as `docs(e1-s1): add feature-epic skeleton E2–E5 to backlog`.
 
-- [ ] **Task 4 — Verify the deliverables and record evidence**
+- [x] **Task 4 — Verify the deliverables and record evidence**
   *Deliverable:* `evidence.md` (new file in this story dir) + acceptance-criteria ticks in [spec.md](spec.md) · *design:* §4 verification map + [docs/specs/README.md](../README.md) evidence conventions · *wave:* 2 — depends on Tasks 1–3
 
   1. Walk the design §4 verification map row by row and verify each row against the landed files — from the files and tooling, never from memory:

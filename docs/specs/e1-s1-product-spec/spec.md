@@ -191,7 +191,7 @@ Out of scope for v1; each may become its own story later:
 ## Story acceptance criteria
 
 - [ ] This spec passes the stakeholder approval gate.
-- [ ] [docs/spec.md](../../spec.md) is filled from this artifact: all four outline placeholders (target user, sources of video, minimum playback experience, scope boundaries) replaced by the content above, and the functional-requirements section carries R1–R40.
-- [ ] No `[NEEDS CLARIFICATION]` marker remains anywhere in `docs/spec.md`; the RNF-02/RNF-04 pillar wording is preserved verbatim.
-- [ ] Every one of the twelve stakeholder interview decisions is represented by at least one EARS requirement above.
-- [ ] Each capability area (entry, feed navigation, playback, volume, ordering, live sync, list view & operations, formats & filtering, window) is coherent and small enough to break out as a feature epic below E1 in `docs/backlog.md`.
+- [x] [docs/spec.md](../../spec.md) is filled from this artifact: all four outline placeholders (target user, sources of video, minimum playback experience, scope boundaries) replaced by the content above, and the functional-requirements section carries R1–R40.
+- [x] No `[NEEDS CLARIFICATION]` marker remains anywhere in `docs/spec.md`; the RNF-02/RNF-04 pillar wording is preserved verbatim.
+- [x] Every one of the twelve stakeholder interview decisions is represented by at least one EARS requirement above.
+- [x] Each capability area (entry, feed navigation, playback, volume, ordering, live sync, list view & operations, formats & filtering, window) is coherent and small enough to break out as a feature epic below E1 in `docs/backlog.md`.
