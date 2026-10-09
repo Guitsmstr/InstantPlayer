@@ -169,20 +169,20 @@ Deliverable (code): `InstantPlayerTests/App/AppDependenciesTests.swift`,
 
 Deliverable (docs): `docs/decisions.md` — append D7–D10.
 
-- [ ] **5.1** Append four ADRs continuing the numbering (the log currently ends at D6), house
+- [x] **5.1** Append four ADRs continuing the numbering (the log currently ends at D6), house
   heading `## D# — title · date · status` (date = commit date, `YYYY-MM-DD`), each with context,
   decision, alternatives, consequences. Titles and one-line decisions exactly per the §8 table:
   **D7 — Clean Architecture layering & dependency rule** (R1, R2, R10, R11, R12) ·
   **D8 — Presentation & concurrency model: MVVM `@Observable` + async/await** (R3, R4) ·
   **D9 — Module organization: single target, folder groups, Core, no networking** (R5–R8) ·
   **D10 — Hand-wired composition root in App** (R9, R16).
-- [ ] **5.2** Pull each entry's alternatives from the matching design §10 rows (SPM packages per
+- [x] **5.2** Pull each entry's alternatives from the matching design §10 rows (SPM packages per
   feature, third-party DI, Core-parking every seam, `ObservableObject`, `RootView` hosting
   `FeedView`, empty seam protocols, an actor now, real Core types).
-- [ ] **5.3** Status `accepted` — the decisions are stakeholder-final (spec story context) and
+- [x] **5.3** Status `accepted` — the decisions are stakeholder-final (spec story context) and
   design §8 requires them accepted by convergence. Record as a consequence in D7 (the first taker
   of D7+): parked E1-S1 must renumber its ADR batch — expected and stakeholder-acknowledged.
-- [ ] **5.4** Stage, then gate `./scripts/validate.sh --staged` (docs-only mode: ADR format +
+- [x] **5.4** Stage, then gate `./scripts/validate.sh --staged` (docs-only mode: ADR format +
   internal links — the pre-commit hook runs the same check); fix; tick; commit:
   `docs(e1-s3): ADRs D7–D10 — architecture decisions`.
 
