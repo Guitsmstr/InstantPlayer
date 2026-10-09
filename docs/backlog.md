@@ -13,7 +13,7 @@ Stories in `draft` need refinement: acceptance criteria, dependencies, and resol
 
 ## E1 — Product foundation
 
-- [ ] **E1-S1 · Product spec authoring** (fill `docs/spec.md` with real scope + EARS requirements) · `draft`
+- [ ] **E1-S1 · Product spec authoring** (fill `docs/spec.md` with real scope + EARS requirements) · `in progress`
   - The bootstrap skeleton has `[NEEDS CLARIFICATION]` placeholders for target user, video sources, and the minimum playback experience. Refine with the stakeholder; then the project has a real source of truth and feature epics can be broken out below.
 - [ ] **E1-S2 · Baseline hygiene** (SwiftLint/SwiftFormat configs tuned to the team style; CI-ready gate) · `draft`
   - The gate currently runs both tools with defaults. Decide the house rules (`.swiftlint.yml`, `.swiftformat`) in a small story; record as an ADR. Optionally run UI tests in the validator/converge phase.
