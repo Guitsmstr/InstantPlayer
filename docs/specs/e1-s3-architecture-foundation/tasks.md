@@ -190,7 +190,7 @@ Deliverable (docs): `docs/decisions.md` — append D7–D10.
 
 Deliverable (docs): `docs/architecture.md` — new file.
 
-- [ ] **6.1** Create `docs/architecture.md` with exactly design §9's eight sections: (1) purpose &
+- [x] **6.1** Create `docs/architecture.md` with exactly design §9's eight sections: (1) purpose &
   maintenance rule — updated by every story that changes structure, links to D7–D10; (2) decision
   index — one line per architecture ADR; (3) source tree & reserved locations — the shipped tree
   (design §2) plus reserved `Features/MediaList/` (the first MediaList story creates it) and the
@@ -203,9 +203,9 @@ Deliverable (docs): `docs/architecture.md` — new file.
   security-scoped seam guidance (RNF-04), each naming the skill to load and when; (8) evolution
   notes — SPM extraction trigger, MediaList arrival, seam promotion, actor introduction, E1-S1 ADR
   renumbering.
-- [ ] **6.2** Internal links must resolve (the gate checks them): link only to existing files
+- [x] **6.2** Internal links must resolve (the gate checks them): link only to existing files
   (`docs/decisions.md`, `docs/spec.md`) — safe in either 5/6 order, those files exist regardless.
-- [ ] **6.3** Stage, then gate `./scripts/validate.sh --staged`; fix; tick; commit:
+- [x] **6.3** Stage, then gate `./scripts/validate.sh --staged`; fix; tick; commit:
   `docs(e1-s3): standing architecture reference`.
 
 ## Task 7 — Verification & evidence · design §11, spec R14–R16
