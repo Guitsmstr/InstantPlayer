@@ -143,26 +143,26 @@ Deliverable (code): `InstantPlayerTests/App/AppDependenciesTests.swift`,
 `InstantPlayerTests/Features/Feed/FeedViewModelTests.swift`; delete
 `InstantPlayerTests/InstantPlayerTests.swift`.
 
-- [ ] **4.1** Load `swift-security` + `swift-performance` before editing.
-- [ ] **4.2** Swift Testing per design §5 + §1: `import Testing`, `@testable import InstantPlayer`,
+- [x] **4.1** Load `swift-security` + `swift-performance` before editing.
+- [x] **4.2** Swift Testing per design §5 + §1: `import Testing`, `@testable import InstantPlayer`,
   `@MainActor` suites (the types under test are MainActor-isolated), `@Test` + `#expect` — never
   XCTest.
-- [ ] **4.3** `AppDependenciesTests.swift` — all five §5.1 cases: (1) the default dependency graph
+- [x] **4.3** `AppDependenciesTests.swift` — all five §5.1 cases: (1) the default dependency graph
   constructs; (2) `deps.mediaPlayerService is StubMediaPlayerService`; (3)
   `deps.mediaFolderRepository is StubMediaFolderRepository`; (4) the binding API accepts injection
   — a test-local `private struct ProbeMediaPlayerService: MediaPlayerService` passed to the
   initializer is what `makeFeedViewModel()` uses, its probe value flowing through (the
   seam-swapping pattern future security/performance tests reuse, §5.1 item 4 + §7); (5) behavioral
   end-to-end — `await` both stub probes and expect their constants.
-- [ ] **4.4** `FeedViewModelTests.swift` — both §5.2 cases: (1) `deps.makeFeedViewModel()` → `await
+- [x] **4.4** `FeedViewModelTests.swift` — both §5.2 cases: (1) `deps.makeFeedViewModel()` → `await
   viewModel.runWiringProbe()` → `probeResult == "StubMediaPlayerService"` — Presentation → Domain
   ← Data end-to-end through the binding (R1, R2, R3, R16); (2) `_ = FeedView(viewModel:)`
   constructs (no rendering in unit tests).
-- [ ] **4.5** Delete `InstantPlayerTests/InstantPlayerTests.swift` — superseded by the two files
+- [x] **4.5** Delete `InstantPlayerTests/InstantPlayerTests.swift` — superseded by the two files
   above, in this same commit.
-- [ ] **4.6** `InstantPlayerUITests/` untouched — template launch tests stay; UI tests are out of
+- [x] **4.6** `InstantPlayerUITests/` untouched — template launch tests stay; UI tests are out of
   the per-commit gate per D4 and this story adds no UI behavior.
-- [ ] **4.7** Full gate — the unit tests run and must be green (they are the R16 deliverable);
+- [x] **4.7** Full gate — the unit tests run and must be green (they are the R16 deliverable);
   fix; tick; commit: `test(e1-s3): composition-root and feed wiring tests`.
 
 ## Task 5 — ADR batch D7–D10 `[P]` · design §8 (+ §10), spec R14
