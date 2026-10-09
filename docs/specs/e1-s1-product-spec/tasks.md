@@ -18,7 +18,7 @@
 
 ## Tasks
 
-- [ ] **Task 1 `[P]` — Promote the v1 product spec into `docs/spec.md`**
+- [x] **Task 1 `[P]` — Promote the v1 product spec into `docs/spec.md`**
   *Deliverable:* `docs/spec.md` (rewritten in place) · *design:* §1 — layout §1.1, promotion rules §1.2, numbering §1.3, RNF set §1.4, bootstrap-note removal §1.5 · *wave:* 1 (independent)
 
   Rewrite `docs/spec.md` to the §1.1 layout, applying the §1.2 promotion rules — normative content verbatim, narrative summarized, story-artifact material not promoted:
