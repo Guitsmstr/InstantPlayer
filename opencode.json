@@ -1,0 +1,20 @@
+{
+  // Harness model tiering (mirrors an earlier project; D2, 2026-10-09):
+  //   most   = xiaomi-token-plan-sgp/mimo-v2.6-pro   (spec-author)
+  //   medium = xiaomi-token-plan-sgp/mimo-v2.6-flash (validator)
+  //            implementer runs zai-coding-plan/glm-5.3-flash (frontmatter)
+  //            implementer-flash runs opencode-go/deepseek-v4.1-flash
+  //   least  = opencode-go/deepseek-v4.1-flash       (explore, title, summary)
+  // `sdd` is intentionally unpinned: it inherits the session model (/models).
+  // Where an agent file's frontmatter pins a model, the frontmatter wins.
+  "$schema": "https://opencode.ai/config.json",
+  "agents": {
+    "spec-author": { "model": "xiaomi-token-plan-sgp/mimo-v2.6-pro" },
+    "implementer": { "model": "xiaomi-token-plan-sgp/mimo-v2.6-flash" },
+    "implementer-flash": { "model": "opencode-go/deepseek-v4.1-flash" },
+    "validator": { "model": "xiaomi-token-plan-sgp/mimo-v2.6-flash" },
+    "explore": { "model": "opencode-go/deepseek-v4.1-flash" },
+    "title": { "model": "opencode-go/deepseek-v4.1-flash" },
+    "summary": { "model": "opencode-go/deepseek-v4.1-flash" }
+  }
+}

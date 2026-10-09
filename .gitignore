@@ -1,0 +1,20 @@
+# macOS
+.DS_Store
+
+# Xcode user state
+xcuserdata/
+*.xcuserstate
+DerivedData/
+
+# Local build artifacts (gate uses a pinned derived-data path)
+.deriveddata/
+.build/
+
+# Swift package manager
+.build/
+.swiftpm/
+Package.resolved
+
+# Secrets — never commit
+.env
+.env.*
