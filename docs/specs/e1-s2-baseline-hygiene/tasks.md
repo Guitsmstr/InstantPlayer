@@ -109,7 +109,7 @@ Commit: `docs(e1-s2): development guide — gate usage, flag matrix, CI runner c
 
 ## Task 4 — ADR D17 in `docs/decisions.md` `[P]`
 
-- [ ] **4.1** Append D17 to `docs/decisions.md` per **design §6**, continuing the log at D16, with
+- [x] **4.1** Append D17 to `docs/decisions.md` per **design §6**, continuing the log at D16, with
       the gate-format-compliant heading exactly as specified:
 
       ```
@@ -123,10 +123,10 @@ Commit: `docs(e1-s2): development guide — gate usage, flag matrix, CI runner c
       Alternatives (summarized from design §8), Consequences (US1 agreement, risky constructs fail
       the gate, D4 speed preserved, tool-upgrade drift mitigated via runner-checklist pins and
       re-baselining, rationale inherited per R18).
-- [ ] **4.2** Verify R17–R18: the ADR names all four decisions (lint philosophy, line-length
+- [x] **4.2** Verify R17–R18: the ADR names all four decisions (lint philosophy, line-length
       agreement, format style, `--uitests` formalization) and links back to D4 so the rationale is
       surfaced for future contributors.
-- [ ] **4.3** Run `./scripts/validate.sh --staged` (the "ADR format (docs/decisions.md)" step must
+- [x] **4.3** Run `./scripts/validate.sh --staged` (the "ADR format (docs/decisions.md)" step must
       accept the new heading; the internal-links check validates any links added).
 
 Commit: `docs(e1-s2): ADR D17 — house style configs & gate --uitests formalization`
