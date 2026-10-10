@@ -1,6 +1,50 @@
-# House SwiftLint config — baseline (E1-S2 will tune rules with the team).
-# Exclusions: never lint build artifacts or vendored/generated code.
+# InstantPlayer — house SwiftLint configuration (E1-S2 · docs/decisions.md D17).
+# Single source of style truth for lint (R1–R3). Rule-by-rule rationale:
+# docs/specs/e1-s2-baseline-hygiene/design.md §1.
+#
+# Philosophy (R6–R8): sensible SwiftLint defaults stay on; rules whose exact
+# concern SwiftFormat already enforces in the same gate run are disabled
+# (duplicated verdicts are drift, not safety); purely opinionated size limits
+# are off; a deliberately small opt-in set of correctness/risk rules is on,
+# at error severity so the gate actually fails on them.
+
+# Never lint build artifacts or vendored/generated code.
 excluded:
   - .deriveddata
   - .build
   - .swiftpm
+
+# Disabled — stylistic noise / formatter-owned style (R7).
+disabled_rules:
+  # Formatter-owned style: SwiftFormat's default rules enforce and auto-fix
+  # these in the same gate run, so linting them again is duplicate enforcement
+  # and can contradict the formatter (US1).
+  - trailing_whitespace     # SwiftFormat `trailingSpace`
+  - trailing_newline        # SwiftFormat `linebreakAtEndOfFile`
+  - vertical_whitespace     # SwiftFormat `consecutiveBlankLines`, `blankLinesAtStartOfScope`, `blankLinesAtEndOfScope`
+  - comma                   # SwiftFormat `spaceAroundOperators` (delimiters)
+  - colon                   # SwiftFormat `spaceAroundOperators --type-delimiter space-after`
+  - trailing_comma          # SwiftFormat `trailingCommas` (default "always") — the tools contradict by default
+  # Opinionated size limits: no defect signal at this codebase's shape (all
+  # tracked files < 70 lines); decomposition is governed by D7 layering and
+  # review, not line counts.
+  - file_length
+  - type_body_length
+
+# Opt-in — high-value correctness/risk rules (R8). Small on purpose.
+opt_in_rules:
+  - force_unwrapping               # `!` is a crash on unexpected input (R6)
+  - implicitly_unwrapped_optional  # hidden force unwraps in declarations (R6)
+  - fatal_error_message            # fatalError without a message is undebuggable (R6)
+
+# Line length 120 in both tools (R4–R5). warning == error on purpose: only
+# error-severity violations fail `swiftlint lint`, so a higher error threshold
+# would make the "limit" advisory. SwiftFormat wraps at the same 120 (R5).
+line_length:
+  warning: 120
+  error: 120
+
+# Chosen rules are enforced, not advisory (R6): error severity = gate failure.
+force_unwrapping: error
+implicitly_unwrapped_optional: error
+fatal_error_message: error
