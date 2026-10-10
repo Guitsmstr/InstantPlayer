@@ -33,29 +33,33 @@ struct AppDependenciesTests {
         #expect(dependencies.mediaPlayerService is StubMediaPlayerService)
     }
 
-    /// Case 3 — filesystem-seam binding resolves to the stub (R7, R9, R16).
-    @Test func filesystemSeamBindingResolvesToStub() {
+    /// Case 3 — filesystem-seam binding resolves to the real
+    /// security-scoped actor (E2-S1 design §1; R7, R9, R16 — the stub
+    /// remains available for explicit injection).
+    @Test func filesystemSeamBindingResolvesToSecurityScopedRepository() {
         let dependencies = AppDependencies()
-        #expect(dependencies.mediaFolderRepository is StubMediaFolderRepository)
+        #expect(dependencies.mediaFolderRepository is SecurityScopedMediaFolderRepository)
     }
 
     /// Case 4 — the binding API accepts injection: a test-local
-    /// conformance passed to the initializer is what `makeFeedViewModel()`
-    /// uses, and its probe value flows through. This is also the
-    /// seam-swapping pattern future security/performance tests reuse
-    /// (design §5.1 item 4, §7).
+    /// conformance passed to the initializer is what gets bound (and what
+    /// the factory hands the view model). The probe lives on the seams
+    /// since the view-model probe UI was removed (E2-S1 design §4).
     @Test func bindingAPIAcceptsInjection() async {
         let dependencies = AppDependencies(mediaPlayerService: ProbeMediaPlayerService())
-        let viewModel = dependencies.makeFeedViewModel()
-        await viewModel.runWiringProbe()
-        #expect(viewModel.probeResult == "InjectedProbeService")
+        #expect(await dependencies.mediaPlayerService.wiringProbe() == "InjectedProbeService")
     }
 
-    /// Case 5 — behavioral end-to-end: both stub probes answer with their
-    /// constants (R16).
+    /// Case 5 — behavioral end-to-end: the player stub answers with its
+    /// constant; the folder repository actor answers with its own (R16;
+    /// the probe stays on the seams after the view-model probe UI was
+    /// removed in E2-S1).
     @Test func stubProbesAnswerWithConstants() async {
         let dependencies = AppDependencies()
         #expect(await dependencies.mediaPlayerService.wiringProbe() == "StubMediaPlayerService")
-        #expect(await dependencies.mediaFolderRepository.wiringProbe() == "StubMediaFolderRepository")
+        #expect(
+            await dependencies.mediaFolderRepository.wiringProbe()
+                == "SecurityScopedMediaFolderRepository"
+        )
     }
 }

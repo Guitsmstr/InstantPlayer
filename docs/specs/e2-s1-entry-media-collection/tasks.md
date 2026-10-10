@@ -149,10 +149,10 @@ Deliverable (code): `InstantPlayer/Features/Feed/Presentation/FeedState.swift`,
 `InstantPlayer/Config/Info.plist` + `InstantPlayer/Config/InstantPlayer.entitlements` (new) with
 the §1.2 wiring.
 
-- [ ] **3.1** Load `swift-security` + `swift-performance` before editing.
-- [ ] **3.2** `FeedState` per design §4: the presentation state value `welcome` ↔
+- [x] **3.1** Load `swift-security` + `swift-performance` before editing.
+- [x] **3.2** `FeedState` per design §4: the presentation state value `welcome` ↔
   `folderOpen(MediaCollection)`.
-- [ ] **3.3** `FeedViewModel` per design §4 (rewrite): `@MainActor @Observable final class`, the
+- [x] **3.3** `FeedViewModel` per design §4 (rewrite): `@MainActor @Observable final class`, the
   only presentation-state holder (D8); starts in `welcome` (S5); `handle(entryAction:)` awaits
   `prepareCollection(forEntryAt:)` and sets `.folderOpen(collection)` or `.welcome` (S6: leave
   welcome when media arrives; S7: drop back to welcome — and to no open folder — when an action
@@ -161,24 +161,24 @@ the §1.2 wiring.
   (`probeResult` / `runWiringProbe`) from the view model — the probe stays on the seam for wiring
   tests (§4); update the existing `FeedViewModelTests` wiring case **in this same commit** so the
   suite compiles and stays green (minimal compile-level fix; the full §9 suites are task 4).
-- [ ] **3.4** `WelcomeView` per design §4 (with S5): static English drop-target copy (D6; draft —
+- [x] **3.4** `WelcomeView` per design §4 (with S5): static English drop-target copy (D6; draft —
   "Drop videos or images here", "or open a file with InstantPlayer from Finder"), hover affordance
   driven by the drop's `isTargeted`, and the accessibility identifier the §9.4 launch assertion
   keys on. `FeedView` per design §4: a dumb binder — `WelcomeView` for `.welcome`, an **interim
   folder-open placeholder** for `.folderOpen` (item count + starting-item name; deliberately not a
   feed — E2-S2 replaces it).
-- [ ] **3.5** Scene per design §3.4: switch `WindowGroup` → **`Window`** in
+- [x] **3.5** Scene per design §3.4: switch `WindowGroup` → **`Window`** in
   `InstantPlayerApp.swift` — one window, one `RootView`, one `FeedViewModel` (one state machine,
   one open session). R37–R40 window behaviors remain E2-S2's work; the single-window
   precondition is this story's only window change.
-- [ ] **3.6** Entry routing per design §3.1 in `RootView`: `.onOpenURL` (Finder "Open With" and
+- [x] **3.6** Entry routing per design §3.1 in `RootView`: `.onOpenURL` (Finder "Open With" and
   Dock-icon drop) and `.onDrop(of: [UTType.fileURL], isTargeted:)` (window drop) convert system
   events into `EntryAction`s routed **once** to `FeedViewModel.handle(entryAction:)`. Multi-item
   events (N URLs in one gesture) process as N entry actions in event order, **last one wins**
   (§3.1). The §3.1 fallback (`NSApplicationDelegateAdaptor`) is **not built speculatively** — if
   the converge functional review shows open-document events not delivered, that is a coordinator
   escalation per §3.1, not an implementer improvisation.
-- [ ] **3.7** `AppDependencies` per design §1: bind `SecurityScopedMediaFolderRepository` as the
+- [x] **3.7** `AppDependencies` per design §1: bind `SecurityScopedMediaFolderRepository` as the
   `MediaFolderRepository` seam; `makeFeedViewModel()` passes both seams; `init` stays
   **allocation-only** (R13 of E1-S3, §7.3) — no I/O, nothing scheduled, no scan at launch (the
   only launch-path additions are two allocations).
