@@ -134,19 +134,19 @@ Commit: `docs(e1-s2): ADR D17 — house style configs & gate --uitests formaliza
 
 ## Task 5 — Verification & evidence (last)
 
-- [ ] **5.1** Walk the **design §9 traceability table row by row against real files** (R1–R18 →
+- [x] **5.1** Walk the **design §9 traceability table row by row against real files** (R1–R18 →
       §1/§2 config contents, §3 gate diffs + matrix, §4 green state, §5 docs items, §6 D17): open
       each named artifact and confirm the designed element is present in the committed tree; note
       any row that does not hold as a deviation.
-- [ ] **5.2** Run the **full** `./scripts/validate.sh --json <tmp>/gate.json` and the **flagged**
+- [x] **5.2** Run the **full** `./scripts/validate.sh --json <tmp>/gate.json` and the **flagged**
       `./scripts/validate.sh --uitests --json <tmp>/gate-uitests.json`; quote both per-step results
       **verbatim** (never paraphrased, never re-derived) into `docs/specs/e1-s2-baseline-hygiene/evidence.md`,
       together with the R13 fail-probe JSON excerpt from Task 2.4 and the R9 green-run excerpt from
       Task 1.4 (SDD conventions: evidence from tooling output only).
-- [ ] **5.3** In `evidence.md`, record deviations honestly: any style fix from Task 1 (file+line),
+- [x] **5.3** In `evidence.md`, record deviations honestly: any style fix from Task 1 (file+line),
       the legacy SwiftFormat option spelling if used (1.2), the R13 verification method actually
       exercised vs the fallback (2.4), and anything the design predicted that did not hold.
-- [ ] **5.4** Tick the story's acceptance criteria in [spec.md](spec.md) that this evidence closes —
+- [x] **5.4** Tick the story's acceptance criteria in [spec.md](spec.md) that this evidence closes —
       R1–R3 configs authority, R4–R5 120 agreement, R6–R8 curated set, R9–R10 green codebase,
       R11–R13 `--uitests` both ways, R14 mandate documented, R15–R16 CI checklist, R17–R18 ADR, and
       the evidence-convention criterion — each backed by the tooling output quoted in `evidence.md`.

@@ -88,15 +88,15 @@ Tooling constraints — guarantees on the style gate and its documentation, not 
 
 ## Acceptance criteria
 
-- [ ] `.swiftlint.yml` and `.swiftformat` exist in the repository and are the single style source: gate runs and local runs judge by them (R1–R3).
-- [ ] Lint and format agree on a 120-character limit, formatter wrapping included (R4–R5).
-- [ ] The curated set is in place by constraint class: correctness/risk rules on, stylistic noise off, a small opt-in set (R6–R8).
-- [ ] Codebase green: every tracked Swift file passes the gate's lint and format checks under the house configs (R9–R10); evidence via `./scripts/validate.sh --json <tmp>/gate.json`, quoted verbatim.
-- [ ] `--uitests` works both ways: a default run matches D4's scope exactly, and a flagged run executes `InstantPlayerUITests` and fails the gate on UI-test failure (R11–R13).
-- [ ] The validator/converge UI-test mandate is documented (R14).
-- [ ] The CI runner checklist is documented — Xcode version pin, macOS destination, single gate command (R15–R16).
-- [ ] The house style is recorded as an ADR in `docs/decisions.md` (R17–R18).
-- [ ] Evidence recorded per [SDD conventions](../README.md) — gate evidence from tooling output, never from memory.
+- [x] `.swiftlint.yml` and `.swiftformat` exist in the repository and are the single style source: gate runs and local runs judge by them (R1–R3).
+- [x] Lint and format agree on a 120-character limit, formatter wrapping included (R4–R5).
+- [x] The curated set is in place by constraint class: correctness/risk rules on, stylistic noise off, a small opt-in set (R6–R8).
+- [x] Codebase green: every tracked Swift file passes the gate's lint and format checks under the house configs (R9–R10); evidence via `./scripts/validate.sh --json <tmp>/gate.json`, quoted verbatim.
+- [x] `--uitests` works both ways: a default run matches D4's scope exactly, and a flagged run executes `InstantPlayerUITests` and fails the gate on UI-test failure (R11–R13).
+- [x] The validator/converge UI-test mandate is documented (R14).
+- [x] The CI runner checklist is documented — Xcode version pin, macOS destination, single gate command (R15–R16).
+- [x] The house style is recorded as an ADR in `docs/decisions.md` (R17–R18).
+- [x] Evidence recorded per [SDD conventions](../README.md) — gate evidence from tooling output, never from memory.
 
 ## References
 
