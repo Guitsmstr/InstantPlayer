@@ -62,34 +62,34 @@ Deliverable (code): `InstantPlayer/Core/Models/EntryAction.swift`, `MediaItem.sw
 `MediaCollection.swift`; extend `InstantPlayer/Core/Protocols/MediaFolderRepository.swift`; extend
 `InstantPlayer/Features/Feed/Data/StubMediaFolderRepository.swift`.
 
-- [ ] **1.1** Load `swift-security` + `swift-performance` before editing.
-- [ ] **1.2** Re-verify every design §1 fact against the repo: the files marked "exists" are
+- [x] **1.1** Load `swift-security` + `swift-performance` before editing.
+- [x] **1.2** Re-verify every design §1 fact against the repo: the files marked "exists" are
   present (`MediaFolderRepository.swift`, `StubMediaFolderRepository.swift`, `FeedViewModel.swift`,
   `FeedView.swift`, `InstantPlayerApp.swift`, `AppDependencies.swift`, `RootView.swift`), `Config/`
   is new (absent), synchronized root groups intact. **Any drift: stop and report — a design
   amendment is required.**
-- [ ] **1.3** `EntryAction.swift` per design §5.4 + §3.1: the single internal entry value —
+- [x] **1.3** `EntryAction.swift` per design §5.4 + §3.1: the single internal entry value —
   `enteredURL: URL`. Doc comments carry the routing contract: Open With, Dock drop and window drop
   are delivery channels for the same payload (S1–S4 branch only on what the URL is, never on the
   channel).
-- [ ] **1.4** `MediaItem.swift` per design §5.4: `id` (the resolved file URL; identity within a
+- [x] **1.4** `MediaItem.swift` per design §5.4: `id` (the resolved file URL; identity within a
   snapshot), `url`, `name` (display name = last path component, captured at open), `kind`
   (`video` / `image`); `Hashable`, `Sendable`, `Identifiable`.
-- [ ] **1.5** `MediaCollection.swift` per design §5.4 + §6: `folderURL`, `items: [MediaItem]`
+- [x] **1.5** `MediaCollection.swift` per design §5.4 + §6: `folderURL`, `items: [MediaItem]`
   (the folder's own order, S14), `startIndex: Int` with invariant `0 ≤ startIndex < items.count`
   (an empty result is never a collection — it is `nil` → welcome per §3.3 step 5), `capturedAt:
   Date` (the S13 snapshot marker).
-- [ ] **1.6** Seam per design §2: add `prepareCollection(forEntryAt:)` to `MediaFolderRepository` —
+- [x] **1.6** Seam per design §2: add `prepareCollection(forEntryAt:)` to `MediaFolderRepository` —
   accepts one `EntryAction`, `async`, returns `MediaCollection?`. Doc comments carry the contract:
   derives the folder per S1–S4, collects per S10–S12/S14, resolves the starting item per §3.3
   step 6, manages the security-scoped session per S8–S9 **behind the seam**; `nil` means "no
   folder opens" (welcome, S5–S7); no `throws` — fail-open per §5.3, empty results are product
   states; deliberately **no** start/stop members (session lifecycle is conformance-internal).
   `wiringProbe()` unchanged (R16).
-- [ ] **1.7** `StubMediaFolderRepository.swift` gains the new member **in this same commit** (a
+- [x] **1.7** `StubMediaFolderRepository.swift` gains the new member **in this same commit** (a
   protocol requirement without a conformer fails the build): returns a canned `MediaCollection`
   for wiring tests. The stub stays zero-I/O — no FileManager, no URL construction from disk.
-- [ ] **1.8** Full gate `./scripts/validate.sh` — the new types must compile (that is what proves
+- [x] **1.8** Full gate `./scripts/validate.sh` — the new types must compile (that is what proves
   target membership). Fix, tick this task's boxes, commit:
   `feat(e2-s1): core models and seam entry contract`.
 
