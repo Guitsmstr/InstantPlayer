@@ -273,7 +273,7 @@ semantics are byte-identical to D4. The pre-commit hook (`./scripts/validate.sh
 --staged`) is untouched, so per-commit speed (D4's "fast enough to never tempt a
 bypass") is preserved.
 
-**Flag matrix (also published in `docs/development.md`, §4):**
+**Flag matrix (also published in `docs/development.md`, §2):**
 
 | Invocation | Docs checks | Branch policy | Docs-only shortcut | Lint | Format | Build | Unit tests | UI tests |
 |---|---|---|---|---|---|---|---|---|

@@ -20,25 +20,25 @@ Executable plan for [the approved spec](spec.md) (R1–R18) under [the approved 
 
 ## Task 1 — House configs: `.swiftlint.yml` + `.swiftformat` (code task)
 
-- [ ] **1.1** Evolve `.swiftlint.yml` in place (the existing stub's comment is replaced; the file
+- [x] **1.1** Evolve `.swiftlint.yml` in place (the existing stub's comment is replaced; the file
       becomes the authoritative config) with the **exact contents of design §1** — `excluded`
       (`.deriveddata`, `.build`, `.swiftpm`), `disabled_rules` (formatter-owned set + `file_length`,
       `type_body_length`), `opt_in_rules` (`force_unwrapping`, `implicitly_unwrapped_optional`,
       `fatal_error_message`), `line_length` 120/120, and error severity for the three opt-ins.
-- [ ] **1.2** Create `.swiftformat` with the **exact contents of design §2** — `--exclude
+- [x] **1.2** Create `.swiftformat` with the **exact contents of design §2** — `--exclude
       .deriveddata,.build,.swiftpm`, `--max-width 120`, `--wrap-arguments before-first`,
       `--wrap-parameters before-first`, philosophy comment (defaults inherited, not re-declared).
       *Contingency (design §2):* if the installed SwiftFormat predates the kebab-case spellings,
       use the legacy equivalents (`--maxwidth`, `--wraparguments`, `--wrapparameters`) — spelling
       fix only, same semantics; record the substitution in Task 5's deviations.
-- [ ] **1.3** Run `swiftformat .` once to normalize the tree under the house block (expected no-op
+- [x] **1.3** Run `swiftformat .` once to normalize the tree under the house block (expected no-op
       per design §4 inspection; any rewrap diff is by construction style-only, R10).
-- [ ] **1.4** Run the **full** `./scripts/validate.sh`. Expected: green with **zero** hand-fixes
+- [x] **1.4** Run the **full** `./scripts/validate.sh`. Expected: green with **zero** hand-fixes
       (design §4 inspection evidence: longest line ≈95 chars, zero force unwraps / IUOs /
       `fatalError`, `before-first` wraps already in place). If any violation appears, fix
       **style-only** — no behavioral change, no refactor, no renaming beyond style (R10) — and
       name the exact file+line in the commit body and in Task 5's deviations (no invented fixes).
-- [ ] **1.5** Confirm both tools pick the configs up with no `--config` flags (R2–R3): the gate's
+- [x] **1.5** Confirm both tools pick the configs up with no `--config` flags (R2–R3): the gate's
       "Lint (SwiftLint)" and "Format check (SwiftFormat --lint)" steps pass from the committed
       files alone.
 
@@ -48,7 +48,7 @@ tracked Swift files. **Skills not required** (style tooling only, design §7).
 
 ## Task 2 — Gate `--uitests` flag (code task)
 
-- [ ] **2.1** Edit `scripts/validate.sh` per **design §3** (the exact diffs; anchors verified against
+- [x] **2.1** Edit `scripts/validate.sh` per **design §3** (the exact diffs; anchors verified against
       the current file: `unit_test_target="InstantPlayerTests"`, `staged=0`, the arg `while` loop,
       `docs_only=0` / `if [ "$staged" -eq 1 ]; then`): usage line + `ui_test_target` variable +
       `uitests=0` + `--uitests) uitests=1 ;;` case (unknown options still exit 1); `docs_only`
@@ -57,15 +57,15 @@ tracked Swift files. **Skills not required** (style tooling only, design §7).
       the identical `xcodebuild` conventions (project, scheme, `Debug`, `platform=macOS`,
       `-derivedDataPath .deriveddata/`) via `run_step` (fail-closed, R13; step flows into
       `--json` evidence via `steps.tsv`).
-- [ ] **2.2** R11 — default run unchanged. Run `./scripts/validate.sh --json <tmp>/gate-default.json`
+- [x] **2.2** R11 — default run unchanged. Run `./scripts/validate.sh --json <tmp>/gate-default.json`
       and verify the step set and order match the pre-change default exactly (docs checks, lint,
       format, build, unit tests; no UI step). Also verify `--staged` docs/harness-only runs still
       take the docs-only shortcut byte-identically (matrix rows 1–3 of design §3).
-- [ ] **2.3** R12 — flagged run is additive. Run `./scripts/validate.sh --uitests --json
+- [x] **2.3** R12 — flagged run is additive. Run `./scripts/validate.sh --uitests --json
       <tmp>/gate-uitests.json` and verify `InstantPlayerUITests` executes **in addition to** every
       default step (superset invariant), and that `./scripts/validate.sh --staged --uitests` runs
       the full matrix row (docs-only shortcut never taken).
-- [ ] **2.4** R13 — UI failure fails the gate. **Chosen verification method (documented, per the
+- [x] **2.4** R13 — UI failure fails the gate. **Chosen verification method (documented, per the
       design's fail-closed claim):** transient failing-UI-expectation probe, then revert. Add one
       deliberate failure (e.g. `XCTFail("E1-S2 fail-closed probe")`) inside one
       `InstantPlayerUITests` test in the working tree only; run `./scripts/validate.sh --uitests
