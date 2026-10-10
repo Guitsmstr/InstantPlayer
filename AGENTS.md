@@ -32,6 +32,7 @@ Instant video player for **macOS** (SwiftUI). Stack: **Swift + SwiftUI, Xcode 26
 | A decision is made (product or technical) | append ADR to `docs/decisions.md` |
 | Story state changes | update `docs/backlog.md` |
 | Product question about scope or requirements | read `docs/spec.md` (source of truth) |
+| Gate usage, flags, or CI runner questions | read `docs/development.md` |
 
 ## Repo map (paths only)
 

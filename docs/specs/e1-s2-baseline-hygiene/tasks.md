@@ -86,7 +86,7 @@ untouched.
 
 ## Task 3 — Docs: `docs/development.md` + AGENTS.md pointer `[P]`
 
-- [ ] **3.1** Create `docs/development.md` per **design §5** with the five content items: (1) gate
+- [x] **3.1** Create `docs/development.md` per **design §5** with the five content items: (1) gate
       usage — `./scripts/validate.sh` plus modifiers (`--staged`, `--uitests`, `--json <path>`,
       `--verbose`) and step order (D4 + optional UI-tests step); (2) the **flag matrix from design
       §3 verbatim**; (3) the UI-test mandate (R14) — "when a story touches flows that UI tests
@@ -98,9 +98,9 @@ untouched.
       checklist (R15–R16) — Xcode 26 selected, Homebrew tools, checkout, then the **same single
       command** `./scripts/validate.sh` (optionally `--json <path>`), plus the note that `--uitests`
       launches the real app and needs a logged-in GUI session. No CI-service files (story non-goal).
-- [ ] **3.2** Add one pointer row to the `AGENTS.md` trigger table: gate usage / flags / CI runner
+- [x] **3.2** Add one pointer row to the `AGENTS.md` trigger table: gate usage / flags / CI runner
       questions → `docs/development.md` (design §5). One row only; no other AGENTS.md changes.
-- [ ] **3.3** Run `./scripts/validate.sh --staged` (internal-links check covers `docs/*.md`, so all
+- [x] **3.3** Run `./scripts/validate.sh --staged` (internal-links check covers `docs/*.md`, so all
       links from and to the new file are validated).
 
 Commit: `docs(e1-s2): development guide — gate usage, flag matrix, CI runner checklist`
