@@ -98,8 +98,8 @@ Deliverable (code): `InstantPlayer/Core/Models/EntryAction.swift`, `MediaItem.sw
 Deliverable (code): `InstantPlayer/Features/Feed/Data/MediaTypeClassifier.swift`,
 `InstantPlayer/Features/Feed/Data/SecurityScopedMediaFolderRepository.swift`.
 
-- [ ] **2.1** Load `swift-security` + `swift-performance` before editing.
-- [ ] **2.2** `MediaTypeClassifier` per design §5.2 — the S11 rule as one predicate plus kind:
+- [x] **2.1** Load `swift-security` + `swift-performance` before editing.
+- [x] **2.2** `MediaTypeClassifier` per design §5.2 — the S11 rule as one predicate plus kind:
   include iff (1) the entry is a regular file (excludes directories, packages/bundles, symlinks,
   fifos/sockets/devices — a symlink's target is **never** followed); (2) it is not hidden
   (`URLResourceValues.isHidden` — covers dot-names and the hidden flag, keeping `.DS_Store` and
@@ -109,7 +109,7 @@ Deliverable (code): `InstantPlayer/Features/Feed/Data/MediaTypeClassifier.swift`
   are display-only (§8.3). Doc comments record the honest §5.2 contract: declared-type judgment,
   content bytes are not sniffed — a mislabeled file collects as its declared kind and fails later
   at consumption (E2-S3).
-- [ ] **2.3** `SecurityScopedMediaFolderRepository` — the `actor` conforming to
+- [x] **2.3** `SecurityScopedMediaFolderRepository` — the `actor` conforming to
   `MediaFolderRepository` (design §1, §5.4's D8 trigger): entry derivation exactly per §3.3 —
   classify the entered URL (standardize; symlink/package/non-regular → treated as *file*, target
   never followed; non-package directories are *folders*); **folder** → itself, `startIndex` = 0
@@ -117,27 +117,27 @@ Deliverable (code): `InstantPlayer/Features/Feed/Data/MediaTypeClassifier.swift`
   file** → its parent, never in the collection, `startIndex` = 0 (S4); derived folder with no
   media → `nil` (S5); general starting rule (step 6): start at the entered file's index when that
   file is part of the collection, otherwise at the first item (covers e.g. entered-but-hidden).
-- [ ] **2.4** Scan per design §5.1: one shallow enumeration of the folder's **direct children**
+- [x] **2.4** Scan per design §5.1: one shallow enumeration of the folder's **direct children**
   with resource-value prefetch (S10 — never recursive); enumeration order preserved as returned,
   **no sorting** (S14); exactly one scan per entry action, the snapshot retained in the result
   (§6, §7.4).
-- [ ] **2.5** Fail-open per design §5.3: per-entry failures (unreadable resource values, broken
+- [x] **2.5** Fail-open per design §5.3: per-entry failures (unreadable resource values, broken
   symlinks, races with deletions) skip that entry and continue; only an unreadable/missing folder
   (enumeration itself fails) yields `nil` → welcome.
-- [ ] **2.6** Security-scoped lifecycle per design §8.1 (S8, S9): `prepareCollection` calls
+- [x] **2.6** Security-scoped lifecycle per design §8.1 (S8, S9): `prepareCollection` calls
   `startAccessingSecurityScopedResource()` on the entered URL and the derived folder; the actor
   tracks the active session's scoped URLs and stops the previous session when a new entry begins;
   process exit releases the rest (S9). **No `bookmarkData` call and no bookmark store anywhere**
   (S9 makes persistence a non-goal); no start/stop members leak onto the seam (§2).
-- [ ] **2.7** Untrusted input per design §8.3: only file URLs accepted; standardized before use;
+- [x] **2.7** Untrusted input per design §8.3: only file URLs accepted; standardized before use;
   folder derivation by URL operations, never string path concatenation (no `..` traversal
   surface); names never logged unredacted; folder contents treated as hostile (§2.2 exclusions are
   security-relevant as well as product-relevant).
-- [ ] **2.8** Performance per design §7: the actor is the explicit isolation boundary that moves
+- [x] **2.8** Performance per design §7: the actor is the explicit isolation boundary that moves
   enumeration and type resolution off the main thread (§7.2 — the project defaults to MainActor
   isolation); the `@MainActor` view model receives only the finished value. No synchronous file
   I/O in any view, view model, or `App` code (skill §1).
-- [ ] **2.9** Full gate; fix; tick; commit:
+- [x] **2.9** Full gate; fix; tick; commit:
   `feat(e2-s1): media classifier and security-scoped collection repository`.
 
 ## Task 3 — Presentation + App entry routing + project config · design §1, §3, §4, §8.2, §1.2
