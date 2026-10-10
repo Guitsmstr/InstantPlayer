@@ -2,6 +2,8 @@
 # Deterministic gate — must pass before every commit (wired via .githooks/pre-commit).
 # Destination: macOS (D1) — this is a Mac app; no simulator involved.
 # Usage: ./scripts/validate.sh [--staged] [--json <path>] [--verbose]
+#   --uitests   also run the UI-test target (InstantPlayerUITests) — off by
+#               default; implies the full run (docs-only shortcut not taken)
 #   --staged    skip build-heavy steps when only docs/harness files are staged
 #   --json      write a machine-readable evidence summary (per-step results) —
 #               record evidence from it, never from memory
@@ -15,14 +17,17 @@ cd "$root"
 project="InstantPlayer.xcodeproj"
 scheme="InstantPlayer"
 unit_test_target="InstantPlayerTests"
+ui_test_target="InstantPlayerUITests"
 derived_data="$root/.deriveddata"
 
 staged=0
 verbose=0
 json_out=""
+uitests=0
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --staged) staged=1 ;;
+    --uitests) uitests=1 ;;
     --verbose) verbose=1 ;;
     --json) json_out="${2:?--json needs a path}"; shift ;;
     *) printf 'unknown option: %s\n' "$1" >&2; exit 1 ;;
@@ -120,12 +125,15 @@ fi
 # --- Docs-only mode (for --staged) ---------------------------------------------
 
 docs_only=0
-if [ "$staged" -eq 1 ]; then
+if [ "$staged" -eq 1 ] && [ "$uitests" -eq 0 ]; then
   files=$(git diff --cached --name-only 2>/dev/null || true)
   if [ -n "$files" ] && ! grep -qvE '^(\.opencode/|\.githooks/|scripts/|docs/|AGENTS\.md|opencode\.json|\.gitignore|\.swift-version|.*\.md$)' <<< "$files"; then
     docs_only=1
     step "Staged set is docs/harness only — skipping build steps"
   fi
+fi
+if [ "$staged" -eq 1 ] && [ "$uitests" -eq 1 ]; then
+  printf '%s\n' "# --uitests set — full run required (UI tests need the built app); docs-only shortcut not applicable"
 fi
 
 # --- Project checks (auto-activate once the Xcode project exists) ---------------
@@ -156,6 +164,14 @@ if [ -d "$project" ] && [ "$docs_only" -eq 0 ]; then
     xcodebuild -project "$project" -scheme "$scheme" -configuration Debug \
       -destination 'platform=macOS' -derivedDataPath "$derived_data" \
       -only-testing:"$unit_test_target" test
+
+  if [ "$uitests" -eq 1 ]; then
+    step "UI tests ($ui_test_target)"
+    run_step "xcodebuild test -only-testing:$ui_test_target" \
+      xcodebuild -project "$project" -scheme "$scheme" -configuration Debug \
+        -destination 'platform=macOS' -derivedDataPath "$derived_data" \
+        -only-testing:"$ui_test_target" test
+  fi
 fi
 
 # --- Result ----------------------------------------------------------------------

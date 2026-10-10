@@ -1,0 +1,22 @@
+# InstantPlayer — house SwiftFormat configuration (E1-S2 · docs/decisions.md D17).
+# Single source of style truth for formatting (R1–R3). Rationale: design.md §2.
+#
+# Philosophy (spec decision 3): SwiftFormat defaults ARE the house style and are
+# inherited, not re-declared — 4-space indent (`indent`), semicolon terminators
+# removed (`semicolons`, default policy), trailing commas added (`trailingCommas`,
+# default "always"), LF linebreaks (`linebreaks`), and the project's Swift version
+# from `.swift-version` (5.0). This file only pins what defaults leave open: the
+# 120-character agreement with SwiftLint (R4–R5) and the wrap style.
+
+# Never format build artifacts or vendored/generated code (mirrors .swiftlint.yml).
+--exclude .deriveddata,.build,.swiftpm
+
+# Line-length agreement (R4–R5): wrap at 120 — the same limit SwiftLint enforces.
+--max-width 120
+
+# Wrap style: one argument/parameter per line after the opening paren, closing
+# paren balanced on its own line — what the codebase already does
+# (AppDependencies.init). Collection literals stay at the default "preserve"
+# until multiline collections exist.
+--wrap-arguments before-first
+--wrap-parameters before-first

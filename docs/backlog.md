@@ -15,7 +15,7 @@ Stories in `draft` need refinement: acceptance criteria, dependencies, and resol
 
 - [x] **E1-S1 · Product spec authoring** (fill `docs/spec.md` with real scope + EARS requirements) · `done`
   - The bootstrap skeleton has `[NEEDS CLARIFICATION]` placeholders for target user, video sources, and the minimum playback experience. Refine with the stakeholder; then the project has a real source of truth and feature epics can be broken out below.
-- [ ] **E1-S2 · Baseline hygiene** (SwiftLint/SwiftFormat configs tuned to the team style; CI-ready gate) · `draft`
+- [x] **E1-S2 · Baseline hygiene** (SwiftLint/SwiftFormat configs tuned to the team style; CI-ready gate) · `done`
   - The gate currently runs both tools with defaults. Decide the house rules (`.swiftlint.yml`, `.swiftformat`) in a small story; record as an ADR. Optionally run UI tests in the validator/converge phase.
 - [x] **E1-S3 · Architecture foundation** (Clean Architecture + MVVM + Swift Concurrency skeleton; runs before E1-S1's parked tasks resume and before any E2 feature work) · `done`
   - Stakeholder decisions: Clean Architecture layering (`Domain/Data/Presentation` per feature); MVVM presentation (`@Observable` view models on `@MainActor`); Swift Concurrency (`async/await`, actors for mutable shared state); folder groups in the single app target (features-as-modules, local SPM extraction later); `Features/{Feed,MediaList}`; `Core/{Protocols,Models,Extensions,Utilities}` — **no networking in v1** (deferred, local-files product); `App/` composition root; Domain stays Swift-pure (AVPlayer wrapped behind a protocol in Data).
