@@ -26,7 +26,7 @@ Stories in `draft` need refinement: acceptance criteria, dependencies, and resol
 
 All E2–E5 feature stories implement on the architecture per [docs/architecture.md](architecture.md) (D7–D10) — Clean layering per feature (`Domain`/`Data`/`Presentation`).
 
-- [ ] **E2-S1 · Entry & media collection** (open a folder via Finder or drag & drop; native formats, direct children; welcome state) · `draft`
+- [ ] **E2-S1 · Entry & media collection** (open a folder via Finder or drag & drop; native formats, direct children; welcome state) · `in progress`
   - Requirements: R1–R6, R34–R36 (entry, formats & filtering)
 - [ ] **E2-S2 · Vertical feed & window** (one combined feed; current item fills the viewport; scroll/arrow paging; single window, new open replaces in place) · `draft`
   - Requirements: R7–R10, R37–R40 (feed navigation, window)
