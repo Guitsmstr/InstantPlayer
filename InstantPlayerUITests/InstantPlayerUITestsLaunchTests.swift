@@ -23,8 +23,13 @@ final class InstantPlayerUITestsLaunchTests: XCTestCase {
 
         // E2-S1 (design §9.4; R14 of E1-S2): a plain launch must show the
         // drop-target welcome state — the first meaningful launch assertion.
+        // The identifier is queried trait-agnostically: macOS maps the
+        // SwiftUI accessibility container to a platform-dependent element
+        // type (group/other), so the type is not part of the contract —
+        // the identifier is.
         XCTAssertTrue(
-            app.otherElements["welcome-drop-target"].waitForExistence(timeout: 5),
+            app.descendants(matching: .any)["welcome-drop-target"]
+                .waitForExistence(timeout: 5),
             "a plain launch must present the drop-target welcome state (S5)"
         )
 
