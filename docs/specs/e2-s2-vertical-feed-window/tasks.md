@@ -150,28 +150,28 @@ existing tests updated to compile in the same commit if signatures move).
 Deliverable (code): `InstantPlayer/Features/Feed/Presentation/FeedView.swift` (folderOpen branch
 rewritten), `InstantPlayer/Features/Feed/Presentation/FeedItemView.swift` (new).
 
-- [ ] **4.1** Load `swift-security` + `swift-performance` before editing (SwiftUI views + image
+- [x] **4.1** Load `swift-security` + `swift-performance` before editing (SwiftUI views + image
   display — skill §2 applies directly).
-- [ ] **4.2** Paging surface per design §5.1: `ScrollView(.vertical)` + `LazyVStack` (lazy — a
+- [x] **4.2** Paging surface per design §5.1: `ScrollView(.vertical)` + `LazyVStack` (lazy — a 
   1,000-item folder instantiates only near-viewport cells) inside `.scrollTargetLayout()`; each
   page `.containerRelativeFrame([.horizontal, .vertical])` (the page **is** the viewport — which is
   the whole resize/fullscreen story, S2/S10/S11); `.scrollTargetBehavior(.paging)` (magnetic snap —
   resting state always one full item, S4); `scrollPosition(id:)` bound two-way to the view model
   (task 3). The interim placeholder is replaced outright (S1); items render in `collection.items`
   order (S1 — never sorted).
-- [ ] **4.3** Input wiring per design §5.2–§5.3: `onScrollPhaseChange` reports gesture onset/settle
+- [x] **4.3** Input wiring per design §5.2–§5.3: `onScrollPhaseChange` reports gesture onset/settle
   to the view model's guard (S4); `.onKeyPress(.downArrow/.upArrow)` calls `pageForward()` /
   `pageBackward()` (S5). Resize and native fullscreen need **no code** — do not add any (S10, S11).
-- [ ] **4.4** `FeedItemView` per design §2, §7: one page cell — aspect-fit poster built from
+- [x] **4.4** `FeedItemView` per design §2, §7: one page cell — aspect-fit poster built from
   `MediaPreview.imageData` + intrinsic size, centered on the window background (letterboxing, S2;
   video items show the static first-frame poster, S3 — no motion, no transport); the neutral
   unavailable state (one system symbol + "Unavailable" — **no file name**, no error codes, S12–S14);
   a neutral `.loading` presentation. The `Data` → platform image wrap is display-only — done once
   per state change, never per frame, never decoded in `body` (design §1.1, §8(2)).
-- [ ] **4.5** Clean viewport (S14): `.scrollIndicators(.hidden)`; **no** file-name overlay,
+- [x] **4.5** Clean viewport (S14): `.scrollIndicators(.hidden)`; **no** file-name overlay,
   position counter, scrollbar, or any other chrome anywhere in the feed. The welcome branch is
   untouched (S16) — keep its accessibility identifier so the launch UI tests stay green.
-- [ ] **4.6** Full gate. Fix, tick; commit:
+- [x] **4.6** Full gate. Fix, tick; commit:
   `feat(e2-s2): task 4 — vertical feed views`.
 
 ## Task 5 — App: composition + close-quits lifecycle · design §1, §6.1
