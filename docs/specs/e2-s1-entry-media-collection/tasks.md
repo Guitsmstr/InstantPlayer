@@ -182,7 +182,7 @@ the §1.2 wiring.
   `MediaFolderRepository` seam; `makeFeedViewModel()` passes both seams; `init` stays
   **allocation-only** (R13 of E1-S3, §7.3) — no I/O, nothing scheduled, no scan at launch (the
   only launch-path additions are two allocations).
-- [ ] **3.8** `InstantPlayer/Config/Info.plist` per design §1.2 + §3.2: the partial plist merged
+- [x] **3.8** `InstantPlayer/Config/Info.plist` per design §1.2 + §3.2: the partial plist merged
   into the generated one — `INFOPLIST_FILE = InstantPlayer/Config/Info.plist` with
   `GENERATE_INFOPLIST_FILE = YES` kept (existing `INFOPLIST_KEY_*` build settings stay).
   `CFBundleDocumentTypes` exactly as the §3.2 table: **A** `public.movie`, `public.image` —
@@ -190,7 +190,7 @@ the §1.2 wiring.
   Viewer / **Alternate** (S4's derivation runs for unsupported files; Alternate never hijacks a
   default handler). The §3.2 exact-type fallback is likewise not built speculatively — a
   functional-review finding (Open With not listing InstantPlayer) is a coordinator escalation.
-- [ ] **3.9** `InstantPlayer/Config/InstantPlayer.entitlements` per design §8.2 — **exactly four
+- [x] **3.9** `InstantPlayer/Config/InstantPlayer.entitlements` per design §8.2 — **exactly four
   read-only keys**, wired via `CODE_SIGN_ENTITLEMENTS`:
   `com.apple.security.app-sandbox`,
   `com.apple.security.files.user-selected.read-only`,
@@ -202,11 +202,11 @@ the §1.2 wiring.
   would revisit D19 (§8.2). **Any deviation from this four-key read-only posture — adding,
   removing, or widening any entitlement (no write, no network, no full-disk) — is a coordinator
   escalation, never an implementer decision.**
-- [ ] **3.10** Verify entitlement reality per design §1.2 / §9.4: `codesign -d --entitlements` on
+- [x] **3.10** Verify entitlement reality per design §1.2 / §9.4: `codesign -d --entitlements` on
   the built app shows the four keys merged with the file. If the build-setting keys do not merge,
   move the two existing keys into the entitlements file too (the §1.2 sanctioned fallback).
   Record the output for task 7's evidence.
-- [ ] **3.11** Full gate (the template UI tests assert no UI text — the placeholder → welcome swap
+- [x] **3.11** Full gate (the template UI tests assert no UI text — the placeholder → welcome swap
   breaks nothing, §9.4). Fix, tick; commit:
   `feat(e2-s1): welcome state, entry routing, and project config`.
 
@@ -265,14 +265,14 @@ Deliverable (code): `InstantPlayerTests/` — fixture helper, seam tests, `FeedV
 
 Deliverable (docs): `docs/decisions.md` — append D18–D20.
 
-- [ ] **5.1** Append three ADRs continuing the numbering (the log currently ends at D17), house
+- [x] **5.1** Append three ADRs continuing the numbering (the log currently ends at D17), house
   heading `## D# — title · date · status` (date = commit date, `YYYY-MM-DD`), each with context,
   decision, alternatives, consequences. Titles and one-line decisions exactly per design §10:
   **D18 — Entry convergence: one entry action, one open session, one window** (→ S1–S7) ·
   **D19 — Per-entry security-scoped access without bookmark persistence; entitlement posture**
   (→ S8, S9, product R6) · **D20 — Media classification by system UTType conformance with junk
   exclusions** (→ S11, S12).
-- [ ] **5.2** Pull each entry's alternatives from the matching design §11 rows —
+- [x] **5.2** Pull each entry's alternatives from the matching design §11 rows —
   D18: first-wins and merged multi-item resolution, `NSApplicationDelegateAdaptor` as the primary
   route, `.dropDestination(for: URL.self)`, AppKit `NSDraggingDestination`, entry routing inside
   the Feed feature, `WindowGroup` + app-scoped shared state; D19: `user-selected.read-only` alone,
@@ -280,11 +280,11 @@ Deliverable (docs): `docs/decisions.md` — append D18–D20.
   bookmarks/recents, stopping scoped access at the end of `prepareCollection`; D20: hardcoded
   extension lists, content sniffing, recursive scans, including hidden files, resolving symlinks,
   sorting now.
-- [ ] **5.3** Status `accepted`. D19 carries its consequences honestly (design §8.2): the posture
+- [x] **5.3** Status `accepted`. D19 carries its consequences honestly (design §8.2): the posture
   targets direct/notarized distribution and MAS would revisit it; the kernel grant is broader
   than one user action (S8 is enforced architecturally — one seam, fixed read set, unit tests);
   file-entry derivation on network-mounted shares is not covered.
-- [ ] **5.4** Stage, then gate `./scripts/validate.sh --staged` (docs-only mode: ADR format +
+- [x] **5.4** Stage, then gate `./scripts/validate.sh --staged` (docs-only mode: ADR format +
   internal links); fix; tick; commit:
   `docs(e2-s1): ADRs D18–D20 — entry, access, and classification decisions`.
 
