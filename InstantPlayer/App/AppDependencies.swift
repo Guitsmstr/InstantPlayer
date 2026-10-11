@@ -37,12 +37,13 @@ final class AppDependencies {
     }
 
     /// Feature factory (R9): view models are constructed only here, with
-    /// both seams (E2-S1 design §1). Called on demand — by `RootView`
-    /// (design §7.3), never at app init.
+    /// the bound seams (E2-S1 design §1; E2-S2 adds the preview seam).
+    /// Called on demand — by `RootView` (design §7.3), never at app init.
     func makeFeedViewModel() -> FeedViewModel {
         FeedViewModel(
             mediaPlayerService: mediaPlayerService,
-            mediaFolderRepository: mediaFolderRepository
+            mediaFolderRepository: mediaFolderRepository,
+            mediaPreviewService: StubMediaPreviewService()
         )
     }
 }

@@ -119,29 +119,29 @@ Deliverable (code): `InstantPlayer/Features/Feed/Data/AVMediaPreviewService.swif
 Deliverable (code): `InstantPlayer/Features/Feed/Presentation/FeedViewModel.swift` (extended;
 existing tests updated to compile in the same commit if signatures move).
 
-- [ ] **3.1** Load `swift-security` + `swift-performance` before editing.
-- [ ] **3.2** Paging state per design §5.1–§5.2: the current item (index/id over
+- [x] **3.1** Load `swift-security` + `swift-performance` before editing.
+- [x] **3.2** Paging state per design §5.1–§5.2: the current item (index/id over
   `collection.items` — the snapshot order, S1) held in the view model (D8 — the only presentation-
   state holder); the `scrollPosition` binding surface is a projection calling view-model methods,
   never view state. `pageForward()` / `pageBackward()` move exactly one item (S5), clamped at both
   ends with **no wrap** (S6).
-- [ ] **3.3** Gesture guard per design §5.2 as **pure, unit-testable logic**: record `gestureStart`
+- [x] **3.3** Gesture guard per design §5.2 as **pure, unit-testable logic**: record `gestureStart`
   at scroll onset; at settle compute the net direction from the index delta and require the final
   index to be exactly `gestureStart ± 1` (direction sign), clamped at the ends; correct any other
   landing (multi-page momentum, snap-back); zero-net gesture at an end does not page (S4, S6).
   Expose the correction as a pure function the tests can drive without scroll hardware.
-- [ ] **3.4** Display states per design §7: per-item states (`.loading` / `.preview(MediaPreview)` /
+- [x] **3.4** Display states per design §7: per-item states (`.loading` / `.preview(MediaPreview)` /
   `.unavailable`) keyed by item id; `preview(for:)` success → `.preview` (S3), `nil` → `.unavailable`
   **sticky, no auto-retry** (S12, S13). The current item loads first (§5.5).
-- [ ] **3.5** Prefetch window per design §5.5 (RNF-02): request previews only for **current ± 1**;
+- [x] **3.5** Prefetch window per design §5.5 (RNF-02): request previews only for **current ± 1**;
   slide the window on page changes — new edge items load, dropped-edge in-flight work is cancelled
   (≤ 2 concurrent extraction calls across the window). Nothing beyond the window is ever requested.
-- [ ] **3.6** Replace-in-place per design §6.2 (S9): on every transition to `folderOpen`, set the
+- [x] **3.6** Replace-in-place per design §6.2 (S9): on every transition to `folderOpen`, set the
   current item to `collection.startIndex` (the inherited E2-S1 contract) and call
   `discardPreviews()`; a generation counter (the E2-S1 last-wins pattern) drops late results for
   the superseded collection — a stale preview never paints. The welcome transition discards display
   state too (S16 — no paging state in welcome).
-- [ ] **3.7** Full gate (update any existing `FeedViewModelTests` compile breaks in this same
+- [x] **3.7** Full gate (update any existing `FeedViewModelTests` compile breaks in this same
   commit — minimal fixes; the full suites are task 6). Fix, tick; commit:
   `feat(e2-s2): task 3 — paging and display state machine`.
 

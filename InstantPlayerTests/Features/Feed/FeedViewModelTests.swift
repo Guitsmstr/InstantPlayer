@@ -38,7 +38,8 @@ struct FeedViewModelTests {
     @Test func startsInWelcome() {
         let viewModel = FeedViewModel(
             mediaPlayerService: StubMediaPlayerService(),
-            mediaFolderRepository: ScriptedMediaFolderRepository(results: [])
+            mediaFolderRepository: ScriptedMediaFolderRepository(results: []),
+            mediaPreviewService: StubMediaPreviewService()
         )
         guard case .welcome = viewModel.state else {
             Issue.record("S5: the view model must start in .welcome")
@@ -53,7 +54,8 @@ struct FeedViewModelTests {
         let seam = ScriptedMediaFolderRepository(results: [collection])
         let viewModel = FeedViewModel(
             mediaPlayerService: StubMediaPlayerService(),
-            mediaFolderRepository: seam
+            mediaFolderRepository: seam,
+            mediaPreviewService: StubMediaPreviewService()
         )
 
         await viewModel.handle(entryAction: EntryAction(enteredURL: folder))
@@ -73,7 +75,8 @@ struct FeedViewModelTests {
         let seam = ScriptedMediaFolderRepository(results: [media, nil])
         let viewModel = FeedViewModel(
             mediaPlayerService: StubMediaPlayerService(),
-            mediaFolderRepository: seam
+            mediaFolderRepository: seam,
+            mediaPreviewService: StubMediaPreviewService()
         )
 
         await viewModel.handle(entryAction: EntryAction(enteredURL: folderA))
@@ -94,7 +97,8 @@ struct FeedViewModelTests {
         let seam = ScriptedMediaFolderRepository(results: [nil])
         let viewModel = FeedViewModel(
             mediaPlayerService: StubMediaPlayerService(),
-            mediaFolderRepository: seam
+            mediaFolderRepository: seam,
+            mediaPreviewService: StubMediaPreviewService()
         )
 
         await viewModel.handle(entryAction: EntryAction(enteredURL: Self.uniqueFolder("x")))
@@ -115,7 +119,8 @@ struct FeedViewModelTests {
         let seam = ScriptedMediaFolderRepository(echoingEnteredURL: true, holdingFirstCall: true)
         let viewModel = FeedViewModel(
             mediaPlayerService: StubMediaPlayerService(),
-            mediaFolderRepository: seam
+            mediaFolderRepository: seam,
+            mediaPreviewService: StubMediaPreviewService()
         )
 
         // Action A begins and suspends inside the seam (gate armed).
