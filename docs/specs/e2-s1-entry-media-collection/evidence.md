@@ -72,7 +72,7 @@ Test case 'AppDependenciesTests/filesystemSeamBindingResolvesToSecurityScopedRep
 Test case 'MediaCollectionPerformanceTests.testEntryBudgetForTypicalAndThousandEntryFolders()' passed on 'My Mac - InstantPlayer (56678)' (0.560 seconds)
 ```
 
-25/25 green: 13 seam cases, 5 view-model cases, 5 composition-root wiring cases,
+25/25 green: 14 seam cases, 5 view-model cases, 5 composition-root wiring cases,
 1 performance test, plus the fixture helper. Notably `SecurityScopedMediaFolderRepositoryTests`
 runs through the `MediaFolderRepository` seam only — no UI, no UI automation (S15).
 

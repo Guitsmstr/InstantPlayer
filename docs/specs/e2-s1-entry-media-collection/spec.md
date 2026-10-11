@@ -133,10 +133,10 @@ Product-requirement coverage map — each product requirement assigned to this s
 | R35 (native formats) | S11 — type-conformance rule: conforming video/image accepted, non-conforming rejected regardless of file name | unit tests (S15) |
 | R36 (non-media invisible) | S12 — non-media never enters the collection, hence no view or function | unit tests (S15) + functional review |
 
-- [ ] Every product requirement assigned to this story maps to at least one story requirement; no other product requirement is claimed here.
-- [ ] The entry contracts (S1–S4) and collection rules (S10–S14) are covered by unit tests through the `MediaFolderRepository` seam, with no UI and no running app (S15).
-- [ ] Snapshot semantics are explicit in tests and review: no folder watching exists after open (S13).
-- [ ] Gate evidence is recorded from tooling per conventions: `./scripts/validate.sh --json <tmp>/gate.json`, quoted verbatim in the story's evidence; the converge run includes `--uitests` (UI-test mandate, R14 of E1-S2 — decision in Story context).
+- [x] Every product requirement assigned to this story maps to at least one story requirement; no other product requirement is claimed here.
+- [x] The entry contracts (S1–S4) and collection rules (S10–S14) are covered by unit tests through the `MediaFolderRepository` seam, with no UI and no running app (S15).
+- [x] Snapshot semantics are explicit in tests and review: no folder watching exists after open (S13).
+- [x] Gate evidence is recorded from tooling per conventions: `./scripts/validate.sh --json <tmp>/gate.json`, quoted verbatim in the story's evidence; the converge run includes `--uitests` (UI-test mandate, R14 of E1-S2 — decision in Story context).
 - [ ] Stakeholder functional review in the running app (`./scripts/app.sh run`) covers: Open With on a file, drop of a file, drop of a folder, an unsupported file, and both welcome-state transitions (this is a UI story — functional review is part of the done gate).
 - [ ] This spec passes the stakeholder approval gate.
 

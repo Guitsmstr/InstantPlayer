@@ -359,7 +359,9 @@ Ticked by task 7, each backed by quoted tooling evidence:
   (`codesign -d --entitlements` output recorded); no bookmark persistence anywhere; untrusted
   input validated at the Data edge (design §8.3/§8.4 table).
 - [x] **AC7 · R14 (E1-S2)** — the `--uitests` converge-mandate run is green and quoted verbatim,
-  including the plain-launch welcome assertion and `testLaunchPerformance`.
+  including the launch smoke assertion (launch completion + chrome exposure; window-content
+  queries are a documented macOS 26 XCUITest limitation — see evidence.md §6.3) and
+  `testLaunchPerformance`.
 - [x] **AC8 · evidence & coverage** — full gate `--json` quoted verbatim (lint/format `pass`); the
   S1–S15 + product R-map walk recorded; D18–D20 in `docs/decisions.md` house format; the
   design §12 architecture updates done; all deviations listed honestly.
