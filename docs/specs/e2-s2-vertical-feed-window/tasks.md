@@ -60,8 +60,8 @@ Deliverable (code): `InstantPlayer/Features/Feed/Domain/MediaPreviewService.swif
 `InstantPlayer/Features/Feed/Domain/MediaPreview.swift`,
 `InstantPlayer/Features/Feed/Data/StubMediaPreviewService.swift`.
 
-- [ ] **1.1** Load `swift-security` + `swift-performance` before editing.
-- [ ] **1.2** `MediaPreviewService.swift` per design §3 — the feature-owned seam (seam-placement
+- [x] **1.1** Load `swift-security` + `swift-performance` before editing.
+- [x] **1.2** `MediaPreviewService.swift` per design §3 — the feature-owned seam (seam-placement
   rule: one consumer, Feed Presentation; architecture §4). Members exactly the frozen contract:
   `preview(for item: MediaItem) async -> MediaPreview?` (the unified failure answer: `nil` covers
   vanished/unreadable (S12) and undecodable/mislabeled (S13); idempotent per item; concurrent
@@ -69,13 +69,13 @@ Deliverable (code): `InstantPlayer/Features/Feed/Domain/MediaPreviewService.swif
   `discardPreviews() async` (drops cached previews and in-flight work — called on replace-in-place
   (S9) and on welcome), `wiringProbe() async -> String` (house pattern). `Sendable`, async/await
   only, Domain stays Foundation-only (R10 — the `Data`-value decision, design §1.1).
-- [ ] **1.3** `MediaPreview.swift` per design §3: `imageData: Data` (display-ready encoded image
+- [x] **1.3** `MediaPreview.swift` per design §3: `imageData: Data` (display-ready encoded image
   bytes) + `pixelWidth` / `pixelHeight: Int` (intrinsic size — the sole input to aspect-fit
   letterboxing, S2). Foundation-only, `Sendable`.
-- [ ] **1.4** `StubMediaPreviewService.swift` **in this same commit** (a protocol requirement
+- [x] **1.4** `StubMediaPreviewService.swift` **in this same commit** (a protocol requirement
   without a conformer fails the build): canned `MediaPreview` from constants, zero-I/O — no
   FileManager, no AVFoundation, no ImageIO.
-- [ ] **1.5** Full gate `./scripts/validate.sh` — the new types must compile (that is what proves
+- [x] **1.5** Full gate `./scripts/validate.sh` — the new types must compile (that is what proves
   target membership). Fix, tick this task's boxes, commit:
   `feat(e2-s2): task 1 — preview seam and value types`.
 
