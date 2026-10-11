@@ -358,7 +358,7 @@ Ticked by task 7, each backed by quoted tooling evidence:
 - [x] **AC6 · R6, RNF-04 / S8–S9** — entitlements exactly the design §8.2 four read-only keys
   (`codesign -d --entitlements` output recorded); no bookmark persistence anywhere; untrusted
   input validated at the Data edge (design §8.3/§8.4 table).
-- [ ] **AC7 · R14 (E1-S2)** — the `--uitests` converge-mandate run is green and quoted verbatim,
+- [x] **AC7 · R14 (E1-S2)** — the `--uitests` converge-mandate run is green and quoted verbatim,
   including the plain-launch welcome assertion and `testLaunchPerformance`.
 - [x] **AC8 · evidence & coverage** — full gate `--json` quoted verbatim (lint/format `pass`); the
   S1–S15 + product R-map walk recorded; D18–D20 in `docs/decisions.md` house format; the
