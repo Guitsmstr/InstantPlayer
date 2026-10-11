@@ -292,7 +292,7 @@ Deliverable (docs): `docs/decisions.md` — append D18–D20.
 
 Deliverable (docs): `docs/architecture.md` — the four required same-story updates.
 
-- [ ] **6.1** Update `docs/architecture.md` exactly per design §12: (1) **§3 source tree** gains
+- [x] **6.1** Update `docs/architecture.md` exactly per design §12: (1) **§3 source tree** gains
   this story's files (the design §1 inventory: the three `Core/Models` values, the extended seam,
   `MediaTypeClassifier` + `SecurityScopedMediaFolderRepository`, `FeedState` + `WelcomeView` and
   the updated views, the App scene/entry wiring, `Config/Info.plist`,
@@ -302,8 +302,8 @@ Deliverable (docs): `docs/architecture.md` — the four required same-story upda
   opaque value in Core/Domain contracts; (3) **§8** records this story as the D8 actor trigger
   (mutable session state shared across isolation domains) and names the shipped actor;
   (4) **§6 walkthrough step 6** becomes "host in `RootView` (which owns entry modifiers)".
-- [ ] **6.2** Internal links must resolve (the gate checks them) — link only to existing files.
-- [ ] **6.3** Stage, then gate `./scripts/validate.sh --staged`; fix; tick; commit:
+- [x] **6.2** Internal links must resolve (the gate checks them) — link only to existing files.
+- [x] **6.3** Stage, then gate `./scripts/validate.sh --staged`; fix; tick; commit:
   `docs(e2-s1): architecture reference updates for entry & collection`.
 
 ## Task 7 — Verification & evidence · spec acceptance criteria, design §7, §9
