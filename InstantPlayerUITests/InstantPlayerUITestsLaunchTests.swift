@@ -16,13 +16,29 @@ final class InstantPlayerUITestsLaunchTests: XCTestCase {
         continueAfterFailure = false
     }
 
+    /// The launch smoke test (design §9.4 — R14 of E1-S2): a plain launch
+    /// must complete, reach the running state, and present the app's UI
+    /// chrome. SCOPE NOTE (AC7, honest caveat): on this toolchain
+    /// (macOS 26 / Xcode 26) XCUITest cannot observe the app's window
+    /// CONTENT — the external AX tree exposes only the menu bar and
+    /// TouchBar (`windows.count == 0` in every role census; full evidence:
+    /// docs/specs/e2-s1-entry-media-collection/evidence.md §6.2/§6.3).
+    /// The drop-target welcome CONTENT is therefore covered where it is
+    /// observable: the S5–S7 state-machine unit tests (seam level) and the
+    /// stakeholder functional review in the running app — never claimed
+    /// here.
     @MainActor
     func testLaunch() {
         let app = XCUIApplication()
         app.launch()
 
-        // Insert steps here to perform after app launch but before taking a screenshot,
-        // such as logging into a test account or navigating somewhere in the app
+        // The launch completed (`launch()` returns only after the app has
+        // launched and idled) and the app's own UI chrome is exposed — the
+        // observable app-level AX surface on this toolchain.
+        XCTAssertTrue(
+            app.menuBars.firstMatch.waitForExistence(timeout: 10),
+            "a plain launch must present the app's menu bar"
+        )
 
         let attachment = XCTAttachment(screenshot: app.screenshot())
         attachment.name = "Launch Screen"

@@ -44,13 +44,20 @@ Shipped tree (app target `InstantPlayer/`, test target mirrors it):
 InstantPlayer/
 ├── Assets.xcassets                                  template asset catalog (unchanged)
 ├── App/                                             composition root (D10)
-│   ├── InstantPlayerApp.swift                       @main entry + window/scene wiring
+│   ├── InstantPlayerApp.swift                       @main entry + `Window` scene wiring
 │   ├── AppDependencies.swift                        the binding container
-│   └── RootView.swift                               App-owned placeholder root view
+│   └── RootView.swift                               App-owned root view (owns the entry modifiers)
+├── Config/                                          project config (partial plist + entitlements)
+│   ├── Info.plist                                   `CFBundleDocumentTypes` (partial plist, merged)
+│   └── InstantPlayer.entitlements                   the four read-only keys (D19)
 ├── Core/                                            shared code (D9; R7 trigger below)
 │   ├── Protocols/
-│   │   └── MediaFolderRepository.swift              the filesystem seam (R11, R12)
-│   ├── Models/Models.md                             reserved — placement rules only
+│   │   └── MediaFolderRepository.swift              the filesystem seam (R11, R12) — entry + collection behind it
+│   ├── Models/
+│   │   ├── Models.md                                placement rules only
+│   │   ├── EntryAction.swift                        the routed entry value (S1–S4)
+│   │   ├── MediaItem.swift                          collected item value (S11, S13)
+│   │   └── MediaCollection.swift                    the prepared snapshot (S13, S14)
 │   ├── Extensions/Extensions.md                     reserved — placement rules only
 │   └── Utilities/Utilities.md                       reserved — placement rules only
 └── Features/
@@ -59,10 +66,14 @@ InstantPlayer/
         │   └── MediaPlayerService.swift             player seam (feature-owned protocol)
         ├── Data/
         │   ├── StubMediaPlayerService.swift         player-seam stub conformance
-        │   └── StubMediaFolderRepository.swift      folder-seam stub conformance
+        │   ├── StubMediaFolderRepository.swift      folder-seam stub conformance
+        │   ├── MediaTypeClassifier.swift            UTType media rule + junk exclusions (S11, S12)
+        │   └── SecurityScopedMediaFolderRepository.swift real folder-seam conformance — the D8 actor (scoped session)
         └── Presentation/
+            ├── FeedState.swift                      welcome ↔ folderOpen(MediaCollection) (S5–S7)
             ├── FeedViewModel.swift                  @MainActor @Observable view model
-            └── FeedView.swift                       dumb binder view
+            ├── FeedView.swift                       dumb binder view
+            └── WelcomeView.swift                    drop-target welcome surface (S5)
 ```
 
 - **Reserved:** `Features/MediaList/` does not exist yet — the first MediaList story
@@ -88,8 +99,11 @@ InstantPlayer/
   fix-ups, no signature change.
 - **How reviewers check it:** (1) no `import` of a Data type appears under any
   `Presentation/` file; (2) Domain files compile with Foundation-only imports; (3)
-  every framework type (AVKit, FileManager, URL) appears only inside a Data
-  conformance behind a seam; (4) every new Core file cites its ≥2 consumers in the
+  filesystem and media framework *operations* (`FileManager`, security-scoped calls,
+  `UTType` resolution, AVKit) appear only inside a Data conformance behind a seam,
+  while Foundation `URL` may travel as an opaque value in Core/Domain contracts (the
+  E2-S1 refinement — URLs are values; operations are the boundary); (4)
+  every new Core file cites its ≥2 consumers in the
   story's design; (5) the story's wiring tests still pass the composition-root
   end-to-end probe.
 
@@ -134,7 +148,8 @@ The fixed walkthrough for every new feature (D10; R9, R13):
 5. **Factory on `AppDependencies`** — add `make<Feature>ViewModel()` (binding rules:
    the container is the only non-test type referencing Data concretions or constructing
    view models; the factory is called on demand — **never at launch**).
-6. **Host in `RootView`** — present the feature view from the App-owned root.
+6. **Host in `RootView` (which owns entry modifiers)** — present the feature view
+   from the App-owned root.
 
 Wiring tests mirror this sequence in `InstantPlayerTests/` (Swift Testing,
 `@MainActor` suites, injected conformances through the same initializer).
@@ -168,8 +183,12 @@ Both pillars are non-negotiable (D5); each story touching them loads its skill
 - **Seam promotion:** when a second consumer appears for a feature-owned seam (e.g.
   `MediaPlayerService` if MediaList ever previews media), the seam moves to
   `Core/Protocols` — a mechanical move, then recorded here.
-- **Actor introduction:** deferred until shared mutable state exists (D8); the
-  introducing story designs it and documents the isolation boundary here.
+- **Actor introduction:** the D8 trigger fired in E2-S1 — the security-scoped open
+  session is mutable state shared across isolation domains, and the shipped actor
+  for it is `SecurityScopedMediaFolderRepository` (Feed Data): entry derivation,
+  enumeration, type resolution, and the scoped session live on its executor, while
+  the `@MainActor` view model receives only the finished value. That isolation
+  boundary is the documented D8 case; later shared state follows the same pattern.
 - **E1-S1 ADR renumbering:** parked story E1-S1 renumbers its planned ADR batch because
   this story took D7–D10 — expected and stakeholder-acknowledged (backlog sequencing
   note); no action in this document beyond this record.
