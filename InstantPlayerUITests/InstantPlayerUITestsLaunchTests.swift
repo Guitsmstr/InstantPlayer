@@ -21,8 +21,12 @@ final class InstantPlayerUITestsLaunchTests: XCTestCase {
         let app = XCUIApplication()
         app.launch()
 
-        // Insert steps here to perform after app launch but before taking a screenshot,
-        // such as logging into a test account or navigating somewhere in the app
+        // E2-S1 (design §9.4; R14 of E1-S2): a plain launch must show the
+        // drop-target welcome state — the first meaningful launch assertion.
+        XCTAssertTrue(
+            app.otherElements["welcome-drop-target"].waitForExistence(timeout: 5),
+            "a plain launch must present the drop-target welcome state (S5)"
+        )
 
         let attachment = XCTAttachment(screenshot: app.screenshot())
         attachment.name = "Launch Screen"

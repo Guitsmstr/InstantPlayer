@@ -215,50 +215,50 @@ the §1.2 wiring.
 Deliverable (code): `InstantPlayerTests/` — fixture helper, seam tests, `FeedViewModelTests`
 (extended), §7.1 performance test; `InstantPlayerUITests/` — one launch assertion added.
 
-- [ ] **4.1** Load `swift-security` + `swift-performance` before editing.
-- [ ] **4.2** Frameworks per house pattern: Swift Testing (`import Testing`, `@testable import
+- [x] **4.1** Load `swift-security` + `swift-performance` before editing.
+- [x] **4.2** Frameworks per house pattern: Swift Testing (`import Testing`, `@testable import
   InstantPlayer`, `@Test` + `#expect`) for the suites; the design §7.1 performance test uses
   XCTest `measure` exactly as the design names it — the one deliberate exception.
-- [ ] **4.3** Fixtures per design §9.1: a helper builds throwaway folders under
+- [x] **4.3** Fixtures per design §9.1: a helper builds throwaway folders under
   `FileManager.default.temporaryDirectory/<UUID>/` and removes them in teardown. Deterministic
   byte payloads typed by extension (the pinned honest declared-type contract of §5.2): 1×1 PNG
   constant for `.png`, minimal JPEG constant for `.jpg`, minimal ISO-BMFF `ftyp` stub for
   `.mp4`/`.mov` (bytes need not be playable).
-- [ ] **4.4** Entry-derivation matrix per design §9.3 — through the `MediaFolderRepository` seam
+- [x] **4.4** Entry-derivation matrix per design §9.3 — through the `MediaFolderRepository` seam
   only (S15: no UI, no running app): S1/S2 media-file entry (`a.jpg`, `b.mov`, `clip.mp4`; entry
   `clip.mp4` → `folderURL` = parent, `startIndex` = its index); S3 folder entry (→ itself,
   `startIndex` = 0); S4 unsupported entry (`notes.txt` → parent, `startIndex` = 0, `notes.txt`
   absent); S5 empty folder **and** only-`notes.txt` folder → `nil` both; the §3.3 step-6 edge case
   (entered media file excluded, e.g. hidden → `startIndex` = 0).
-- [ ] **4.5** Collection rules per design §9.1: S10 — media inside a subfolder is absent;
+- [x] **4.5** Collection rules per design §9.1: S10 — media inside a subfolder is absent;
   **S11 anti-spoofing — misleading-extension cases are rejected regardless of file name:
   `clip.mp4.txt` (declared plain text), a folder named `folder.mp4`, a fifo named `pipe.mp4`,
   hidden `._clip.mp4` and `.hidden.mp4`, while `a.jpg`/`b.mov` are accepted** (the
   conformance rule, never an extension list); S12 — every excluded entry appears in no item of
   the collection (boundary enforcement); S14 — `items` order equals the scan's enumeration order,
   no alphabetical sorting.
-- [ ] **4.6** **S13 snapshot/staleness per design §9.1:** collect, then add/remove files on disk →
+- [x] **4.6** **S13 snapshot/staleness per design §9.1:** collect, then add/remove files on disk →
   the returned collection is unchanged (no re-scan on read); a fresh entry action re-collects; a
   call-counting repository spy verifies **one repository call per entry action** (also §7.4's
   no-redundant-work assertion). Fail-open and unreadable-folder cases: a broken symlink plus one
   entry whose resource values fail → the folder's other media is still collected; a
   nonexistent/derelict path → `nil` (welcome).
-- [ ] **4.7** `FeedViewModelTests` per design §9.2 with an injected repository double: starts
+- [x] **4.7** `FeedViewModelTests` per design §9.2 with an injected repository double: starts
   `welcome`; media entry → `folderOpen` with correct `startIndex`; no-media entry while open →
   `welcome` with no folder (S7); no-media entry while welcome → stays `welcome` (S5); rapid
   successive actions → last wins and one repository call per action.
-- [ ] **4.8** Performance test per design §7.1: XCTest `measure` through the seam over a generated
+- [x] **4.8** Performance test per design §7.1: XCTest `measure` through the seam over a generated
   **1,000-entry** fixture folder. Budget (design §7.1): ≤ 1,000 direct children collected within
   **1 s** wall time at p95, a typical folder (≤ 200 children) within **250 ms**; the budget covers
   derivation + scan + classification (scope handshake excluded). Measured numbers are recorded in
   task 7's evidence from tooling.
-- [ ] **4.9** UI tests per design §9.4 (the R14 mandate's subject): add **one** assertion to the
+- [x] **4.9** UI tests per design §9.4 (the R14 mandate's subject): add **one** assertion to the
   launch tests that a plain launch shows the drop-target welcome state (keyed on the task-3
   accessibility identifier) — making the launch tests meaningful; keep `testLaunchPerformance` as
   the launch-budget guard (§7.3). Open With and drag & drop stay undriven — host-driven flows UI
   tests cannot drive; unit tests (4.4–4.7) and stakeholder functional review carry them (the
   spec's honest caveat).
-- [ ] **4.10** Full gate — the tests run and must be green. Fix, tick; commit:
+- [x] **4.10** Full gate — the tests run and must be green. Fix, tick; commit:
   `test(e2-s1): entry, collection, and welcome-state tests + launch UI assertion`.
 
 ## Task 5 — ADR batch D18–D20 `[P]` · design §10

@@ -109,10 +109,8 @@ actor SecurityScopedMediaFolderRepository: MediaFolderRepository {
     /// `stop` is called exactly where `start` succeeded.
     private func beginSession(enteredURL: URL, folderURL: URL) {
         var granted: [URL] = []
-        for url in [enteredURL, folderURL] {
-            if url.startAccessingSecurityScopedResource() {
-                granted.append(url)
-            }
+        for url in [enteredURL, folderURL] where url.startAccessingSecurityScopedResource() {
+            granted.append(url)
         }
         activeSessionURLs = granted
     }

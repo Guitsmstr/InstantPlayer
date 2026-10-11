@@ -36,6 +36,7 @@ struct WelcomeView: View {
                 )
                 .padding(8)
         )
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("welcome-drop-target")
     }
 }
