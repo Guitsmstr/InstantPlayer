@@ -311,28 +311,28 @@ Deliverable (docs): `docs/architecture.md` — the four required same-story upda
 Deliverable (docs): `docs/specs/e2-s1-entry-media-collection/evidence.md` (new) +
 acceptance-criteria ticks in this file.
 
-- [ ] **7.1** Load `swift-security` + `swift-performance` (the walk covers the pillar rows).
-- [ ] **7.2** Traceability walk: **S1–S15 row by row** — for each row name the shipped artifact
+- [x] **7.1** Load `swift-security` + `swift-performance` (the walk covers the pillar rows).
+- [x] **7.2** Traceability walk: **S1–S15 row by row** — for each row name the shipped artifact
   (file, test, or ADR) that satisfies it, with its design section — and then the **product
   R-map** of the spec's acceptance table (product R1–R6, R34–R36 → story outcome → verified by).
   Record both tables in evidence.md.
-- [ ] **7.3** Run the full gate with machine-readable evidence:
+- [x] **7.3** Run the full gate with machine-readable evidence:
   `./scripts/validate.sh --json <tmp>/e2-s1-gate.json` (`<tmp>` = session temp dir outside the
   repo; the JSON is never committed). Quote it **verbatim** into evidence.md — `result` plus every
   step name and status — and confirm the SwiftLint and SwiftFormat steps read `pass`.
-- [ ] **7.4** **UI-test mandate (R14 of E1-S2):** run
+- [x] **7.4** **UI-test mandate (R14 of E1-S2):** run
   `./scripts/validate.sh --uitests --json <tmp>/e2-s1-uitests-gate.json` and quote it **verbatim**
   (design §9.4; spec Story context). The run is additive and fail-closed: a failing UI test fails
   it; the flag never skips or weakens a step (docs/development.md §3).
-- [ ] **7.5** Record from tooling, never from memory: the design §7.1 performance measurement
+- [x] **7.5** Record from tooling, never from memory: the design §7.1 performance measurement
   (the test run's output against the 1 s / 250 ms budget) and the `codesign -d --entitlements`
   output showing the four §8.2 keys (task 3.10).
-- [ ] **7.6** Deviations honest: list every deviation from the approved design (files, signatures,
+- [x] **7.6** Deviations honest: list every deviation from the approved design (files, signatures,
   fixtures, UI copy, config wiring) with its impact, marked for coordinator ratification —
   silently deviating is forbidden (standing rule 6).
-- [ ] **7.7** Tick AC1–AC8 below and mirror them in evidence.md; leave the converge-owned
+- [x] **7.7** Tick AC1–AC8 below and mirror them in evidence.md; leave the converge-owned
   AC9–AC11 unticked.
-- [ ] **7.8** Commit (docs-only): `docs(e2-s1): evidence and acceptance — traceability walk +
+- [x] **7.8** Commit (docs-only): `docs(e2-s1): evidence and acceptance — traceability walk +
   gate output`.
 
 ---
@@ -341,18 +341,18 @@ acceptance-criteria ticks in this file.
 
 Ticked by task 7, each backed by quoted tooling evidence:
 
-- [ ] **AC1 · R1–R4 / S1–S4, S15** — the entry-derivation matrix (media file, folder, unsupported
+- [x] **AC1 · R1–R4 / S1–S4, S15** — the entry-derivation matrix (media file, folder, unsupported
   file, empty; plus the excluded-entry starting rule) is covered by unit tests **through the
   `MediaFolderRepository` seam** — no UI, no running app — and green.
-- [ ] **AC2 · R34–R36 / S10–S12** — collection rules green: direct children only, the S11
+- [x] **AC2 · R34–R36 / S10–S12** — collection rules green: direct children only, the S11
   conformance rule incl. **misleading-extension anti-spoofing** (rejected regardless of file
   name), and S12 boundary enforcement (excluded entries in no item of the collection).
-- [ ] **AC3 · S13, S14** — snapshot/staleness and ordering-neutral semantics asserted explicitly:
+- [x] **AC3 · S13, S14** — snapshot/staleness and ordering-neutral semantics asserted explicitly:
   no folder watching after open, one collection per entry action (spy), enumeration order with no
   sorting.
-- [ ] **AC4 · R5 / S5–S7** — welcome-state machine tested (start `welcome`; both transitions;
+- [x] **AC4 · R5 / S5–S7** — welcome-state machine tested (start `welcome`; both transitions;
   empty result → no folder open).
-- [ ] **AC5 · RNF-02** — the entry-time budget (design §7.1: 1 s / 250 ms) measured by the §7.1
+- [x] **AC5 · RNF-02** — the entry-time budget (design §7.1: 1 s / 250 ms) measured by the §7.1
   performance test and recorded from tooling; zero added launch work — `testLaunchPerformance`
   guard intact and green.
 - [ ] **AC6 · R6, RNF-04 / S8–S9** — entitlements exactly the design §8.2 four read-only keys
@@ -360,7 +360,7 @@ Ticked by task 7, each backed by quoted tooling evidence:
   input validated at the Data edge (design §8.3/§8.4 table).
 - [ ] **AC7 · R14 (E1-S2)** — the `--uitests` converge-mandate run is green and quoted verbatim,
   including the plain-launch welcome assertion and `testLaunchPerformance`.
-- [ ] **AC8 · evidence & coverage** — full gate `--json` quoted verbatim (lint/format `pass`); the
+- [x] **AC8 · evidence & coverage** — full gate `--json` quoted verbatim (lint/format `pass`); the
   S1–S15 + product R-map walk recorded; D18–D20 in `docs/decisions.md` house format; the
   design §12 architecture updates done; all deviations listed honestly.
 
