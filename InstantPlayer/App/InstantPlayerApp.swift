@@ -16,6 +16,12 @@ struct InstantPlayerApp: App {
     /// and the `FeedViewModel` when `RootView` appears).
     @State private var dependencies = AppDependencies()
 
+    /// Close-quits lifecycle policy (E2-S2, design §6.1 — S8): the adaptor
+    /// is the termination policy ONLY. D18's adaptor reservation for
+    /// *entry routing* stays deliberately unbuilt (RootView's note stands
+    /// — a divergence would be a coordinator escalation, not built here).
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+
     var body: some Scene {
         // One `Window` on purpose (E2-S1, design §3.4): one window owns the
         // one `RootView`, the one `FeedViewModel`, the one state machine —

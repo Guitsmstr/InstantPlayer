@@ -180,22 +180,22 @@ Deliverable (code): `InstantPlayer/App/AppDelegate.swift` (new),
 `InstantPlayer/App/InstantPlayerApp.swift` (adaptor registration),
 `InstantPlayer/App/AppDependencies.swift` (preview binding + factory). `RootView.swift` unchanged.
 
-- [ ] **5.1** Load `swift-security` + `swift-performance` before editing.
-- [ ] **5.2** Close-quits per design §6.1 (S8): `AppDelegate` implementing
+- [x] **5.1** Load `swift-security` + `swift-performance` before editing.
+- [x] **5.2** Close-quits per design §6.1 (S8): `AppDelegate` implementing
   `applicationShouldTerminateAfterLastWindowClosed` → `true`, registered via
   `NSApplicationDelegateAdaptor` in `InstantPlayerApp` — App-owned scene/lifecycle policy (D10),
   the canonical three-line hook. The `Window` scene itself is unchanged (D18, S7). **Do not build
   D18's entry-routing fallback** — the adaptor here is the termination policy only; a divergence is
   a coordinator escalation, not an implementer improvisation.
-- [ ] **5.3** Composition per design §1: `AppDependencies` binds `AVMediaPreviewService` as the
+- [x] **5.3** Composition per design §1: `AppDependencies` binds `AVMediaPreviewService` as the
   `MediaPreviewService` seam (default parameter alongside the two existing seams — tests inject
   conformances through the same initializer); `makeFeedViewModel()` passes all three seams. `init`
   stays **allocation-only** (R13 of E1-S3, design §8(5)) — one more binding allocation, nothing
   scheduled, no media touched at launch.
-- [ ] **5.4** D21 audit point (design §1.1, §9): confirm this task introduces **no** change under
+- [x] **5.4** D21 audit point (design §1.1, §9): confirm this task introduces **no** change under
   `InstantPlayer.xcodeproj/` or `InstantPlayer/Config/` — no entitlements, no plist keys, no build
   settings. Any apparent need → stop and report.
-- [ ] **5.5** Full gate. Fix, tick; commit:
+- [x] **5.5** Full gate. Fix, tick; commit:
   `feat(e2-s2): task 5 — composition and close-quits lifecycle`.
 
 ## Task 6 — Unit suites: paging/display machine + preview seam + perf `[P]` · design §8(1), §10.1, §10.2
