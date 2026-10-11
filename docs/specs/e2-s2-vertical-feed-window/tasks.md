@@ -83,35 +83,35 @@ Deliverable (code): `InstantPlayer/Features/Feed/Domain/MediaPreviewService.swif
 
 Deliverable (code): `InstantPlayer/Features/Feed/Data/AVMediaPreviewService.swift`.
 
-- [ ] **2.1** Load `swift-security` + `swift-performance` before editing (this task reads user
+- [x] **2.1** Load `swift-security` + `swift-performance` before editing (this task reads user
   media bytes — both pillars are directly in play).
-- [ ] **2.2** The `actor` conforming to `MediaPreviewService` (the second D8 actor, design §1.1 —
+- [x] **2.2** The `actor` conforming to `MediaPreviewService` (the second D8 actor, design §1.1 —
   cache + coalescing are mutable state shared across isolation domains). Video (`.video`) per
   design §4.2: `AVAssetImageGenerator` with `appliesPreferredTrackTransform = true`, frame at
   `CMTime.zero` with zero tolerance (the first frame, honestly — S3), the modern async API used
   natively (async/await rule, no callback bridge), cancellation-aware. Exact-frame failure → `nil`
   (S13) — no silent nearby-frame fallback, no generic icon.
-- [ ] **2.3** Image (`.image`) per design §4.2: `CGImageSourceCreateThumbnailAtIndex` with
+- [x] **2.3** Image (`.image`) per design §4.2: `CGImageSourceCreateThumbnailAtIndex` with
   `kCGImageSourceCreateThumbnailFromImageAlways` and max-pixel-size bound **2× the screen's larger
   axis in pixels** (the viewport never exceeds the screen; screen scale included — the design §4.2
   display bound, computed inside the Data conformance so the seam signature stays frozen).
   Aspect-preserving; both paths end in one ImageIO encode to display bytes + intrinsic size.
-- [ ] **2.4** Fail-`nil` unified contract per design §4.3: vanished/unreadable file (S12) and
+- [x] **2.4** Fail-`nil` unified contract per design §4.3: vanished/unreadable file (S12) and
   corrupt/mislabeled content (S13 — `fake.mp4` holding text) both answer `nil`; display-time only —
   **no pre-check, no re-scan, no retry** (design §4.3). File content is decode-only: never executed,
   never parsed by name (design §9).
-- [ ] **2.5** Cache + concurrency per design §5.4: `NSCache` keyed by the item's resolved URL with
+- [x] **2.5** Cache + concurrency per design §5.4: `NSCache` keyed by the item's resolved URL with
   an object box (NSCache requires objects), **cost limit 64 MB** (cost = `imageData` byte count),
   **count limit 32**, automatic eviction; request coalescing per item; **≤ 2 concurrent
   extractions**; superseded/cancelled tasks are dropped, never completed; `discardPreviews()`
   empties cache and in-flight work.
-- [ ] **2.6** Off-main always (design §8(2)): extraction, decode, downsample, encode run on the
+- [x] **2.6** Off-main always (design §8(2)): extraction, decode, downsample, encode run on the
   actor's executor (the project defaults to MainActor isolation — the actor is the explicit
   boundary); the `@MainActor` view model receives only the finished value. No synchronous file I/O
   in any view, view model, or `App` code (skill §1). **No `start/stopAccessingSecurityScopedResource`
   here** — reads happen inside the session D19 already holds (design §9); no logging of paths or
   names.
-- [ ] **2.7** Full gate; fix; tick; commit:
+- [x] **2.7** Full gate; fix; tick; commit:
   `feat(e2-s2): task 2 — preview extraction pipeline`.
 
 ## Task 3 — Paging & display state machine in `FeedViewModel` · design §5.2, §5.5, §6.2, §7
