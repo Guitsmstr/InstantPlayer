@@ -313,7 +313,7 @@ commit once the code it documents has landed (tasks 1–6; the task-4 rename inc
 
 Deliverable (docs): `docs/decisions.md` — append D25–D28.
 
-- [ ] **9.1** Append four ADRs continuing the numbering (the log currently ends at D24), house
+- [x] **9.1** Append four ADRs continuing the numbering (the log currently ends at D24), house
   heading `## D# — title · date · status` (date = commit date, `YYYY-MM-DD`), each with context,
   decision, alternatives, consequences. Titles and one-line decisions exactly per design §11:
   **D25 — Playback sessions: one `@MainActor` player service, one live player, restart-on-revisit**
@@ -321,20 +321,20 @@ Deliverable (docs): `docs/decisions.md` — append D25–D28.
   (→ S11) · **D27 — Chrome-free rendering: opaque handle + display-ready platform view wrapped by
   Presentation** (→ S4, S8) · **D28 — Playback input: the App-owned key monitor becomes a feed-key
   router; clicks are SwiftUI taps guarded in the view model** (→ S5–S7).
-- [ ] **9.2** Pull each entry's alternatives from the matching design §12 rows — D25: actor
+- [x] **9.2** Pull each entry's alternatives from the matching design §12 rows — D25: actor
   conformance (D8 trigger unmet; the executor hop defeats S9's audio cut), all-async seam, commands
   by item id, `AVPlayer` escaping into Domain/Presentation; D26: `AVPlayerLooper`, recreate-on-end,
   looping inside the conformance; D27: SwiftUI `VideoPlayer`, `AVPlayerView` (`.none`), AVFoundation
   in Presentation, the injected view-factory closure; D28: App-level mouse monitor,
   `.onKeyPress`/focus-based space, keeping the `ArrowKeyCommand` name, auto-repeat toggling,
   starting on every `moveTo` (no settle gate), retrying failed playback on revisit, session pooling.
-- [ ] **9.3** Status `accepted`. Each entry cites its implementing task commits (tasks 1–6) in its
+- [x] **9.3** Status `accepted`. Each entry cites its implementing task commits (tasks 1–6) in its
   consequences. D25 carries the honest isolation reasoning (D8 trigger, synchronous bite) and the
   three late-event braces; D26 the honest restart — not a gapless loop; **D27 carries the §4
   check-3 wording note** (the architecture refinement of design §1.1/§13); **D28 carries the
   evidence §8 lesson reference** (SwiftUI focused-view key delivery failed three rounds —
   [E2-S2 evidence §8](../e2-s2-vertical-feed-window/evidence.md) — taps are not focus-dependent).
-- [ ] **9.4** Stage, then gate `./scripts/validate.sh --staged` (docs-only mode: ADR format +
+- [x] **9.4** Stage, then gate `./scripts/validate.sh --staged` (docs-only mode: ADR format +
   internal links); fix; tick; commit:
   `docs(e2-s3): task 9 — ADRs D25–D28 — playback lifecycle, loop, rendering, and input`.
 
