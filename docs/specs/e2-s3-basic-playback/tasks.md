@@ -343,32 +343,32 @@ Deliverable (docs): `docs/decisions.md` — append D25–D28.
 Deliverable (docs): `docs/specs/e2-s3-basic-playback/evidence.md` (new) +
 acceptance-criteria ticks in this file.
 
-- [ ] **10.1** Load `swift-security` + `swift-performance` (the walk covers the pillar rows).
-- [ ] **10.2** Traceability walk: **S1–S16 row by row** — for each row name the shipped artifact
+- [x] **10.1** Load `swift-security` + `swift-performance` (the walk covers the pillar rows).
+- [x] **10.2** Traceability walk: **S1–S16 row by row** — for each row name the shipped artifact
   (file, test, or ADR) that satisfies it, with its design section — and then the **product R-map**
   of the spec's acceptance table (product R11, R12, R15, R17 → story outcome → verified by), plus
   the S16/R16 cross-cutting note. Record both tables in evidence.md.
-- [ ] **10.3** Run the full gate with machine-readable evidence:
+- [x] **10.3** Run the full gate with machine-readable evidence:
   `./scripts/validate.sh --json <tmp>/e2-s3-gate.json` (`<tmp>` = session temp dir outside the
   repo; the JSON is never committed). Quote it **verbatim** into evidence.md — `result` plus every
   step name and status — and confirm the SwiftLint and SwiftFormat steps read `pass`.
-- [ ] **10.4** **UI-test mandate (spec Story context; R14 of E1-S2):** run
+- [x] **10.4** **UI-test mandate (spec Story context; R14 of E1-S2):** run
   `./scripts/validate.sh --uitests --json <tmp>/e2-s3-uitests-gate.json` and quote it **verbatim**
   (design §10.3). The run is additive and fail-closed: a failing UI test fails it; the flag never
   skips or weakens a step ([docs/development.md](../../development.md) §3).
-- [ ] **10.5** Record from tooling, never from memory: the design §8(1) performance measurement
+- [x] **10.5** Record from tooling, never from memory: the design §8(1) performance measurement
   (the `measure` run's numbers against the **300 ms / 1 s** auto-play start budgets, from task 7.6)
   and the **D21 audit** (design §1.1, §9): the `codesign -d --entitlements` output showing the four
   D19 keys **unchanged**, and the `git diff main...HEAD` stat restricted to
   `InstantPlayer.xcodeproj/ InstantPlayer/Config/` showing **no changes** (empty output quoted).
-- [ ] **10.6** Deviations honest: list every deviation from the approved design (files, signatures,
+- [x] **10.6** Deviations honest: list every deviation from the approved design (files, signatures,
   fixtures, budgets) with its impact, marked for coordinator ratification — silently deviating is
   forbidden (standing rule 6). Specifically watch for: the design §3 arrow-phase fallback if taken
   (a ratified deviation like E2-S2 round 4's), and any `@testable` internals used for the unmuted
   assertion (design §10.2).
-- [ ] **10.7** Tick AC1–AC8 below and mirror them in evidence.md; leave the converge-owned AC9–AC11
+- [x] **10.7** Tick AC1–AC8 below and mirror them in evidence.md; leave the converge-owned AC9–AC11
   unticked.
-- [ ] **10.8** Commit (docs-only): `docs(e2-s3): task 10 — evidence and acceptance`.
+- [x] **10.8** Commit (docs-only): `docs(e2-s3): task 10 — evidence and acceptance`.
 
 ---
 
@@ -376,31 +376,31 @@ acceptance-criteria ticks in this file.
 
 Ticked by task 10, each backed by quoted tooling evidence:
 
-- [ ] **AC1 · R11 / S1–S4** — auto-play covered by unit tests on the policy machine: every
+- [x] **AC1 · R11 / S1–S4** — auto-play covered by unit tests on the policy machine: every
   become-current path (folder open at `startIndex`, paging settle, revisit, replace-in-place) starts
   the video; **settle-only** start (never mid-gesture — the incoming item keeps its poster); audio
   unmuted by default; images never play. Functional review: the start feels instant (budget of
   design §8(1) is the number).
-- [ ] **AC2 · R12 / S5–S8** — play/pause via spacebar and via a single click anywhere on the current
+- [x] **AC2 · R12 / S5–S8** — play/pause via spacebar and via a single click anywhere on the current
   page (letterbox included); the click-guard matrix unit-tested (non-current, mid-gesture, image,
   sticky-failure → no-op); pause shows only the frozen frame — no chrome (unit tests + functional
   review).
-- [ ] **AC3 · R15 / S11** — loop in place unit-tested and reviewed: the end restarts the same video
+- [x] **AC3 · R15 / S11** — loop in place unit-tested and reviewed: the end restarts the same video
   from its beginning (`restart()` on the same handle) and the feed **never** auto-advances.
-- [ ] **AC4 · S9, S10** — stop-on-away (synchronous with the page change — no audio past the page
+- [x] **AC4 · S9, S10** — stop-on-away (synchronous with the page change — no audio past the page
   turn) and restart-on-revisit (fresh session from the beginning, no resume) — unit tests +
   functional review.
-- [ ] **AC5 · S14, S15** — playback failure and stale file both fall back to the neutral
+- [x] **AC5 · S14, S15** — playback failure and stale file both fall back to the neutral
   unavailable state — sticky, no retry, feed navigable (unit tests with `fake.mp4` and a vanished
   URL + functional review).
-- [ ] **AC6 · R17 / S12, S13 · RNF-04** — read-only playback walked: no rewrite/re-encode, no
+- [x] **AC6 · R17 / S12, S13 · RNF-04** — read-only playback walked: no rewrite/re-encode, no
   sidecars, no playback-state persistence; reads only inside the open D19 session; **no
   entitlement/plist/pbxproj diff** (D21 audit: empty diff + unchanged `codesign` output recorded);
   design §9.1 review table walked.
-- [ ] **AC7 · S16, RNF-02** — auto-play start budget (300 ms / 1 s) measured and recorded from
+- [x] **AC7 · S16, RNF-02** — auto-play start budget (300 ms / 1 s) measured and recorded from
   tooling; synchronous audio cut; exactly one live player (supersession teardown tested); zero added
   launch cost — `testLaunchPerformance` intact and green; paging during playback stall-free.
-- [ ] **AC8 · R14 (E1-S2) + evidence & coverage** — the `--uitests` converge-mandate run is green
+- [x] **AC8 · R14 (E1-S2) + evidence & coverage** — the `--uitests` converge-mandate run is green
   and quoted verbatim (design §10.3: no new UI tests — playback is host-driven-entry territory);
   full gate `--json` quoted verbatim (lint/format `pass`); the S1–S16 + product R-map walk recorded;
   D25–D28 in `docs/decisions.md` house format; the design §13 architecture updates done; all
