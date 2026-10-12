@@ -28,7 +28,7 @@ All E2–E5 feature stories implement on the architecture per [docs/architecture
 
 - [x] **E2-S1 · Entry & media collection** (open a folder via Finder or drag & drop; native formats, direct children; welcome state) · `done`
   - Requirements: R1–R6, R34–R36 (entry, formats & filtering)
-- [ ] **E2-S2 · Vertical feed & window** (one combined feed; current item fills the viewport; scroll/arrow paging; single window, new open replaces in place) · `in progress`
+- [x] **E2-S2 · Vertical feed & window** (one combined feed; current item fills the viewport; scroll/arrow paging; single window, new open replaces in place) · `done`
   - Requirements: R7–R10, R37–R40 (feed navigation, window)
 - [ ] **E2-S3 · Basic playback** (auto-play with no perceptible wait; play/pause; loop in place; media files never rewritten) · `draft`
   - Requirements: R11, R12, R15, R17 (playback)

@@ -344,15 +344,17 @@ Ticked by task 9, each backed by quoted tooling evidence:
 
 Converge-owned — the coordinator ticks these; task 9 never does:
 
-- [ ] **AC9 · stakeholder functional review** (this is a UI story): in the running app
+- [x] **AC9 · stakeholder functional review** (this is a UI story): in the running app
   (`./scripts/app.sh run`) — the design §10.4 list: mixed feed with letterboxing, static video
   poster, scroll paging one item per gesture, arrow paging, stops at both ends, resize, native
   fullscreen, replace-in-place at the starting item, close quits, unavailable states (vanished
-  file + mislabeled video); explicit approval required.
-- [ ] **AC10 · validator review** — adversarial PASS over spec S1–S16 and the product R-map,
-  design §9.1's review table, and both pillar-skill checklists.
-- [ ] **AC11 · story closure** — backlog E2-S2 → `done`; `git merge --no-ff` into `main`; delete
-  `feat/e2-s2-vertical-feed-window`.
+  file + mislabeled video); explicit approval required. **PASSED 2026-10-11/12** — arrow paging
+  needed the coordinator-ratified App-owned key monitor (round 4, `102d80f`); record: evidence §10.
+- [x] **AC10 · validator review** — adversarial PASS over spec S1–S16 and the product R-map,
+  design §9.1's review table, and both pillar-skill checklists. One minor gap (cached-redisplay
+  budget) fixed in `ac5dc87`, re-validated PASS; round-3/4 diffs spot-checked PASS.
+- [x] **AC11 · story closure** — backlog E2-S2 → `done`; `git merge --no-ff` into `main`; delete
+  `feat/e2-s2-vertical-feed-window` — executed immediately after this commit (evidence §10).
 
 ## Converge (coordinator)
 

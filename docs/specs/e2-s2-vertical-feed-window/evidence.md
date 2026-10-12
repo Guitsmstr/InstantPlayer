@@ -329,6 +329,42 @@ is verbatim.
 - [x] **AC7 · R14 (E1-S2)** — the `--uitests` run is green and quoted verbatim (§2); no new UI tests per design §10.3.
 - [x] **AC8 · evidence & coverage** — full gate `--json` quoted verbatim, lint/format `ok` (§1); S1–S16 + product R-map walk recorded (§5–§6); D22–D24 in [docs/decisions.md](../../decisions.md) house format (gate's ADR step: "24 ADRs well-formed"); design §13 architecture updates landed in `5530ddc`; all deviations listed honestly (§8).
 
-Converge-owned, **unticked** by task 9: **AC9** (stakeholder functional review, the design §10.4
-list in the running app), **AC10** (validator adversarial review), **AC11** (story closure —
-backlog `done`, `git merge --no-ff`, branch delete).
+## 10 · Converge record (coordinator, 2026-10-12)
+
+### Stakeholder functional review (AC9) — PASSED
+
+Reviewed in the running app (`./scripts/app.sh run`) over scenarios 1–9 of the review guide (design §10.4): mixed feed with letterboxing ok · static first-frame posters ok · scroll paging one-item-per-gesture magnetic snap ok · paging clamps at both ends ok · resize ok · native fullscreen in/out ok · replace-in-place at the dropped file ok · close quits ok · vanished-file "Unavailable" state ok, feed navigable (the stakeholder's reverse-rename check — `.mp4` → `.txt` — correctly made the file vanish from the app entirely: that is the E2-S1 format filter (D20), product R36, working as designed). Explicit stakeholder approval recorded 2026-10-11.
+
+**Arrow-key defect found and fixed (the one review failure):** ↓/↑ did nothing (macOS unhandled-key beep). Three SwiftUI focused-view deliveries failed the live retest — `a356681` (focusable scroll content + `.onKeyPress` + `.onMoveCommand`), `387541f` (`@FocusState` programmatic focus, `onMoveCommand`-only) — macOS key focus into SwiftUI scroll content proved unattainable. Coordinator-ratified amendment shipped in `102d80f`: App-owned `NSEvent` local key monitor (`ArrowKeyCommand.route`, 11 decision unit tests) routed into the untouched view-model methods; recorded in §8 deviation 2 and D22's consequences. Stakeholder retest: **"Arrows work — approve"** (immediately after open, no click; ends clamp).
+
+### Validator review (AC10) — PASS
+
+Adversarial pass over S1–S16, product R-map, design §9.1 table, both pillar checklists: one minor gap (cached-redisplay budget unmeasured) → fixed in `ac5dc87`, warm-path 2.8/2.8/2.7 ms vs < 16 ms; re-validated PASS. Round-3/round-4 fix diffs spot-checked PASS (state machine byte-identical; deviations honestly recorded).
+
+### Final converge gate (the story's final gate record)
+
+`./scripts/validate.sh --uitests --json <tmp>/e2-s2-final-gate.json` over the complete story code, verbatim:
+
+```json
+{
+  "branch": "feat/e2-s2-vertical-feed-window",
+  "staged": false,
+  "result": "pass",
+  "steps": [
+    { "name": "ADR format (docs/decisions.md)", "status": "ok" },
+    { "name": "Internal links (docs + AGENTS.md)", "status": "ok" },
+    { "name": "Approved-spec hygiene (docs/specs/*/tasks.md)", "status": "ok" },
+    { "name": "Lint (SwiftLint)", "status": "ok" },
+    { "name": "Format check (SwiftFormat --lint)", "status": "ok" },
+    { "name": "Build (InstantPlayer)", "status": "ok" },
+    { "name": "Unit tests (InstantPlayerTests)", "status": "ok" },
+    { "name": "UI tests (InstantPlayerUITests)", "status": "ok" }
+  ]
+}
+```
+
+### AC9–AC11 (converge-owned — ticked by the coordinator)
+
+- [x] **AC9** — stakeholder functional review passed (scenarios 1–9 + arrow retest), explicit approval above.
+- [x] **AC10** — validator adversarial PASS (initial + gap-fix re-validation + round-3/4 spot checks).
+- [x] **AC11** — story closure: backlog `done`; `git merge --no-ff` into `main` and branch delete executed immediately after this commit (E2-S1 precedent: the tick records the closure executed in the same converge sequence).
