@@ -69,6 +69,14 @@ struct FeedItemView: View {
                     .font(.title3.weight(.medium))
                     .foregroundStyle(.secondary)
             }
+        case .player:
+            // The live playback surface (E2-S3 design §4) — the session's
+            // layer owns this space. Interim presentation only: the real
+            // display-ready-view wrap (`PlayerSurfaceView`) lands with the
+            // view task (E2-S3 task 5), and this state is unreachable
+            // while the composition still binds the stub seam (stub
+            // handles emit no events).
+            Color.black
         case .loading:
             // Neutral loading presentation (design §8(1): unknown-media
             // slowness degrades to `.loading`, never to a stall).

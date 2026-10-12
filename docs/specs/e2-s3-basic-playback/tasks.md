@@ -138,8 +138,8 @@ Deliverable (code): `InstantPlayer/Features/Feed/Data/AVMediaPlayerService.swift
 Deliverable (code): `InstantPlayer/Features/Feed/Presentation/FeedViewModel.swift` (extended;
 existing tests updated to compile in the same commit if signatures move).
 
-- [ ] **3.1** Load `swift-security` + `swift-performance` before editing.
-- [ ] **3.2** Session ownership + settle-gated auto-play per design §3 (S1, S2): the view model
+- [x] **3.1** Load `swift-security` + `swift-performance` before editing.
+- [x] **3.2** Session ownership + settle-gated auto-play per design §3 (S1, S2): the view model
   holds the current `MediaPlayback` handle (the only holder — D8); `syncPlayback()` starts playback
   **only when the feed is at rest** (no paging in flight) for the current `.video` item without
   sticky playback failure. Triggers: folder open at `startIndex`, replace-in-place at its
@@ -147,16 +147,16 @@ existing tests updated to compile in the same commit if signatures move).
   gesture and arrow paging (design §3; the existing scroll-phase plumbing already sees arrow-page
   animations). Mid-gesture `moveTo(itemID:)` changes the index but **never** starts playback — the
   incoming item keeps its poster (S2). Images never start (S4).
-- [ ] **3.3** Lifecycle per design §3 (S9, S10): every current-item change `stop()`s the old
+- [x] **3.3** Lifecycle per design §3 (S9, S10): every current-item change `stop()`s the old
   session **synchronously in the same main-actor turn** (no audio past the page turn — design
   §8(2)); revisiting a video calls `startPlayback` again — a fresh session from the beginning, no
   resume, nothing carried across visits. `adopt`/`discardDisplayState` (replace-in-place, welcome)
   stop and drop the handle alongside the existing display-state reset.
-- [ ] **3.4** Toggles + guard matrix per design §6 as pure, unit-testable logic: `togglePlayback()`
+- [x] **3.4** Toggles + guard matrix per design §6 as pure, unit-testable logic: `togglePlayback()`
   (space route) and `togglePlaybackFromTap(itemID:)`; the whole matrix — settled current video →
   pause/resume (S5, S6); non-current tap id, mid-gesture, image page, sticky-failure item → no-op
   (S7, S4). Guarded to the **settled current item**; the view is never consulted.
-- [ ] **3.5** Events per design §3, §5, §7: `.readyForDisplay` → the display state becomes
+- [x] **3.5** Events per design §3, §5, §7: `.readyForDisplay` → the display state becomes
   `.player` (the poster — frame 0 — stays until this swap; design §4); `.reachedEnd` → `restart()`
   on the **same** handle, the index untouched (S11 — never auto-advance); `.failed` → `stop()` +
   sticky `.unavailable` (S14). **Per-axis stickiness** (design §7): poster failure does not block a
@@ -164,11 +164,11 @@ existing tests updated to compile in the same commit if signatures move).
   against late events (design §3): stream-finish on `stop()`, handle-identity check
   (`=== current`), and the existing `latestEntryGeneration` counter (superseded sessions never
   install or paint).
-- [ ] **3.6** Display state per design §4: `FeedItemDisplayState` gains `case player(MediaPlayback)`
+- [x] **3.6** Display state per design §4: `FeedItemDisplayState` gains `case player(MediaPlayback)`
   — `Equatable` becomes hand-written (`.player` cases compare handles by `===`, other cases
   unchanged) so the wrap memo/`onChange` behavior carries. The cell still receives only the display
   state — never the item (E2-S2 S14's structural absence holds).
-- [ ] **3.7** Full gate (update any existing `FeedViewModelTests` compile breaks in this same
+- [x] **3.7** Full gate (update any existing `FeedViewModelTests` compile breaks in this same
   commit — minimal fixes; the full suites are task 7). Fix, tick; commit:
   `feat(e2-s3): task 3 — playback policy in the feed view model`.
 
