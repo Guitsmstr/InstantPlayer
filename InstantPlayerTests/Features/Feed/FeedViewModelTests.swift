@@ -6,6 +6,7 @@
 //  §9.2 — S5–S7, §7.4 no-redundant-work).
 //
 
+import AppKit
 import Foundation
 @testable import InstantPlayer
 import Testing
@@ -619,6 +620,944 @@ struct FeedViewModelTests {
         viewModel.scrollGestureDidSettle()
         #expect(viewModel.currentIndex == nil, "paging stays a no-op in welcome")
     }
+
+    // MARK: Playback policy (E2-S3 design §10.1 — S1–S11, S14–S15)
+
+    /// The arrange step of the playback rows: script `collection` into a
+    /// fresh repository, build the view model around the given player
+    /// double, perform the entry action.
+    private static func makeViewModel(
+        mediaPlayerService: any MediaPlayerService,
+        repository: MediaFolderRepository,
+        previews: MediaPreviewService
+    ) -> FeedViewModel {
+        FeedViewModel(
+            mediaPlayerService: mediaPlayerService,
+            mediaFolderRepository: repository,
+            mediaPreviewService: previews
+        )
+    }
+
+    private static func makeItem(
+        _ folderURL: URL,
+        named name: String,
+        kind: MediaItemKind
+    ) -> MediaItem {
+        let url = folderURL.appending(path: name)
+        return MediaItem(id: url, url: url, name: name, kind: kind)
+    }
+
+    private static func makeCollection(
+        folderURL: URL,
+        items: [MediaItem],
+        startIndex: Int
+    ) -> MediaCollection {
+        MediaCollection(folderURL: folderURL, items: items, startIndex: startIndex, capturedAt: Date())
+    }
+
+    private static func openCollection(
+        _ collection: MediaCollection,
+        mediaPlayerService: any MediaPlayerService,
+        previews: MediaPreviewService
+    ) async -> FeedViewModel {
+        let viewModel = makeViewModel(
+            mediaPlayerService: mediaPlayerService,
+            repository: ScriptedMediaFolderRepository(results: [collection]),
+            previews: previews
+        )
+        await viewModel.handle(entryAction: EntryAction(enteredURL: collection.folderURL))
+        return viewModel
+    }
+
+    /// Drives one scripted session to its installed, displayed state:
+    /// waits for the start call, emits `.readyForDisplay`, waits for the
+    /// `.player` display state.
+    private static func installPlayback(
+        _ item: MediaItem,
+        handle: ScriptedMediaPlayback,
+        in viewModel: FeedViewModel,
+        service: ScriptedMediaPlayerService
+    ) async -> Bool {
+        let called = await waitFor(
+            { service.calls.contains(where: { $0.id == item.id }) },
+            "startPlayback must be called for the current video"
+        )
+        guard called else { return false }
+        handle.emit(.readyForDisplay)
+        return await waitFor(
+            { viewModel.displayStates[item.id] == .player(handle) },
+            "the session must install and reach the .player display state"
+        )
+    }
+
+    /// §10.1 — become-current trigger set (S1): folder open at
+    /// `startIndex` starts the starting video.
+    @Test func folderOpenAutoPlaysTheStartingVideo() async {
+        let folder = Self.uniqueFolder("auto-open")
+        let item0 = Self.makeItem(folder, named: "a.mp4", kind: .video)
+        let item1 = Self.makeItem(folder, named: "b.mp4", kind: .video)
+        let item2 = Self.makeItem(folder, named: "c.png", kind: .image)
+        let collection = Self.makeCollection(folderURL: folder, items: [item0, item1, item2], startIndex: 1)
+        let players = ScriptedMediaPlayerService(answers: [ScriptedMediaPlayback()])
+        let viewModel = await Self.openCollection(
+            collection,
+            mediaPlayerService: players,
+            previews: StubMediaPreviewService()
+        )
+
+        let started = await Self.waitFor(
+            { players.calls == [item1] },
+            "folder open must start the startIndex video (S1)"
+        )
+        guard started else { return }
+        #expect(viewModel.currentIndex == 1)
+    }
+
+    /// §10.1 — images are never started (S4): an image `startIndex` opens
+    /// the feed with no playback attempt at all.
+    @Test func imageStartIndexNeverStartsPlayback() async {
+        let folder = Self.uniqueFolder("auto-image")
+        let item0 = Self.makeItem(folder, named: "a.mp4", kind: .video)
+        let item1 = Self.makeItem(folder, named: "b.png", kind: .image)
+        let collection = Self.makeCollection(folderURL: folder, items: [item0, item1], startIndex: 1)
+        let players = ScriptedMediaPlayerService()
+        let viewModel = await Self.openCollection(
+            collection,
+            mediaPlayerService: players,
+            previews: StubMediaPreviewService()
+        )
+
+        let painted = await Self.waitFor(
+            {
+                if case .preview = viewModel.displayStates[item1.id] {
+                    return true
+                }
+                return false
+            },
+            "the image page must reach its preview state"
+        )
+        guard painted else { return }
+        #expect(players.calls.isEmpty, "images have no playback semantics (S4)")
+    }
+
+    /// §10.1 — settle-only start (S2): a mid-gesture `moveTo` changes the
+    /// index but never starts playback (the incoming item keeps its
+    /// poster); the settle starts the settled item. The index change away
+    /// from a playing session stops it synchronously (S9).
+    @Test func midGestureMoveToNeverStartsSettleDoes() async {
+        let folder = Self.uniqueFolder("settle-only")
+        let item0 = Self.makeItem(folder, named: "a.mp4", kind: .video)
+        let item1 = Self.makeItem(folder, named: "b.mp4", kind: .video)
+        let collection = Self.makeCollection(folderURL: folder, items: [item0, item1], startIndex: 0)
+        let handle0 = ScriptedMediaPlayback()
+        let handle1 = ScriptedMediaPlayback()
+        let players = ScriptedMediaPlayerService(answers: [handle0, handle1])
+        let viewModel = await Self.openCollection(
+            collection,
+            mediaPlayerService: players,
+            previews: StubMediaPreviewService()
+        )
+        guard await Self.installPlayback(item0, handle: handle0, in: viewModel, service: players) else { return }
+
+        viewModel.scrollGestureDidStart()
+        viewModel.moveTo(itemID: item1.id) // mid-gesture landing
+        #expect(players.calls == [item0], "a mid-gesture moveTo must never start playback (S2)")
+        #expect(handle0.stopCount == 1, "the index change stops the old session synchronously (S9)")
+        viewModel.scrollGestureDidSettle()
+
+        let started = await Self.waitFor(
+            { players.calls == [item0, item1] },
+            "the settle must start the settled item (S1, S2)"
+        )
+        guard started else { return }
+        handle1.emit(.readyForDisplay)
+        _ = await Self.waitFor(
+            { viewModel.displayStates[item1.id] == .player(handle1) },
+            "the settled session must install and paint"
+        )
+    }
+
+    /// §10.1 — the arrow-key page is its own settle (design §3's taken
+    /// fallback): `pageForward()` starts the clamped landing item
+    /// immediately — programmatic page animations emit no phase signals,
+    /// and the arrow landing is deterministic.
+    @Test func arrowPageForwardStartsTheLandingItemImmediately() async {
+        let folder = Self.uniqueFolder("arrow-fwd")
+        let item0 = Self.makeItem(folder, named: "a.mp4", kind: .video)
+        let item1 = Self.makeItem(folder, named: "b.mp4", kind: .video)
+        let collection = Self.makeCollection(folderURL: folder, items: [item0, item1], startIndex: 0)
+        let handle0 = ScriptedMediaPlayback()
+        let handle1 = ScriptedMediaPlayback()
+        let players = ScriptedMediaPlayerService(answers: [handle0, handle1])
+        let viewModel = await Self.openCollection(
+            collection,
+            mediaPlayerService: players,
+            previews: StubMediaPreviewService()
+        )
+        guard await Self.installPlayback(item0, handle: handle0, in: viewModel, service: players) else { return }
+
+        viewModel.pageForward()
+        let started = await Self.waitFor(
+            { players.calls == [item0, item1] },
+            "the arrow page must start the landing item (S1 — the arrow action is its own settle)"
+        )
+        guard started else { return }
+        #expect(viewModel.currentIndex == 1)
+        #expect(handle0.stopCount == 1, "the departure stops the old session synchronously (S9)")
+        handle1.emit(.readyForDisplay)
+        _ = await Self.waitFor(
+            { viewModel.displayStates[item1.id] == .player(handle1) },
+            "the arrow-started session must install and paint"
+        )
+    }
+
+    /// §10.1 — the arrow-key page backward starts the landing item too,
+    /// as a fresh session (S1, S10 — nothing carries across visits).
+    @Test func arrowPageBackwardStartsTheLandingItemImmediately() async {
+        let folder = Self.uniqueFolder("arrow-back")
+        let item0 = Self.makeItem(folder, named: "a.mp4", kind: .video)
+        let item1 = Self.makeItem(folder, named: "b.mp4", kind: .video)
+        let collection = Self.makeCollection(folderURL: folder, items: [item0, item1], startIndex: 1)
+        let handleStart = ScriptedMediaPlayback()
+        let handleBack = ScriptedMediaPlayback()
+        let players = ScriptedMediaPlayerService(answers: [handleStart, handleBack])
+        let viewModel = await Self.openCollection(
+            collection,
+            mediaPlayerService: players,
+            previews: StubMediaPreviewService()
+        )
+        guard await Self.installPlayback(item1, handle: handleStart, in: viewModel, service: players) else { return }
+
+        viewModel.pageBackward()
+        let started = await Self.waitFor(
+            { players.calls == [item1, item0] },
+            "the arrow page backward must start the landing item (S1)"
+        )
+        guard started else { return }
+        #expect(viewModel.currentIndex == 0)
+        #expect(handleStart.resumeCount == 0, "no resume — a fresh session (S10)")
+        handleBack.emit(.readyForDisplay)
+        _ = await Self.waitFor(
+            { viewModel.displayStates[item0.id] == .player(handleBack) },
+            "the arrow-started session must install and paint"
+        )
+    }
+
+    /// §10.1 — toggles work immediately after arrow paging (the review
+    /// defect): the arrow page is its own settle, so the mid-gesture
+    /// toggle guard (S7) can never wedge — the new session pauses on the
+    /// first press right after the page.
+    @Test func togglesWorkImmediatelyAfterArrowPaging() async {
+        let folder = Self.uniqueFolder("arrow-toggle")
+        let item0 = Self.makeItem(folder, named: "a.mp4", kind: .video)
+        let item1 = Self.makeItem(folder, named: "b.mp4", kind: .video)
+        let collection = Self.makeCollection(folderURL: folder, items: [item0, item1], startIndex: 0)
+        let handle0 = ScriptedMediaPlayback()
+        let handle1 = ScriptedMediaPlayback()
+        let players = ScriptedMediaPlayerService(answers: [handle0, handle1])
+        let viewModel = await Self.openCollection(
+            collection,
+            mediaPlayerService: players,
+            previews: StubMediaPreviewService()
+        )
+        guard await Self.installPlayback(item0, handle: handle0, in: viewModel, service: players) else { return }
+
+        viewModel.pageForward()
+        let started = await Self.waitFor(
+            { players.calls == [item0, item1] },
+            "the arrow page must start the landing item (S1 — the arrow action is its own settle)"
+        )
+        guard started else { return }
+        handle1.emit(.readyForDisplay)
+        let installed = await Self.waitFor(
+            { viewModel.displayStates[item1.id] == .player(handle1) },
+            "the arrow-started session must install and paint"
+        )
+        guard installed else { return }
+
+        viewModel.togglePlayback()
+        #expect(
+            handle1.pauseCount == 1,
+            "spacebar right after an arrow page must pause the new session (S5 — no dead toggles)"
+        )
+        #expect(handle0.pauseCount == 0, "the old session was stopped, never toggled (S9)")
+
+        viewModel.togglePlayback()
+        #expect(handle1.resumeCount == 1, "the second press resumes (S5)")
+    }
+
+    /// §10.1 — unmuted auto-play at the double (S3): the seam contract is
+    /// "startPlayback = play, unmuted", so a fresh session is considered
+    /// playing the moment it installs — the first toggle pauses. The pause
+    /// changes nothing visible but the frozen frame (S8): the display
+    /// state stays `.player`. (The mute truth is asserted at the
+    /// conformance, §10.2.)
+    @Test func freshSessionAutoPlaysAndPauseLeavesThePlayerState() async {
+        let folder = Self.uniqueFolder("autoplay-pause")
+        let item0 = Self.makeItem(folder, named: "a.mp4", kind: .video)
+        let collection = Self.makeCollection(folderURL: folder, items: [item0], startIndex: 0)
+        let handle0 = ScriptedMediaPlayback()
+        let players = ScriptedMediaPlayerService(answers: [handle0])
+        let viewModel = await Self.openCollection(
+            collection,
+            mediaPlayerService: players,
+            previews: StubMediaPreviewService()
+        )
+        guard await Self.installPlayback(item0, handle: handle0, in: viewModel, service: players) else { return }
+
+        viewModel.togglePlayback()
+        #expect(handle0.pauseCount == 1, "a fresh session auto-plays — the first toggle pauses (S3, S5)")
+        #expect(handle0.resumeCount == 0)
+        #expect(
+            viewModel.displayStates[item0.id] == .player(handle0),
+            "pause shows only the frozen frame — no chrome, no state change (S8)"
+        )
+
+        viewModel.togglePlayback()
+        #expect(handle0.resumeCount == 1, "the second toggle resumes (S5)")
+    }
+
+    /// §10.1 — the tap route (S6): a click on the settled current page
+    /// toggles; a click on a non-current page is a no-op (S7). A
+    /// double-click is two single clicks — no meaning of its own (spec
+    /// non-goal).
+    @Test func tapTogglesOnlyTheCurrentPage() async {
+        let folder = Self.uniqueFolder("tap-guard")
+        let item0 = Self.makeItem(folder, named: "a.mp4", kind: .video)
+        let item1 = Self.makeItem(folder, named: "b.mp4", kind: .video)
+        let collection = Self.makeCollection(folderURL: folder, items: [item0, item1], startIndex: 0)
+        let handle0 = ScriptedMediaPlayback()
+        let players = ScriptedMediaPlayerService(answers: [handle0])
+        let viewModel = await Self.openCollection(
+            collection,
+            mediaPlayerService: players,
+            previews: StubMediaPreviewService()
+        )
+        guard await Self.installPlayback(item0, handle: handle0, in: viewModel, service: players) else { return }
+
+        viewModel.togglePlaybackFromTap(itemID: item0.id)
+        #expect(handle0.pauseCount == 1, "a click on the current page pauses (S6)")
+
+        viewModel.togglePlaybackFromTap(itemID: item1.id)
+        #expect(handle0.pauseCount == 1, "a click on a non-current page is a no-op (S7)")
+
+        viewModel.togglePlaybackFromTap(itemID: item0.id)
+        #expect(handle0.resumeCount == 1, "the second click on the current page resumes — two single clicks (S6)")
+    }
+
+    /// §10.1 — any toggle while a paging gesture is in flight is a no-op
+    /// (S7); the guard releases at settle.
+    @Test func toggleWhilePagingIsANoOp() async {
+        let folder = Self.uniqueFolder("gesture-guard")
+        let item0 = Self.makeItem(folder, named: "a.mp4", kind: .video)
+        let collection = Self.makeCollection(folderURL: folder, items: [item0], startIndex: 0)
+        let handle0 = ScriptedMediaPlayback()
+        let players = ScriptedMediaPlayerService(answers: [handle0])
+        let viewModel = await Self.openCollection(
+            collection,
+            mediaPlayerService: players,
+            previews: StubMediaPreviewService()
+        )
+        guard await Self.installPlayback(item0, handle: handle0, in: viewModel, service: players) else { return }
+
+        viewModel.scrollGestureDidStart()
+        viewModel.togglePlayback()
+        viewModel.togglePlaybackFromTap(itemID: item0.id)
+        #expect(handle0.pauseCount == 0, "toggles mid-gesture are consumed no-ops (S7)")
+
+        viewModel.moveTo(itemID: item0.id) // snap-back
+        viewModel.scrollGestureDidSettle()
+        viewModel.togglePlayback()
+        #expect(handle0.pauseCount == 1, "the guard releases at settle (S7)")
+        #expect(players.calls == [item0], "a zero-net gesture must not restart the session")
+    }
+
+    /// §10.1 — an image page has no playback (S4): paging onto an image
+    /// stops the video and never starts one; toggles there are consumed
+    /// no-ops (S7).
+    @Test func imagePageStopsAndNeverStartsToggleIsNoOp() async {
+        let folder = Self.uniqueFolder("image-page")
+        let item0 = Self.makeItem(folder, named: "a.mp4", kind: .video)
+        let item1 = Self.makeItem(folder, named: "b.png", kind: .image)
+        let collection = Self.makeCollection(folderURL: folder, items: [item0, item1], startIndex: 0)
+        let handle0 = ScriptedMediaPlayback()
+        let players = ScriptedMediaPlayerService(answers: [handle0])
+        let viewModel = await Self.openCollection(
+            collection,
+            mediaPlayerService: players,
+            previews: StubMediaPreviewService()
+        )
+        guard await Self.installPlayback(item0, handle: handle0, in: viewModel, service: players) else { return }
+
+        viewModel.scrollGestureDidStart()
+        viewModel.moveTo(itemID: item1.id)
+        viewModel.scrollGestureDidSettle()
+        #expect(handle0.stopCount == 1, "paging onto the image stops the video (S9)")
+        #expect(players.calls == [item0], "images are never started (S4)")
+
+        viewModel.togglePlayback()
+        viewModel.togglePlaybackFromTap(itemID: item1.id)
+        #expect(handle0.pauseCount == 0, "toggles on an image page are no-ops (S4, S7)")
+    }
+
+    /// §10.1 — stop-on-away (S9): the old session is stopped synchronously
+    /// — `stop()` is already recorded when the paging call returns (design
+    /// §8(2): no audio past the page turn).
+    @Test func pagingAwayStopsBeforePagingReturns() async {
+        let folder = Self.uniqueFolder("stop-on-away")
+        let item0 = Self.makeItem(folder, named: "a.mp4", kind: .video)
+        let item1 = Self.makeItem(folder, named: "b.mp4", kind: .video)
+        let collection = Self.makeCollection(folderURL: folder, items: [item0, item1], startIndex: 0)
+        let handle0 = ScriptedMediaPlayback()
+        let players = ScriptedMediaPlayerService(answers: [handle0])
+        let viewModel = await Self.openCollection(
+            collection,
+            mediaPlayerService: players,
+            previews: StubMediaPreviewService()
+        )
+        guard await Self.installPlayback(item0, handle: handle0, in: viewModel, service: players) else { return }
+
+        viewModel.pageForward()
+        #expect(handle0.stopCount == 1, "stop() must be recorded synchronously with the page change (S9)")
+    }
+
+    /// §10.1 / design §4 implementation correction — stop-on-away display
+    /// hygiene: the departed video's `.player` state reverts to its poster
+    /// state, so the cell never keeps a stopped player surface (the review
+    /// defect: revisiting a video showed no picture).
+    @Test func pagingAwayRevertsDepartedVideoToItsPosterState() async {
+        let folder = Self.uniqueFolder("revert-poster")
+        let item0 = Self.makeItem(folder, named: "a.mp4", kind: .video)
+        let item1 = Self.makeItem(folder, named: "b.mp4", kind: .video)
+        let collection = Self.makeCollection(folderURL: folder, items: [item0, item1], startIndex: 0)
+        let handle0 = ScriptedMediaPlayback()
+        let players = ScriptedMediaPlayerService(answers: [handle0])
+        let previews = RecordingPreviewService(result: Self.knownPreview)
+        let viewModel = await Self.openCollection(
+            collection,
+            mediaPlayerService: players,
+            previews: previews
+        )
+        guard await Self.installPlayback(item0, handle: handle0, in: viewModel, service: players) else { return }
+
+        viewModel.pageForward()
+
+        #expect(
+            viewModel.displayStates[item0.id] == .preview(Self.knownPreview),
+            "the departed item must revert to its poster state — never keep a stopped .player (design §4)"
+        )
+    }
+
+    /// §10.1 / design §4 implementation correction — a revisit after the
+    /// revert installs a FRESH session whose surface paints: the display
+    /// state travels poster → `.player(newHandle)`, never
+    /// `.player(oldHandle)` (S10's fresh start, made visible).
+    @Test func revisitingARevertedVideoPaintsAFreshSurface() async {
+        let folder = Self.uniqueFolder("revisit-fresh")
+        let item0 = Self.makeItem(folder, named: "a.mp4", kind: .video)
+        let item1 = Self.makeItem(folder, named: "b.mp4", kind: .video)
+        let collection = Self.makeCollection(folderURL: folder, items: [item0, item1], startIndex: 0)
+        let handle0 = ScriptedMediaPlayback()
+        let handle1 = ScriptedMediaPlayback()
+        let handle2 = ScriptedMediaPlayback()
+        let players = ScriptedMediaPlayerService(answers: [handle0, handle1, handle2])
+        let previews = RecordingPreviewService(result: Self.knownPreview)
+        let viewModel = await Self.openCollection(
+            collection,
+            mediaPlayerService: players,
+            previews: previews
+        )
+        guard await Self.installPlayback(item0, handle: handle0, in: viewModel, service: players) else { return }
+
+        viewModel.pageForward() // away — item1's arrow start answers with handle1
+        let forward = await Self.waitFor(
+            { viewModel.displayStates[item0.id] == .preview(Self.knownPreview) },
+            "the departed item must revert to its poster state"
+        )
+        guard forward else { return }
+
+        viewModel.pageBackward() // revisit — a fresh session for item0
+        let back = await Self.waitFor(
+            { players.calls == [item0, item1, item0] },
+            "the revisit must start a fresh session (S10)"
+        )
+        guard back else { return }
+        #expect(handle2 !== handle0, "a fresh handle, not the old session (S10)")
+        handle2.emit(.readyForDisplay)
+        _ = await Self.waitFor(
+            { viewModel.displayStates[item0.id] == .player(handle2) },
+            "the fresh session's surface must paint — poster → .player(newHandle)"
+        )
+    }
+
+    /// §10.1 / design §4 implementation correction — a poster answer that
+    /// arrives while the item is live-playing never paints over the
+    /// surface; it parks and becomes the stop-on-away revert target.
+    @Test func latePosterWhilePlayingParksForTheRevert() async {
+        let folder = Self.uniqueFolder("late-poster")
+        let item0 = Self.makeItem(folder, named: "a.mp4", kind: .video)
+        let item1 = Self.makeItem(folder, named: "b.mp4", kind: .video)
+        let collection = Self.makeCollection(folderURL: folder, items: [item0, item1], startIndex: 0)
+        let handle0 = ScriptedMediaPlayback()
+        let handle1 = ScriptedMediaPlayback()
+        let players = ScriptedMediaPlayerService(answers: [handle0, handle1])
+        let previews = GatedPreviewService()
+        let viewModel = await Self.openCollection(
+            collection,
+            mediaPlayerService: players,
+            previews: previews
+        )
+        guard await Self.installPlayback(item0, handle: handle0, in: viewModel, service: players) else { return }
+
+        await previews.releaseFirst(for: item0.url, with: Self.knownPreview)
+        for _ in 0 ..< 50 {
+            await Task.yield()
+        }
+        #expect(
+            viewModel.displayStates[item0.id] == .player(handle0),
+            "the late poster must not paint over the live surface"
+        )
+
+        viewModel.pageForward()
+        #expect(
+            viewModel.displayStates[item0.id] == .preview(Self.knownPreview),
+            "the parked late poster is the revert target on stop-on-away (design §4)"
+        )
+    }
+
+    /// §10.1 — restart-on-revisit (S10): paging back starts a FRESH
+    /// session — no resume, nothing carried across visits; the old handle
+    /// is never resumed or restarted, and a new handle is vended.
+    @Test func revisitingStartsAFreshSession() async {
+        let folder = Self.uniqueFolder("revisit")
+        let item0 = Self.makeItem(folder, named: "a.mp4", kind: .video)
+        let item1 = Self.makeItem(folder, named: "b.mp4", kind: .video)
+        let collection = Self.makeCollection(folderURL: folder, items: [item0, item1], startIndex: 0)
+        let handle0 = ScriptedMediaPlayback()
+        let handle1 = ScriptedMediaPlayback()
+        let handle2 = ScriptedMediaPlayback()
+        let players = ScriptedMediaPlayerService(answers: [handle0, handle1, handle2])
+        let viewModel = await Self.openCollection(
+            collection,
+            mediaPlayerService: players,
+            previews: StubMediaPreviewService()
+        )
+        guard await Self.installPlayback(item0, handle: handle0, in: viewModel, service: players) else { return }
+
+        viewModel.scrollGestureDidStart()
+        viewModel.moveTo(itemID: item1.id)
+        viewModel.scrollGestureDidSettle()
+        let forward = await Self.waitFor(
+            { players.calls == [item0, item1] },
+            "paging forward must start the new current item"
+        )
+        guard forward else { return }
+
+        viewModel.scrollGestureDidStart()
+        viewModel.moveTo(itemID: item0.id)
+        viewModel.scrollGestureDidSettle()
+        let back = await Self.waitFor(
+            { players.calls == [item0, item1, item0] },
+            "paging back must start a fresh session for the revisited video (S10)"
+        )
+        guard back else { return }
+
+        #expect(handle0.resumeCount == 0, "no resume across visits (S10)")
+        #expect(handle0.restartCount == 0, "nothing carries across visits (S10)")
+        #expect(handle2 !== handle0, "a fresh session, not the old one (S10)")
+        handle2.emit(.readyForDisplay)
+        _ = await Self.waitFor(
+            { viewModel.displayStates[item0.id] == .player(handle2) },
+            "the fresh session must install and paint"
+        )
+    }
+
+    /// §10.1 — loop in place (S11): `.reachedEnd` restarts the SAME
+    /// handle; the index is untouched; no neighbor is ever started; the
+    /// bridge survives restarts, so the loop repeats.
+    @Test func reachedEndRestartsSameHandleWithoutAdvancing() async {
+        let folder = Self.uniqueFolder("loop")
+        let item0 = Self.makeItem(folder, named: "a.mp4", kind: .video)
+        let item1 = Self.makeItem(folder, named: "b.mp4", kind: .video)
+        let collection = Self.makeCollection(folderURL: folder, items: [item0, item1], startIndex: 0)
+        let handle0 = ScriptedMediaPlayback()
+        let players = ScriptedMediaPlayerService(answers: [handle0])
+        let viewModel = await Self.openCollection(
+            collection,
+            mediaPlayerService: players,
+            previews: StubMediaPreviewService()
+        )
+        guard await Self.installPlayback(item0, handle: handle0, in: viewModel, service: players) else { return }
+
+        handle0.emit(.reachedEnd)
+        let restarted = await Self.waitFor(
+            { handle0.restartCount == 1 },
+            ".reachedEnd must restart the same handle (S11)"
+        )
+        guard restarted else { return }
+        #expect(viewModel.currentIndex == 0, "the index is untouched (S11 — no auto-advance)")
+        #expect(players.calls == [item0], "the neighbor is never started (S11)")
+
+        handle0.emit(.reachedEnd)
+        _ = await Self.waitFor(
+            { handle0.restartCount == 2 },
+            "the loop must repeat on every end (S11)"
+        )
+    }
+
+    /// §10.1 — `startPlayback` → `nil` is the unified failure answer (S14,
+    /// S15): sticky `.unavailable`, never re-attempted this session
+    /// (per-axis stickiness — paging away and back does not retry), and
+    /// toggles on the failed current item are no-ops.
+    @Test func nilStartBecomesStickyUnavailableWithoutRetry() async {
+        let folder = Self.uniqueFolder("nil-start")
+        let item0 = Self.makeItem(folder, named: "a.mp4", kind: .video)
+        let item1 = Self.makeItem(folder, named: "b.mp4", kind: .video)
+        let collection = Self.makeCollection(folderURL: folder, items: [item0, item1], startIndex: 0)
+        let handle1 = ScriptedMediaPlayback()
+        let players = ScriptedMediaPlayerService(answers: [nil, handle1])
+        let viewModel = await Self.openCollection(
+            collection,
+            mediaPlayerService: players,
+            previews: StubMediaPreviewService()
+        )
+
+        let failed = await Self.waitFor(
+            { viewModel.displayStates[item0.id] == .unavailable },
+            "a nil start must show the sticky unavailable state (S14, S15)"
+        )
+        guard failed else { return }
+
+        viewModel.scrollGestureDidStart()
+        viewModel.moveTo(itemID: item1.id)
+        viewModel.scrollGestureDidSettle()
+        let forward = await Self.waitFor(
+            { players.calls == [item0, item1] },
+            "the neighbor video must start normally"
+        )
+        guard forward else { return }
+
+        viewModel.scrollGestureDidStart()
+        viewModel.moveTo(itemID: item0.id)
+        viewModel.scrollGestureDidSettle()
+        _ = await Self.waitFor(
+            { viewModel.currentItemID == item0.id },
+            "the failed item must be reachable again"
+        )
+        #expect(players.calls == [item0, item1], "the failed item is never re-attempted (design §7)")
+        #expect(viewModel.displayStates[item0.id] == .unavailable, "the unavailable state is sticky")
+
+        viewModel.togglePlayback()
+        #expect(handle1.pauseCount == 0, "toggling the failed current item is a no-op (S7)")
+    }
+
+    /// §10.1 — a mid-play `.failed` event stops the session and shows the
+    /// sticky `.unavailable` (S14); the item is never re-attempted.
+    @Test func failedEventStopsAndBecomesStickyUnavailable() async {
+        let folder = Self.uniqueFolder("failed-event")
+        let item0 = Self.makeItem(folder, named: "a.mp4", kind: .video)
+        let item1 = Self.makeItem(folder, named: "b.mp4", kind: .video)
+        let collection = Self.makeCollection(folderURL: folder, items: [item0, item1], startIndex: 0)
+        let handle0 = ScriptedMediaPlayback()
+        let handle1 = ScriptedMediaPlayback()
+        let players = ScriptedMediaPlayerService(answers: [handle0, handle1])
+        let viewModel = await Self.openCollection(
+            collection,
+            mediaPlayerService: players,
+            previews: StubMediaPreviewService()
+        )
+        guard await Self.installPlayback(item0, handle: handle0, in: viewModel, service: players) else { return }
+
+        handle0.emit(.failed)
+        let failed = await Self.waitFor(
+            { viewModel.displayStates[item0.id] == .unavailable },
+            "a .failed event must show the sticky unavailable state (S14)"
+        )
+        guard failed else { return }
+        #expect(handle0.stopCount == 1, "the .failed event stops the session (design §7)")
+
+        viewModel.scrollGestureDidStart()
+        viewModel.moveTo(itemID: item1.id)
+        viewModel.scrollGestureDidSettle()
+        let forward = await Self.waitFor(
+            { players.calls == [item0, item1] },
+            "the neighbor video must start normally"
+        )
+        guard forward else { return }
+
+        viewModel.scrollGestureDidStart()
+        viewModel.moveTo(itemID: item0.id)
+        viewModel.scrollGestureDidSettle()
+        _ = await Self.waitFor(
+            { viewModel.currentItemID == item0.id },
+            "the failed item must be reachable again"
+        )
+        #expect(players.calls == [item0, item1], "the failed item is never re-attempted (design §7)")
+        #expect(viewModel.displayStates[item0.id] == .unavailable)
+    }
+
+    /// §10.1 — per-axis stickiness (design §7): a failed POSTER does not
+    /// block the playback attempt (S1 is unconditional); playback
+    /// succeeding shows `.player` — honest recovery.
+    @Test func posterFailureDoesNotBlockThePlaybackAttempt() async {
+        let folder = Self.uniqueFolder("poster-axis")
+        let item0 = Self.makeItem(folder, named: "a.mp4", kind: .video)
+        let collection = Self.makeCollection(folderURL: folder, items: [item0], startIndex: 0)
+        let handle0 = ScriptedMediaPlayback()
+        let players = ScriptedMediaPlayerService(answers: [handle0])
+        let viewModel = await Self.openCollection(
+            collection,
+            mediaPlayerService: players,
+            previews: RecordingPreviewService(result: nil) // the poster axis fails
+        )
+
+        let attempted = await Self.waitFor(
+            { players.calls == [item0] },
+            "the playback attempt must happen despite the poster failure (design §7)"
+        )
+        guard attempted else { return }
+        handle0.emit(.readyForDisplay)
+        _ = await Self.waitFor(
+            { viewModel.displayStates[item0.id] == .player(handle0) },
+            "playback succeeding must show .player — honest recovery (design §7)"
+        )
+    }
+
+    /// §10.1 — late events from a stopped handle never paint or sound
+    /// (design §3's braces): the dropped handle's `.failed` must neither
+    /// turn the item unavailable nor stop anything again.
+    @Test func eventsFromAStoppedHandleNeverPaint() async {
+        let folder = Self.uniqueFolder("brace-stopped")
+        let item0 = Self.makeItem(folder, named: "a.mp4", kind: .video)
+        let item1 = Self.makeItem(folder, named: "b.mp4", kind: .video)
+        let collection = Self.makeCollection(folderURL: folder, items: [item0, item1], startIndex: 0)
+        let handle0 = ScriptedMediaPlayback()
+        let players = ScriptedMediaPlayerService(answers: [handle0])
+        let viewModel = await Self.openCollection(
+            collection,
+            mediaPlayerService: players,
+            previews: StubMediaPreviewService()
+        )
+        guard await Self.installPlayback(item0, handle: handle0, in: viewModel, service: players) else { return }
+
+        viewModel.pageForward() // stops and drops handle0
+        handle0.emit(.failed) // emitted after stop — must be inert
+        for _ in 0 ..< 50 {
+            await Task.yield()
+        }
+        #expect(
+            viewModel.displayStates[item0.id] != .unavailable,
+            "a stopped handle's late event never paints (design §3)"
+        )
+        #expect(handle0.stopCount == 1, "the stopped handle is never stopped again through the event path")
+    }
+
+    /// §10.1 — a superseded handle's late event never paints and never
+    /// touches the live session (design §3 brace 2 — handle identity).
+    @Test func supersededHandleEventsNeverTouchTheLiveSession() async {
+        let folder = Self.uniqueFolder("brace-identity")
+        let item0 = Self.makeItem(folder, named: "a.mp4", kind: .video)
+        let item1 = Self.makeItem(folder, named: "b.mp4", kind: .video)
+        let collection = Self.makeCollection(folderURL: folder, items: [item0, item1], startIndex: 0)
+        let handle0 = ScriptedMediaPlayback()
+        let handle1 = ScriptedMediaPlayback()
+        let players = ScriptedMediaPlayerService(answers: [handle0, handle1])
+        let viewModel = await Self.openCollection(
+            collection,
+            mediaPlayerService: players,
+            previews: StubMediaPreviewService()
+        )
+        guard await Self.installPlayback(item0, handle: handle0, in: viewModel, service: players) else { return }
+
+        viewModel.scrollGestureDidStart()
+        viewModel.moveTo(itemID: item1.id)
+        viewModel.scrollGestureDidSettle()
+        let superseded = await Self.waitFor(
+            { players.calls == [item0, item1] },
+            "the successor session must start"
+        )
+        guard superseded else { return }
+        handle1.emit(.readyForDisplay)
+        let live = await Self.waitFor(
+            { viewModel.displayStates[item1.id] == .player(handle1) },
+            "the live session must paint"
+        )
+        guard live else { return }
+
+        handle0.emit(.failed) // late, superseded
+        for _ in 0 ..< 50 {
+            await Task.yield()
+        }
+        #expect(
+            viewModel.displayStates[item0.id] != .unavailable,
+            "a superseded handle's late event never paints (design §3 brace 2)"
+        )
+        #expect(
+            viewModel.displayStates[item1.id] == .player(handle1),
+            "the live session is untouched by the stale handle"
+        )
+        #expect(handle1.stopCount == 0, "the stale handle's event must not stop the live session")
+    }
+
+    /// §10.1 — a superseded `startPlayback` result never installs (design
+    /// §3 brace 3): the start is parked in the seam, the current item
+    /// changes, and the released answer must be stopped and dropped,
+    /// never installed.
+    @Test func supersededStartResultNeverInstalls() async {
+        let folder = Self.uniqueFolder("brace-generation")
+        let item0 = Self.makeItem(folder, named: "a.mp4", kind: .video)
+        let item1 = Self.makeItem(folder, named: "b.mp4", kind: .video)
+        let collection = Self.makeCollection(folderURL: folder, items: [item0, item1], startIndex: 0)
+        let handle0 = ScriptedMediaPlayback()
+        let handle1 = ScriptedMediaPlayback()
+        let players = ScriptedMediaPlayerService(answers: [handle1], holdingFirstCall: true)
+        let viewModel = await Self.openCollection(
+            collection,
+            mediaPlayerService: players,
+            previews: StubMediaPreviewService()
+        )
+
+        let parked = await Self.waitFor(
+            { players.isHoldingFirstCall },
+            "the first start must park on the gate"
+        )
+        guard parked else { return }
+
+        viewModel.scrollGestureDidStart()
+        viewModel.moveTo(itemID: item1.id)
+        viewModel.scrollGestureDidSettle()
+        let superseded = await Self.waitFor(
+            { players.calls.count == 2 },
+            "the settle must start the new current item"
+        )
+        guard superseded else { return }
+
+        players.releaseFirstCall(with: handle0)
+        let dropped = await Self.waitFor(
+            { handle0.stopCount == 1 },
+            "the superseded result must be stopped, never installed (design §3 brace 3)"
+        )
+        guard dropped else { return }
+        #expect(viewModel.displayStates[item0.id] != .player(handle0))
+
+        handle1.emit(.readyForDisplay)
+        _ = await Self.waitFor(
+            { viewModel.displayStates[item1.id] == .player(handle1) },
+            "the fresh session must install and paint"
+        )
+    }
+
+    /// §10.1 — the replace-in-place generation guard (design §3 brace 3):
+    /// a parked start for the replaced collection is stopped and never
+    /// installs; the new collection starts at its own `startIndex`.
+    @Test func replaceInPlaceDropsTheSupersededStart() async {
+        let folderA = Self.uniqueFolder("replace-brace-a")
+        let folderB = Self.uniqueFolder("replace-brace-b")
+        let itemA = Self.makeItem(folderA, named: "a.mp4", kind: .video)
+        let itemB = Self.makeItem(folderB, named: "b.mp4", kind: .video)
+        let collectionA = Self.makeCollection(folderURL: folderA, items: [itemA], startIndex: 0)
+        let collectionB = Self.makeCollection(folderURL: folderB, items: [itemB], startIndex: 0)
+        let handleA = ScriptedMediaPlayback()
+        let handleB = ScriptedMediaPlayback()
+        let players = ScriptedMediaPlayerService(answers: [handleB], holdingFirstCall: true)
+        let viewModel = Self.makeViewModel(
+            mediaPlayerService: players,
+            repository: ScriptedMediaFolderRepository(results: [collectionA, collectionB]),
+            previews: StubMediaPreviewService()
+        )
+        await viewModel.handle(entryAction: EntryAction(enteredURL: folderA))
+
+        let parked = await Self.waitFor(
+            { players.isHoldingFirstCall },
+            "the replaced collection's start must park on the gate"
+        )
+        guard parked else { return }
+
+        await viewModel.handle(entryAction: EntryAction(enteredURL: folderB))
+        let started = await Self.waitFor(
+            { players.calls == [itemA, itemB] },
+            "the new collection must start at its own startIndex (S1)"
+        )
+        guard started else { return }
+
+        players.releaseFirstCall(with: handleA)
+        let dropped = await Self.waitFor(
+            { handleA.stopCount == 1 },
+            "the superseded session must be stopped, never installed (design §3 brace 3)"
+        )
+        guard dropped else { return }
+        #expect(viewModel.displayStates[itemA.id] == nil, "the superseded session never paints")
+
+        handleB.emit(.readyForDisplay)
+        _ = await Self.waitFor(
+            { viewModel.displayStates[itemB.id] == .player(handleB) },
+            "the new collection's session must install and paint"
+        )
+    }
+
+    /// §10.1 — welcome teardown (design §3): the no-media entry stops and
+    /// drops the session; toggles afterwards are quiet no-ops.
+    @Test func welcomeStopsAndDropsTheSession() async {
+        let folder = Self.uniqueFolder("welcome-teardown")
+        let item0 = Self.makeItem(folder, named: "a.mp4", kind: .video)
+        let collection = Self.makeCollection(folderURL: folder, items: [item0], startIndex: 0)
+        let handle0 = ScriptedMediaPlayback()
+        let players = ScriptedMediaPlayerService(answers: [handle0])
+        let viewModel = await Self.openCollection(
+            collection,
+            mediaPlayerService: players,
+            previews: StubMediaPreviewService()
+        )
+        guard await Self.installPlayback(item0, handle: handle0, in: viewModel, service: players) else { return }
+
+        await viewModel.handle(entryAction: EntryAction(enteredURL: Self.uniqueFolder("empty")))
+        guard case .welcome = viewModel.state else {
+            Issue.record("the no-media entry must return to welcome")
+            return
+        }
+        #expect(handle0.stopCount == 1, "welcome must stop the session (design §3)")
+        viewModel.togglePlayback()
+        #expect(handle0.pauseCount == 0, "the handle is dropped — toggles are no-ops (design §3)")
+    }
+
+    /// §10.1 — a fresh entry action resets playback stickiness (design
+    /// §7's "way out"): the same item id in a replaced collection is
+    /// attempted again even though it failed in the previous one.
+    @Test func freshEntryResetsPlaybackFailureStickiness() async {
+        let folderA = Self.uniqueFolder("reset-a")
+        let itemURL = folderA.appending(path: "same.mp4")
+        let itemA = MediaItem(id: itemURL, url: itemURL, name: "same.mp4", kind: .video)
+        let collectionA = Self.makeCollection(folderURL: folderA, items: [itemA], startIndex: 0)
+        let folderB = Self.uniqueFolder("reset-b")
+        let itemB = MediaItem(id: itemURL, url: itemURL, name: "same.mp4", kind: .video)
+        let collectionB = Self.makeCollection(folderURL: folderB, items: [itemB], startIndex: 0)
+        let handleB = ScriptedMediaPlayback()
+        let players = ScriptedMediaPlayerService(answers: [nil, handleB])
+        let viewModel = Self.makeViewModel(
+            mediaPlayerService: players,
+            repository: ScriptedMediaFolderRepository(results: [collectionA, collectionB]),
+            previews: StubMediaPreviewService()
+        )
+        await viewModel.handle(entryAction: EntryAction(enteredURL: folderA))
+
+        let failed = await Self.waitFor(
+            { viewModel.displayStates[itemA.id] == .unavailable },
+            "the item must fail in the first collection"
+        )
+        guard failed else { return }
+
+        await viewModel.handle(entryAction: EntryAction(enteredURL: folderB))
+        let retried = await Self.waitFor(
+            { players.calls == [itemA, itemB] },
+            "a fresh entry action must reset playback stickiness (design §7)"
+        )
+        guard retried else { return }
+        handleB.emit(.readyForDisplay)
+        _ = await Self.waitFor(
+            { viewModel.displayStates[itemB.id] == .player(handleB) },
+            "the re-attempted session must install and paint"
+        )
+    }
 }
 
 /// Test double for the welcome-state machine (design §9.2). Two modes:
@@ -762,5 +1701,105 @@ private actor GatedPreviewService: MediaPreviewService {
 
     func wiringProbe() async -> String {
         "GatedPreviewService"
+    }
+}
+
+/// Player-seam double (E2-S3 design §10.1): a spy + scripted answerer.
+/// Every `startPlayback` call is recorded; answers pop from `answers` in
+/// call order (an exhausted script answers `nil` — the seam's unified
+/// failure answer). With `holdingFirstCall`, the first call suspends on a
+/// continuation gate until `releaseFirstCall(with:)` — the deterministic
+/// supersede race. A `@MainActor final class` per the seam's isolation
+/// (E2-S3 design §1.2).
+@MainActor
+private final class ScriptedMediaPlayerService: MediaPlayerService {
+    private var answers: [MediaPlayback?]
+    private let holdFirstCall: Bool
+    private var firstCallGate: CheckedContinuation<MediaPlayback?, Never>?
+    private(set) var calls: [MediaItem] = []
+
+    init(answers: [MediaPlayback?] = [], holdingFirstCall: Bool = false) {
+        self.answers = answers
+        holdFirstCall = holdingFirstCall
+    }
+
+    /// True while the first call is suspended on the gate.
+    var isHoldingFirstCall: Bool {
+        firstCallGate != nil
+    }
+
+    /// Releases the suspended first call with `answer` (no-op when not
+    /// held).
+    func releaseFirstCall(with answer: (any MediaPlayback)?) {
+        firstCallGate?.resume(returning: answer)
+        firstCallGate = nil
+    }
+
+    func wiringProbe() async -> String {
+        "ScriptedMediaPlayerService"
+    }
+
+    func startPlayback(for item: MediaItem) async -> MediaPlayback? {
+        calls.append(item)
+        if calls.count == 1, holdFirstCall {
+            return await withCheckedContinuation { (continuation: CheckedContinuation<MediaPlayback?, Never>) in
+                firstCallGate = continuation
+            }
+        }
+        guard !answers.isEmpty else { return nil }
+        return answers.removeFirst()
+    }
+}
+
+/// Scripted session handle (E2-S3 design §10.1): records every command;
+/// the test drives its events through `emit`. After `stop()` nothing is
+/// emitted and the stream is finished — brace 1, exactly like the real
+/// session (design §3); the view model's identity and generation braces
+/// stay exercised through this honest shape.
+@MainActor
+private final class ScriptedMediaPlayback: MediaPlayback {
+    let events: AsyncStream<MediaPlaybackEvent>
+    private let continuation: AsyncStream<MediaPlaybackEvent>.Continuation
+
+    private(set) var pauseCount = 0
+    private(set) var resumeCount = 0
+    private(set) var restartCount = 0
+    private(set) var stopCount = 0
+    private(set) var isStopped = false
+
+    init() {
+        (events, continuation) = AsyncStream.makeStream(of: MediaPlaybackEvent.self)
+    }
+
+    /// Drives one event into the stream (the test's hand on the double).
+    func emit(_ event: MediaPlaybackEvent) {
+        guard !isStopped else { return }
+        continuation.yield(event)
+    }
+
+    func pause() {
+        guard !isStopped else { return }
+        pauseCount += 1
+    }
+
+    func resume() {
+        guard !isStopped else { return }
+        resumeCount += 1
+    }
+
+    func restart() {
+        guard !isStopped else { return }
+        restartCount += 1
+    }
+
+    func stop() {
+        guard !isStopped else { return }
+        isStopped = true
+        stopCount += 1
+        continuation.finish()
+    }
+
+    func makeDisplayView() -> AnyObject {
+        NSView()
     }
 }

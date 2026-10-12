@@ -48,26 +48,45 @@ final class MediaPreviewPerformanceTests: XCTestCase {
             _ = await service.preview(for: fixtures.heavyItem)
         }
 
-        // Deterministic single-pass catch: each cold (cache-discarded)
-        // extraction must stay under its budget; the measure block below
-        // records the trend as tooling evidence.
-        assertColdPass(
-            service: service,
-            item: fixtures.videoItem,
-            budget: 0.30,
-            name: "300 ms typical (720p clip, design §8(1))"
+        // Design §8(1) budgets the typical display at "≤ 300 ms p95", so
+        // the typical cold passes are sampled at N = 20 (10 per typical
+        // fixture — same fixtures, same extraction path, fixtures built
+        // once above) and the p95 of the samples is asserted: the 19th of
+        // 20 sorted times (sorted[18], nearest-rank p95 = ⌈0.95 × 20⌉ = 19)
+        // must stay under budget — at most one pass of twenty may exceed
+        // it. The heavy pass keeps its single-pass check (N = 1) against
+        // the unchanged 1 s budget.
+        var typicalColdPassTimes: [Double] = []
+        for _ in 0 ..< 10 {
+            typicalColdPassTimes.append(
+                measureColdPass(
+                    service: service,
+                    item: fixtures.videoItem,
+                    name: "300 ms typical (720p clip, design §8(1))"
+                )
+            )
+            typicalColdPassTimes.append(
+                measureColdPass(
+                    service: service,
+                    item: fixtures.stillItem,
+                    name: "300 ms typical (24 MP still, design §8(1))"
+                )
+            )
+        }
+        XCTAssertLessThan(
+            typicalColdPassTimes.sorted()[18],
+            0.30,
+            "300 ms typical p95 over 20 cold passes (design §8(1)) violated"
         )
-        assertColdPass(
-            service: service,
-            item: fixtures.stillItem,
-            budget: 0.30,
-            name: "300 ms typical (24 MP still, design §8(1))"
-        )
-        assertColdPass(
+        let heavyColdPassTime = measureColdPass(
             service: service,
             item: fixtures.heavyItem,
-            budget: 1.0,
             name: "1 s heavy (48 MP still, design §8(1))"
+        )
+        XCTAssertLessThan(
+            heavyColdPassTime,
+            1.0,
+            "1 s heavy (48 MP still, design §8(1)) violated"
         )
 
         // Tooling evidence: measured over iterations over the generated
@@ -134,9 +153,10 @@ final class MediaPreviewPerformanceTests: XCTestCase {
         )
     }
 
-    /// One cold pass through the seam (discard → extract), asserted under
-    /// the budget (the E2-S1 single-pass precedent).
-    private func assertColdPass(service: AVMediaPreviewService, item: MediaItem, budget: Double, name: String) {
+    /// One cold pass through the seam (discard → extract), returning the
+    /// measured time for the caller's budget assertion (the p95-over-passes
+    /// form of design §8(1); the E2-S1 single-pass precedent, per budget).
+    private func measureColdPass(service: AVMediaPreviewService, item: MediaItem, name: String) -> Double {
         let start = Date()
         awaitSeam {
             await service.discardPreviews()
@@ -144,7 +164,7 @@ final class MediaPreviewPerformanceTests: XCTestCase {
         }
         let elapsed = Date().timeIntervalSince(start)
         recordEvidence("cold-pass \(name): \(String(format: "%.1f", elapsed * 1000)) ms")
-        XCTAssertLessThan(elapsed, budget, "\(name) violated")
+        return elapsed
     }
 
     /// One warm cache-hit pass through the seam: prime the cache once

@@ -45,8 +45,8 @@ InstantPlayer/
 ├── Assets.xcassets                                  template asset catalog (unchanged)
 ├── App/                                             composition root (D10)
 │   ├── InstantPlayerApp.swift                       @main entry + `Window` scene wiring
-│   ├── AppDelegate.swift                            close-quits policy (S8) + arrow-key monitor (S5)
-│   ├── ArrowKeyCommand.swift                        pure arrow-key routing decision (S5)
+│   ├── AppDelegate.swift                            close-quits policy (S8) + feed-key monitor (S5)
+│   ├── FeedKeyCommand.swift                         pure feed-key routing decision — arrows + space (S5)
 │   ├── AppDependencies.swift                        the binding container
 │   └── RootView.swift                               App-owned root view (owns the entry modifiers)
 ├── Config/                                          project config (partial plist + entitlements)
@@ -65,21 +65,26 @@ InstantPlayer/
 └── Features/
     └── Feed/                                        the one shipped feature shell (D7)
         ├── Domain/
-        │   ├── MediaPlayerService.swift             player seam (feature-owned protocol)
+        │   ├── MediaPlayerService.swift             player seam — `startPlayback(for:)` + `wiringProbe()` (feature-owned protocol)
+        │   ├── MediaPlayback.swift                  opaque playback-session handle — event stream, pause/resume/restart/stop, display view
+        │   ├── MediaPlaybackEvent.swift             playback event — readyForDisplay / reachedEnd / failed
         │   ├── MediaPreviewService.swift            preview seam (feature-owned protocol)
         │   └── MediaPreview.swift                   preview value — display bytes + pixel size (S2, S3)
         ├── Data/
-        │   ├── StubMediaPlayerService.swift         player-seam stub conformance
+        │   ├── StubMediaPlayerService.swift         player-seam stub conformance — stub playback handles (wiring tests)
         │   ├── StubMediaFolderRepository.swift      folder-seam stub conformance
         │   ├── StubMediaPreviewService.swift        preview-seam stub conformance
         │   ├── MediaTypeClassifier.swift            UTType media rule + junk exclusions (S11, S12)
         │   ├── SecurityScopedMediaFolderRepository.swift real folder-seam conformance — the D8 actor (scoped session)
+        │   ├── AVMediaPlayerService.swift           real player-seam conformance — @MainActor, one live AVPlayer, supersedes on re-start, failure → nil
+        │   ├── AVMediaPlayback.swift                one playback session — AVPlayer + item, observation → event stream, loop support (`restart()`), the layer-hosting display view
         │   └── AVMediaPreviewService.swift          real preview-seam conformance — the D8 actor (preview cache + coalescing)
         └── Presentation/
             ├── FeedState.swift                      welcome ↔ folderOpen(MediaCollection) (S5–S7)
-            ├── FeedViewModel.swift                  @MainActor @Observable view model — the paging state machine
-            ├── FeedView.swift                       dumb binder view — welcome or the paging feed
-            ├── FeedItemView.swift                   one feed page — poster or unavailable state (S2, S3, S12–S14)
+            ├── FeedViewModel.swift                  @MainActor @Observable view model — the paging + playback policy state machine (settle-gated auto-play, toggles/guards, stop-on-away, loop, sticky failure)
+            ├── FeedView.swift                       dumb binder view — welcome or the paging feed; drills the per-page tap closure
+            ├── FeedItemView.swift                   one feed page — poster, player surface, or unavailable state; the tap target (S2–S4, S6–S8, S12–S14)
+            ├── PlayerSurfaceView.swift              NSViewRepresentable wrap of the handle's display-ready view — AppKit only, a wrap not processing (S8)
             └── WelcomeView.swift                    drop-target welcome surface (S5)
 ```
 
@@ -112,7 +117,10 @@ InstantPlayer/
   Core/Domain contracts (the E2-S1 refinement — URLs are values; operations are the
   boundary — extended in E2-S2: pre-decoded, downsampled display bytes are values
   too, and Presentation may wrap display bytes into platform image types for
-  rendering — a wrap, not processing); (4)
+  rendering — a wrap, not processing — extended again in E2-S3: an opaque,
+  display-ready platform view may travel as an opaque `AnyObject` value from a Data
+  conformance, and Presentation wraps it into the view hierarchy — a wrap, not
+  processing); (4)
   every new Core file cites its ≥2 consumers in the
   story's design; (5) the story's wiring tests still pass the composition-root
   end-to-end probe.
@@ -202,6 +210,13 @@ Both pillars are non-negotiable (D5); each story touching them loads its skill
   the preview cache and request-coalescing state live on its executor, and again the
   `@MainActor` view model receives only the finished value. That isolation
   boundary is the documented D8 case; later shared state follows the same pattern.
+  E2-S3 ships **no new actor** — the player conformance (`AVMediaPlayerService`) is
+  `@MainActor` because D8's trigger is unmet (no mutable state shared across
+  isolation domains — the one consumer is the `@MainActor` view model, and the
+  event stream is marshaled to the main actor at the conformance boundary) and
+  synchronous stop/pause bite is contract; the seam-isolation pattern accordingly
+  extends to `@MainActor` seams when synchronous real-time commands are part of
+  the contract (D25).
 - **E1-S1 ADR renumbering:** parked story E1-S1 renumbers its planned ADR batch because
   this story took D7–D10 — expected and stakeholder-acknowledged (backlog sequencing
   note); no action in this document beyond this record.

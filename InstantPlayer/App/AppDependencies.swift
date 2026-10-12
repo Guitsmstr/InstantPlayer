@@ -14,12 +14,14 @@
 /// (a) reference feature **Data** concretions and (b) construct feature
 /// view models. Everything else depends on protocols.
 ///
-/// Launch cost (R13, E2-S1 design §7.3): allocation-only — exactly three
-/// sanctioned allocations on the launch path: the repository actor and the
-/// preview actor bound here (E2-S2 adds the preview binding — design §1,
-/// §8(5): one more binding allocation, nothing scheduled, no media touched
-/// at launch), and the `FeedViewModel` when `RootView` appears via the
-/// factory. No I/O, nothing scheduled, no scan at launch.
+/// Launch cost (R13, E2-S1 design §7.3): allocation-only — exactly four
+/// sanctioned allocations on the launch path: the repository actor, the
+/// preview actor, and the player service bound here (E2-S2 design §1,
+/// §8(5) and E2-S3 design §8(4): each is one binding allocation, nothing
+/// scheduled — the player binding is the stub→real swap, and no player
+/// is created at launch; sessions exist only while a video is current),
+/// and the `FeedViewModel` when `RootView` appears via the factory. No
+/// I/O, nothing scheduled, no scan at launch.
 @MainActor
 final class AppDependencies {
     /// Bound seams. Feature code sees only the protocol types.
@@ -42,9 +44,10 @@ final class AppDependencies {
     /// conformances through the same initializer. The default folder seam
     /// is the real security-scoped actor (E2-S1 design §1); the default
     /// preview seam is the real extraction actor (E2-S2 design §1); the
-    /// player seam stays stubbed until E2-S3.
+    /// default player seam is the real AVFoundation wrapper (E2-S3
+    /// design §1 — one live session while a video is current).
     init(
-        mediaPlayerService: any MediaPlayerService = StubMediaPlayerService(),
+        mediaPlayerService: any MediaPlayerService = AVMediaPlayerService(),
         mediaFolderRepository: any MediaFolderRepository = SecurityScopedMediaFolderRepository(),
         mediaPreviewService: any MediaPreviewService = AVMediaPreviewService()
     ) {

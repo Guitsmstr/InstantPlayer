@@ -3,8 +3,9 @@
 //  InstantPlayer
 //
 //  App-owned window lifecycle policy (E2-S2, design §6.1 — S8) and
-//  arrow-key delivery (E2-S2 round 4 — S5; coordinator-ratified design
-//  §5.3 amendment, D22).
+//  feed-key delivery (E2-S2 round 4 — S5; coordinator-ratified design
+//  §5.3 amendment, D22; extended into a feed-key router in E2-S3 —
+//  design §6 — S5).
 //
 
 import AppKit
@@ -16,11 +17,12 @@ import AppKit
 /// single-window behavior. SwiftUI focused-view key delivery
 /// (`.onKeyPress`/`.onMoveCommand` with programmatic `@FocusState`)
 /// failed three live functional-review rounds — key focus could not be
-/// made to land in the scroll content — so arrow keys ship as a ratified
-/// App-owned `NSEvent` local key monitor: the pure `ArrowKeyCommand`
-/// decision routes each keyDown into the active feed view model's
-/// unchanged paging methods; everything else passes through untouched.
-/// The delegate also owns the one composition container (D10) — the same
+/// made to land in the scroll content — so the feed's keys ship as a
+/// ratified App-owned `NSEvent` local key monitor: the pure
+/// `FeedKeyCommand` decision routes each keyDown into the active feed
+/// view model's unchanged paging and toggle methods; everything else
+/// passes through untouched. The delegate also owns the one composition
+/// container (D10) — the same
 /// container `RootView` binds to. D18's adaptor reservation for *entry
 /// routing* stays deliberately unbuilt.
 @MainActor
@@ -41,15 +43,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_: Notification) {
         // Local monitors fire on the main thread; the decision is O(1)
-        // pure arithmetic (RNF-02) and the paging call is the existing
-        // `@MainActor` view-model method. Auto-repeat while held = repeated
-        // presses — one item per keyDown (standard, accepted by the spec).
-        // `[weak self]` breaks the token→closure→self cycle.
+        // pure arithmetic (RNF-02) and the paging/toggle calls are the
+        // existing `@MainActor` view-model methods. Arrow auto-repeat
+        // while held = repeated presses — one item per keyDown (standard,
+        // accepted by the spec); space auto-repeat is consumed and
+        // ignored (E2-S3 design §6 — a held space must not flap
+        // play/pause). `[weak self]` breaks the token→closure→self cycle.
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self else { return event }
-            let command = ArrowKeyCommand.route(
+            let command = FeedKeyCommand.route(
                 keyCode: event.keyCode,
                 modifiers: event.modifierFlags,
+                isRepeat: event.isARepeat,
                 hasOpenFeed: Self.hasOpenFeed(on: dependencies.activeFeedModel)
             )
             switch command {
@@ -58,6 +63,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 return nil
             case .pageBackward:
                 dependencies.activeFeedModel?.pageBackward()
+                return nil
+            case .togglePlayback:
+                // The view model's guard matrix decides (E2-S3 design §6):
+                // image pages and mid-gesture presses consume and no-op
+                // quietly, never beep (the evidence §8 lesson).
+                dependencies.activeFeedModel?.togglePlayback()
+                return nil
+            case .ignore:
+                // Consumed and ignored — space auto-repeat (no flap).
                 return nil
             case .passThrough:
                 return event
