@@ -45,6 +45,7 @@ InstantPlayer/
 ├── Assets.xcassets                                  template asset catalog (unchanged)
 ├── App/                                             composition root (D10)
 │   ├── InstantPlayerApp.swift                       @main entry + `Window` scene wiring
+│   ├── AppDelegate.swift                            close-quits policy (S8)
 │   ├── AppDependencies.swift                        the binding container
 │   └── RootView.swift                               App-owned root view (owns the entry modifiers)
 ├── Config/                                          project config (partial plist + entitlements)
@@ -63,16 +64,21 @@ InstantPlayer/
 └── Features/
     └── Feed/                                        the one shipped feature shell (D7)
         ├── Domain/
-        │   └── MediaPlayerService.swift             player seam (feature-owned protocol)
+        │   ├── MediaPlayerService.swift             player seam (feature-owned protocol)
+        │   ├── MediaPreviewService.swift            preview seam (feature-owned protocol)
+        │   └── MediaPreview.swift                   preview value — display bytes + pixel size (S2, S3)
         ├── Data/
         │   ├── StubMediaPlayerService.swift         player-seam stub conformance
         │   ├── StubMediaFolderRepository.swift      folder-seam stub conformance
+        │   ├── StubMediaPreviewService.swift        preview-seam stub conformance
         │   ├── MediaTypeClassifier.swift            UTType media rule + junk exclusions (S11, S12)
-        │   └── SecurityScopedMediaFolderRepository.swift real folder-seam conformance — the D8 actor (scoped session)
+        │   ├── SecurityScopedMediaFolderRepository.swift real folder-seam conformance — the D8 actor (scoped session)
+        │   └── AVMediaPreviewService.swift          real preview-seam conformance — the D8 actor (preview cache + coalescing)
         └── Presentation/
             ├── FeedState.swift                      welcome ↔ folderOpen(MediaCollection) (S5–S7)
-            ├── FeedViewModel.swift                  @MainActor @Observable view model
-            ├── FeedView.swift                       dumb binder view
+            ├── FeedViewModel.swift                  @MainActor @Observable view model — the paging state machine
+            ├── FeedView.swift                       dumb binder view — welcome or the paging feed
+            ├── FeedItemView.swift                   one feed page — poster or unavailable state (S2, S3, S12–S14)
             └── WelcomeView.swift                    drop-target welcome surface (S5)
 ```
 
@@ -101,8 +107,11 @@ InstantPlayer/
   `Presentation/` file; (2) Domain files compile with Foundation-only imports; (3)
   filesystem and media framework *operations* (`FileManager`, security-scoped calls,
   `UTType` resolution, AVKit) appear only inside a Data conformance behind a seam,
-  while Foundation `URL` may travel as an opaque value in Core/Domain contracts (the
-  E2-S1 refinement — URLs are values; operations are the boundary); (4)
+  while Foundation `URL` and display-ready `Data` may travel as opaque values in
+  Core/Domain contracts (the E2-S1 refinement — URLs are values; operations are the
+  boundary — extended in E2-S2: pre-decoded, downsampled display bytes are values
+  too, and Presentation may wrap display bytes into platform image types for
+  rendering — a wrap, not processing); (4)
   every new Core file cites its ≥2 consumers in the
   story's design; (5) the story's wiring tests still pass the composition-root
   end-to-end probe.
@@ -187,7 +196,10 @@ Both pillars are non-negotiable (D5); each story touching them loads its skill
   session is mutable state shared across isolation domains, and the shipped actor
   for it is `SecurityScopedMediaFolderRepository` (Feed Data): entry derivation,
   enumeration, type resolution, and the scoped session live on its executor, while
-  the `@MainActor` view model receives only the finished value. That isolation
+  the `@MainActor` view model receives only the finished value. The trigger fired a
+  second time in E2-S2 — `AVMediaPreviewService` (Feed Data) is the second D8 actor:
+  the preview cache and request-coalescing state live on its executor, and again the
+  `@MainActor` view model receives only the finished value. That isolation
   boundary is the documented D8 case; later shared state follows the same pattern.
 - **E1-S1 ADR renumbering:** parked story E1-S1 renumbers its planned ADR batch because
   this story took D7–D10 — expected and stakeholder-acknowledged (backlog sequencing

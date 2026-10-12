@@ -241,7 +241,7 @@ Deliverable (docs): `docs/architecture.md` — the three required same-story upd
 Follows the E2-S1 precedent: the standing architecture reference is updated by its own docs commit
 once the code it documents has landed (tasks 1–5).
 
-- [ ] **7.1** Update `docs/architecture.md` exactly per design §13: (1) **§3 source tree** gains
+- [x] **7.1** Update `docs/architecture.md` exactly per design §13: (1) **§3 source tree** gains
   this story's files and re-annotations (`MediaPreviewService.swift`, `MediaPreview.swift`,
   `AVMediaPreviewService.swift`, `StubMediaPreviewService.swift`, `FeedItemView.swift`,
   `App/AppDelegate.swift`; `FeedViewModel`/`FeedView` re-annotated as the paging state machine /
@@ -250,8 +250,8 @@ once the code it documents has landed (tasks 1–5).
   Presentation may wrap display bytes into platform image types (a wrap, not processing); (3)
   **§8's actor note** names `AVMediaPreviewService` as the second D8 actor (preview cache +
   coalescing state).
-- [ ] **7.2** Internal links must resolve (the gate checks them) — link only to existing files.
-- [ ] **7.3** Stage, then gate `./scripts/validate.sh --staged`; fix; tick; commit:
+- [x] **7.2** Internal links must resolve (the gate checks them) — link only to existing files.
+- [x] **7.3** Stage, then gate `./scripts/validate.sh --staged`; fix; tick; commit:
   `docs(e2-s2): task 7 — architecture reference updates`.
 
 ## Task 8 — ADR batch D22–D24 `[P]` · design §11
