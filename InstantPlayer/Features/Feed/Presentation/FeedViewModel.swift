@@ -190,12 +190,34 @@ final class FeedViewModel {
     func pageForward() {
         guard let current = currentIndex else { return }
         setIndex(current + 1)
+        finalizeArrowPage()
     }
 
     /// One item backward (S5), clamped at the first item — no wrap (S6).
     func pageBackward() {
         guard let current = currentIndex else { return }
         setIndex(current - 1)
+        finalizeArrowPage()
+    }
+
+    /// The arrow page is its own settle — design §3's sanctioned fallback,
+    /// taken after functional review: programmatic page animations (the
+    /// arrow-key `scrollPosition` moves) emit no `onScrollPhaseChange`
+    /// idle on this OS build, so the scroll surface's settle signal never
+    /// fires for arrows. The arrow path is deterministic — its clamped
+    /// landing is known synchronously — so the settle-equivalent runs
+    /// here, exactly what `scrollGestureDidSettle()` does for gestures
+    /// minus the correction (the arrow landing is already exactly one
+    /// clamped item): in-flight gesture state is cleared (arrows win over
+    /// any in-flight gesture — their landing is deterministic; the
+    /// gesture path's phase events stay untouched) and the at-rest
+    /// playback sync runs (S1, S2). This also makes the state impossible
+    /// to wedge: a direct index-set path always ends at rest, so the
+    /// mid-gesture toggle guard (S7) is released and spacebar/click work
+    /// immediately after arrow paging.
+    private func finalizeArrowPage() {
+        gestureStartIndex = nil
+        syncPlayback()
     }
 
     /// The two-way `scrollPosition(id:)` projection's write side (design

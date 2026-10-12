@@ -777,16 +777,18 @@ struct FeedViewModelTests {
         )
     }
 
-    /// §10.1 — the arrow-key page at rest starts only when the page
-    /// animation settles (S2 — the settle is the single trigger for
-    /// gesture and arrow paging alike, design §3).
-    @Test func arrowPageForwardStartsOnlyAtSettle() async {
-        let folder = Self.uniqueFolder("arrow-settle")
+    /// §10.1 — the arrow-key page is its own settle (design §3's taken
+    /// fallback): `pageForward()` starts the clamped landing item
+    /// immediately — programmatic page animations emit no phase signals,
+    /// and the arrow landing is deterministic.
+    @Test func arrowPageForwardStartsTheLandingItemImmediately() async {
+        let folder = Self.uniqueFolder("arrow-fwd")
         let item0 = Self.makeItem(folder, named: "a.mp4", kind: .video)
         let item1 = Self.makeItem(folder, named: "b.mp4", kind: .video)
         let collection = Self.makeCollection(folderURL: folder, items: [item0, item1], startIndex: 0)
         let handle0 = ScriptedMediaPlayback()
-        let players = ScriptedMediaPlayerService(answers: [handle0, ScriptedMediaPlayback()])
+        let handle1 = ScriptedMediaPlayback()
+        let players = ScriptedMediaPlayerService(answers: [handle0, handle1])
         let viewModel = await Self.openCollection(
             collection,
             mediaPlayerService: players,
@@ -795,16 +797,93 @@ struct FeedViewModelTests {
         guard await Self.installPlayback(item0, handle: handle0, in: viewModel, service: players) else { return }
 
         viewModel.pageForward()
-        #expect(players.calls == [item0], "the index change alone must not start playback (S2)")
-
-        viewModel.scrollGestureDidStart()
-        viewModel.scrollGestureDidSettle()
         let started = await Self.waitFor(
             { players.calls == [item0, item1] },
-            "the settle must start the new current item (S1, S2)"
+            "the arrow page must start the landing item (S1 — the arrow action is its own settle)"
         )
         guard started else { return }
         #expect(viewModel.currentIndex == 1)
+        #expect(handle0.stopCount == 1, "the departure stops the old session synchronously (S9)")
+        handle1.emit(.readyForDisplay)
+        _ = await Self.waitFor(
+            { viewModel.displayStates[item1.id] == .player(handle1) },
+            "the arrow-started session must install and paint"
+        )
+    }
+
+    /// §10.1 — the arrow-key page backward starts the landing item too,
+    /// as a fresh session (S1, S10 — nothing carries across visits).
+    @Test func arrowPageBackwardStartsTheLandingItemImmediately() async {
+        let folder = Self.uniqueFolder("arrow-back")
+        let item0 = Self.makeItem(folder, named: "a.mp4", kind: .video)
+        let item1 = Self.makeItem(folder, named: "b.mp4", kind: .video)
+        let collection = Self.makeCollection(folderURL: folder, items: [item0, item1], startIndex: 1)
+        let handleStart = ScriptedMediaPlayback()
+        let handleBack = ScriptedMediaPlayback()
+        let players = ScriptedMediaPlayerService(answers: [handleStart, handleBack])
+        let viewModel = await Self.openCollection(
+            collection,
+            mediaPlayerService: players,
+            previews: StubMediaPreviewService()
+        )
+        guard await Self.installPlayback(item1, handle: handleStart, in: viewModel, service: players) else { return }
+
+        viewModel.pageBackward()
+        let started = await Self.waitFor(
+            { players.calls == [item1, item0] },
+            "the arrow page backward must start the landing item (S1)"
+        )
+        guard started else { return }
+        #expect(viewModel.currentIndex == 0)
+        #expect(handleStart.resumeCount == 0, "no resume — a fresh session (S10)")
+        handleBack.emit(.readyForDisplay)
+        _ = await Self.waitFor(
+            { viewModel.displayStates[item0.id] == .player(handleBack) },
+            "the arrow-started session must install and paint"
+        )
+    }
+
+    /// §10.1 — toggles work immediately after arrow paging (the review
+    /// defect): the arrow page is its own settle, so the mid-gesture
+    /// toggle guard (S7) can never wedge — the new session pauses on the
+    /// first press right after the page.
+    @Test func togglesWorkImmediatelyAfterArrowPaging() async {
+        let folder = Self.uniqueFolder("arrow-toggle")
+        let item0 = Self.makeItem(folder, named: "a.mp4", kind: .video)
+        let item1 = Self.makeItem(folder, named: "b.mp4", kind: .video)
+        let collection = Self.makeCollection(folderURL: folder, items: [item0, item1], startIndex: 0)
+        let handle0 = ScriptedMediaPlayback()
+        let handle1 = ScriptedMediaPlayback()
+        let players = ScriptedMediaPlayerService(answers: [handle0, handle1])
+        let viewModel = await Self.openCollection(
+            collection,
+            mediaPlayerService: players,
+            previews: StubMediaPreviewService()
+        )
+        guard await Self.installPlayback(item0, handle: handle0, in: viewModel, service: players) else { return }
+
+        viewModel.pageForward()
+        let started = await Self.waitFor(
+            { players.calls == [item0, item1] },
+            "the arrow page must start the landing item (S1 — the arrow action is its own settle)"
+        )
+        guard started else { return }
+        handle1.emit(.readyForDisplay)
+        let installed = await Self.waitFor(
+            { viewModel.displayStates[item1.id] == .player(handle1) },
+            "the arrow-started session must install and paint"
+        )
+        guard installed else { return }
+
+        viewModel.togglePlayback()
+        #expect(
+            handle1.pauseCount == 1,
+            "spacebar right after an arrow page must pause the new session (S5 — no dead toggles)"
+        )
+        #expect(handle0.pauseCount == 0, "the old session was stopped, never toggled (S9)")
+
+        viewModel.togglePlayback()
+        #expect(handle1.resumeCount == 1, "the second press resumes (S5)")
     }
 
     /// §10.1 — unmuted auto-play at the double (S3): the seam contract is
