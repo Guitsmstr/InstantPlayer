@@ -258,24 +258,24 @@ once the code it documents has landed (tasks 1–5).
 
 Deliverable (docs): `docs/decisions.md` — append D22–D24.
 
-- [ ] **8.1** Append three ADRs continuing the numbering (the log currently ends at D21), house
+- [x] **8.1** Append three ADRs continuing the numbering (the log currently ends at D21), house
   heading `## D# — title · date · status` (date = commit date, `YYYY-MM-DD`), each with context,
   decision, alternatives, consequences. Titles and one-line decisions exactly per design §11:
   **D22 — Feed paging: SwiftUI paging `ScrollView` with a view-model-owned index** (→ S1, S2,
   S4–S6, S10, S11, S14) · **D23 — Media previews behind a Feed-owned `MediaPreviewService`;
   `Data`-valued display bytes** (→ S3, S12, S13) · **D24 — Close-quits via
   `applicationShouldTerminateAfterLastWindowClosed`** (→ S8).
-- [ ] **8.2** Pull each entry's alternatives from the matching design §12 rows —
+- [x] **8.2** Pull each entry's alternatives from the matching design §12 rows —
   D22: `TabView` + `.tabViewStyle(.page)`, custom drag gesture with manual offsets,
   `NSScrollView`/AppKit paging, trusting `.paging` alone for S4's exact contract; D23: extending
   `MediaPlayerService` with `firstFrame(for:)`, per-item `AVPlayer` frame grabs,
   `QLThumbnailGenerator`, full-resolution decode scaled in the view, the cache in the view model or
   `Core/`, file pre-checks; D24: `RootView.onDisappear` termination, `NSWindowDelegate`
   `windowWillClose`, `exit(0)`.
-- [ ] **8.3** Status `accepted`. Each entry cites its implementing task commits (tasks 2–5) in its
+- [x] **8.3** Status `accepted`. Each entry cites its implementing task commits (tasks 2–5) in its
   consequences; D23 carries the honest cache policy (in-memory only, discarded with the session) and
   D22 the honest guard rationale (S4 rests on our logic, not momentum behavior).
-- [ ] **8.4** Stage, then gate `./scripts/validate.sh --staged` (docs-only mode: ADR format +
+- [x] **8.4** Stage, then gate `./scripts/validate.sh --staged` (docs-only mode: ADR format +
   internal links); fix; tick; commit:
   `docs(e2-s2): task 8 — ADRs D22–D24 — paging, previews, and window lifecycle`.
 
