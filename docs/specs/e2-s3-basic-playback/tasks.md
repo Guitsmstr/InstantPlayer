@@ -103,34 +103,34 @@ Deliverable (code): `InstantPlayer/Features/Feed/Domain/MediaPlayerService.swift
 Deliverable (code): `InstantPlayer/Features/Feed/Data/AVMediaPlayerService.swift` (new),
 `InstantPlayer/Features/Feed/Data/AVMediaPlayback.swift` (new).
 
-- [ ] **2.1** Load `swift-security` + `swift-performance` before editing (this task plays user
+- [x] **2.1** Load `swift-security` + `swift-performance` before editing (this task plays user
   media bytes and owns the timing-critical stop/start surface — both pillars are directly in play).
-- [ ] **2.2** `AVMediaPlayerService` per design §1.2, §2 — `@MainActor final class` (not an actor:
+- [x] **2.2** `AVMediaPlayerService` per design §1.2, §2 — `@MainActor final class` (not an actor:
   D8's trigger unmet, and `pause()`/`stop()` need synchronous bite). `startPlayback(for:)`: supersede
   and tear down any previous session first (exactly one live player — design §3, §8(3)); build
   `AVURLAsset` + `AVPlayerItem` with the modern async `load(_:)` keys (asset I/O stays inside
   AVFoundation's threads — skill §1, never main-thread); unplayable/failed load → `nil` (S14, S15);
   then start with `playImmediately(atRate: 1)` (design §0.1 — local files wait for nothing,
   `automaticallyWaitsToMinimizeStalling` is not the tool here), audio unmuted (S3).
-- [ ] **2.3** `AVMediaPlayback` per design §2, §5 — one session: `AVPlayer` + its item,
+- [x] **2.3** `AVMediaPlayback` per design §2, §5 — one session: `AVPlayer` + its item,
   `actionAtItemEnd = .none`; observation → the event stream **marshaled to the main actor at the
   boundary** (design §1.2): `didPlayToEndTime` → `.reachedEnd` (S11's trigger), `AVPlayerItem`
   `.failed` → `.failed` (S14), `AVPlayerLayer.isReadyForDisplay` → `.readyForDisplay` (the
   poster→player swap gate, design §4). `stop()` finishes the stream and removes every observer
   (design §3 brace 1).
-- [ ] **2.4** Commands per design §2, §8(2): `pause()` / `resume()` / `stop()` synchronous —
+- [x] **2.4** Commands per design §2, §8(2): `pause()` / `resume()` / `stop()` synchronous —
   `stop()` also detaches the item and releases the display view (players, decoders, observers never
   outlive the session — skill §3); `restart()` = seek to zero + play (S11's mechanism — the *policy*
   stays in the view model, task 3); `makeDisplayView()` = a layer-hosting `NSView` with
   `AVPlayerLayer`, `videoGravity = .resizeAspect` (design §4: aspect-fit letterbox inside the
   viewport-sized cell — E2-S2 S2's contract carries; resize/fullscreen need no geometry code).
-- [ ] **2.5** Security per design §9 (R17, S12, S13): reads only inside the session D19 already
+- [x] **2.5** Security per design §9 (R17, S12, S13): reads only inside the session D19 already
   holds — **no** `start/stopAccessingSecurityScopedResource` here; playback APIs only
   (`AVURLAsset`/`AVPlayerItem`/`AVPlayer`/`AVPlayerLayer` — **no** export/reader/writer, no
   re-encode path); nothing written anywhere — no sidecars, no disk caches, no persistence
   (no `UserDefaults`); file content is played, never executed (skill §4); no logging of paths or
   names.
-- [ ] **2.6** Full gate. Fix, tick; commit:
+- [x] **2.6** Full gate. Fix, tick; commit:
   `feat(e2-s3): task 2 — AV player service and playback session`.
 
 ## Task 3 — Playback policy in `FeedViewModel` · design §3, §6 (guard), §7
