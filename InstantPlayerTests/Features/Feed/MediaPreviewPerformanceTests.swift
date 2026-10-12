@@ -49,26 +49,34 @@ final class MediaPreviewPerformanceTests: XCTestCase {
         }
 
         // Design §8(1) budgets the typical display at "≤ 300 ms p95", so
-        // the typical cold passes are asserted as the p95 of the measured
-        // passes — with this small N (2) the nearest-rank p95 is the max,
-        // hence the documented max-of-N form. The heavy pass keeps its
-        // single-pass check (N = 1) against the unchanged 1 s budget.
-        let typicalColdPassTimes = [
-            measureColdPass(
-                service: service,
-                item: fixtures.videoItem,
-                name: "300 ms typical (720p clip, design §8(1))"
-            ),
-            measureColdPass(
-                service: service,
-                item: fixtures.stillItem,
-                name: "300 ms typical (24 MP still, design §8(1))"
-            ),
-        ]
+        // the typical cold passes are sampled at N = 20 (10 per typical
+        // fixture — same fixtures, same extraction path, fixtures built
+        // once above) and the p95 of the samples is asserted: the 19th of
+        // 20 sorted times (sorted[18], nearest-rank p95 = ⌈0.95 × 20⌉ = 19)
+        // must stay under budget — at most one pass of twenty may exceed
+        // it. The heavy pass keeps its single-pass check (N = 1) against
+        // the unchanged 1 s budget.
+        var typicalColdPassTimes: [Double] = []
+        for _ in 0 ..< 10 {
+            typicalColdPassTimes.append(
+                measureColdPass(
+                    service: service,
+                    item: fixtures.videoItem,
+                    name: "300 ms typical (720p clip, design §8(1))"
+                )
+            )
+            typicalColdPassTimes.append(
+                measureColdPass(
+                    service: service,
+                    item: fixtures.stillItem,
+                    name: "300 ms typical (24 MP still, design §8(1))"
+                )
+            )
+        }
         XCTAssertLessThan(
-            typicalColdPassTimes.max() ?? 0,
+            typicalColdPassTimes.sorted()[18],
             0.30,
-            "300 ms typical p95 over cold passes (design §8(1)) violated"
+            "300 ms typical p95 over 20 cold passes (design §8(1)) violated"
         )
         let heavyColdPassTime = measureColdPass(
             service: service,

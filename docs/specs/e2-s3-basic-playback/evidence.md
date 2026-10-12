@@ -360,11 +360,12 @@ open across E3/E4/E5 per the backlog note.
 12. **RATIFIED — E2-S2 preview perf assertion aligned to the design's p95 semantics**
     (`InstantPlayerTests/Features/Feed/MediaPreviewPerformanceTests.swift`). After an observed
     parallel-load flake (a 24 MP cold pass measured 303.4 ms against the per-pass < 300 ms assert;
-    passed on retry; no budget changed), the typical cold passes are asserted as the p95 of the
-    measured passes (max-of-N at this small N, documented in-test) per the E2-S2 design §8(1)
-    "≤ 300 ms p95" wording. Coordinator-ratified. **Impact:** the test's assertion form only —
-    same fixtures, same pass count; no budget, fixture, or production change; the cached-hit
-    asserts and the `measure` block are untouched.
+    passed on retry; no budget changed), the typical cold passes are sampled at N = 20 (10 per
+    typical fixture, same fixtures and extraction path) and asserted as a true p95: the 19th of
+    20 sorted samples must stay under 300 ms — at most one pass of twenty may exceed the budget —
+    per the E2-S2 design §8(1) "≤ 300 ms p95" wording. Coordinator-ratified. **Impact:** the
+    test's assertion form only — no budget, fixture, or production change; the heavy single-pass
+    check, the cached-hit asserts, and the `measure` block are untouched.
 
 No other deviation exists: the diff vs `main` touches exactly the [design](design.md) §1 inventory
 files (plus their tests and the story docs); `FeedState.swift`, `RootView.swift`,
