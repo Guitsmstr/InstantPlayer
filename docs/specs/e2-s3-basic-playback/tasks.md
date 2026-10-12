@@ -177,22 +177,22 @@ existing tests updated to compile in the same commit if signatures move).
 Deliverable (code): `InstantPlayer/App/FeedKeyCommand.swift` (renamed from `ArrowKeyCommand.swift`),
 `InstantPlayer/App/AppDelegate.swift` (monitor switch).
 
-- [ ] **4.1** Load `swift-security` + `swift-performance` before editing.
-- [ ] **4.2** Mechanical rename `ArrowKeyCommand` → `FeedKeyCommand` (file, type, call sites, test
+- [x] **4.1** Load `swift-security` + `swift-performance` before editing.
+- [x] **4.2** Mechanical rename `ArrowKeyCommand` → `FeedKeyCommand` (file, type, call sites, test
   names): the table routes a feed's keys, not just arrows (design §1.1; architecture §5 naming).
   The existing arrow rows are behavior-frozen.
-- [ ] **4.3** Route table per design §6 — the frozen contract, `route(keyCode:modifiers:isRepeat:
+- [x] **4.3** Route table per design §6 — the frozen contract, `route(keyCode:modifiers:isRepeat:
   hasOpenFeed:)` as pure, unit-testable logic: no open feed → `.passThrough`; ⌘/⌥/⌃ combinations →
   `.passThrough` (system shortcuts never robbed — ⌃⌘F fullscreen survives); **space (keyCode 49)
   first press → `.togglePlayback`; `isARepeat` → `.ignore` (consumed — a held space must not flap
   play/pause)**; 125/126 → `.pageForward`/`.pageBackward` (auto-repeat pages — carried from E2-S2);
   anything else → `.passThrough`. ⇧ is not a command modifier (⇧+space toggles, like ⇧↓ pages).
-- [ ] **4.4** `AppDelegate` monitor switch gains the two cases: `.togglePlayback` →
+- [x] **4.4** `AppDelegate` monitor switch gains the two cases: `.togglePlayback` →
   `dependencies.activeFeedModel?.togglePlayback()` (the unchanged `@MainActor` view-model method —
   the guard matrix of task 3 decides, so image pages and mid-gesture presses consume and no-op
   quietly, never beep — the evidence §8 lesson); `.ignore` → consume (return `nil`). Existing cases
   and the `hasOpenFeed` derivation unchanged.
-- [ ] **4.5** Full gate. Fix, tick; commit:
+- [x] **4.5** Full gate. Fix, tick; commit:
   `feat(e2-s3): task 4 — feed key router and space toggle`.
 
 ## Task 5 — Views: `.player` cell + tap + surface wrap `[P]` · design §4, §6

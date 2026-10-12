@@ -1,8 +1,9 @@
 //
-//  ArrowKeyCommandTests.swift
+//  FeedKeyCommandTests.swift
 //  InstantPlayerTests
 //
-//  Arrow-key routing decision tests (E2-S2 round 4 — evidence §8 — S5).
+//  Feed-key routing decision tests (E2-S2 round 4 — evidence §8 — S5;
+//  E2-S3 design §6 — space toggle).
 //
 
 import AppKit
@@ -13,16 +14,17 @@ import Testing
 /// (house pattern, `AppDependenciesTests`). The decision table is pure —
 /// no `NSEvent` instances, no UI (design §10.1 pattern). Key codes are
 /// the hardware `NSEvent.keyCode` values: 125 = ↓, 126 = ↑, 123 = ←,
-/// 124 = →, 0 = A — pinned here so the table cannot drift from the
-/// hardware.
+/// 124 = →, 49 = space, 0 = A — pinned here so the table cannot drift
+/// from the hardware.
 @MainActor
-struct ArrowKeyCommandTests {
+struct FeedKeyCommandTests {
     /// Plain ↓ with a feed open → page forward (S5).
     @Test func plainDownArrowPagesForwardWhenFeedIsOpen() {
         #expect(
-            ArrowKeyCommand.route(
+            FeedKeyCommand.route(
                 keyCode: 125,
                 modifiers: [],
+                isRepeat: false,
                 hasOpenFeed: true
             ) == .pageForward
         )
@@ -31,9 +33,10 @@ struct ArrowKeyCommandTests {
     /// Plain ↑ with a feed open → page backward (S5).
     @Test func plainUpArrowPagesBackwardWhenFeedIsOpen() {
         #expect(
-            ArrowKeyCommand.route(
+            FeedKeyCommand.route(
                 keyCode: 126,
                 modifiers: [],
+                isRepeat: false,
                 hasOpenFeed: true
             ) == .pageBackward
         )
@@ -43,16 +46,18 @@ struct ArrowKeyCommandTests {
     /// no paging presented outside the feed).
     @Test func welcomePassesArrowsThrough() {
         #expect(
-            ArrowKeyCommand.route(
+            FeedKeyCommand.route(
                 keyCode: 125,
                 modifiers: [],
+                isRepeat: false,
                 hasOpenFeed: false
             ) == .passThrough
         )
         #expect(
-            ArrowKeyCommand.route(
+            FeedKeyCommand.route(
                 keyCode: 126,
                 modifiers: [],
+                isRepeat: false,
                 hasOpenFeed: false
             ) == .passThrough
         )
@@ -62,16 +67,18 @@ struct ArrowKeyCommandTests {
     /// (evidence §8, round 4: the pass-through guard).
     @Test func commandModifiedArrowsPassThrough() {
         #expect(
-            ArrowKeyCommand.route(
+            FeedKeyCommand.route(
                 keyCode: 125,
                 modifiers: [.command],
+                isRepeat: false,
                 hasOpenFeed: true
             ) == .passThrough
         )
         #expect(
-            ArrowKeyCommand.route(
+            FeedKeyCommand.route(
                 keyCode: 126,
                 modifiers: [.command],
+                isRepeat: false,
                 hasOpenFeed: true
             ) == .passThrough
         )
@@ -80,9 +87,10 @@ struct ArrowKeyCommandTests {
     /// ⌥-modified arrows pass through.
     @Test func optionModifiedArrowsPassThrough() {
         #expect(
-            ArrowKeyCommand.route(
+            FeedKeyCommand.route(
                 keyCode: 125,
                 modifiers: [.option],
+                isRepeat: false,
                 hasOpenFeed: true
             ) == .passThrough
         )
@@ -91,9 +99,10 @@ struct ArrowKeyCommandTests {
     /// ⌃-modified arrows pass through.
     @Test func controlModifiedArrowsPassThrough() {
         #expect(
-            ArrowKeyCommand.route(
+            FeedKeyCommand.route(
                 keyCode: 126,
                 modifiers: [.control],
+                isRepeat: false,
                 hasOpenFeed: true
             ) == .passThrough
         )
@@ -102,9 +111,10 @@ struct ArrowKeyCommandTests {
     /// Combined ⌘⌥⌃ passes through (any command modifier is enough).
     @Test func combinedCommandModifiersPassThrough() {
         #expect(
-            ArrowKeyCommand.route(
+            FeedKeyCommand.route(
                 keyCode: 125,
                 modifiers: [.command, .option, .control],
+                isRepeat: false,
                 hasOpenFeed: true
             ) == .passThrough
         )
@@ -114,16 +124,18 @@ struct ArrowKeyCommandTests {
     /// keys (documented decision, evidence §8 round 4).
     @Test func shiftAloneStillPages() {
         #expect(
-            ArrowKeyCommand.route(
+            FeedKeyCommand.route(
                 keyCode: 125,
                 modifiers: [.shift],
+                isRepeat: false,
                 hasOpenFeed: true
             ) == .pageForward
         )
         #expect(
-            ArrowKeyCommand.route(
+            FeedKeyCommand.route(
                 keyCode: 126,
                 modifiers: [.shift],
+                isRepeat: false,
                 hasOpenFeed: true
             ) == .pageBackward
         )
@@ -134,16 +146,18 @@ struct ArrowKeyCommandTests {
     /// the regression pin against treating "any modifier" as pass-through.
     @Test func systemArrowFlagsStillPage() {
         #expect(
-            ArrowKeyCommand.route(
+            FeedKeyCommand.route(
                 keyCode: 125,
                 modifiers: [.function, .numericPad],
+                isRepeat: false,
                 hasOpenFeed: true
             ) == .pageForward
         )
         #expect(
-            ArrowKeyCommand.route(
+            FeedKeyCommand.route(
                 keyCode: 126,
                 modifiers: [.function, .numericPad],
+                isRepeat: false,
                 hasOpenFeed: true
             ) == .pageBackward
         )
@@ -153,16 +167,18 @@ struct ArrowKeyCommandTests {
     /// this story; the vertical feed pages on ↓/↑ only — S5).
     @Test func nonRoutedArrowsPassThrough() {
         #expect(
-            ArrowKeyCommand.route(
+            FeedKeyCommand.route(
                 keyCode: 123,
                 modifiers: [],
+                isRepeat: false,
                 hasOpenFeed: true
             ) == .passThrough
         )
         #expect(
-            ArrowKeyCommand.route(
+            FeedKeyCommand.route(
                 keyCode: 124,
                 modifiers: [],
+                isRepeat: false,
                 hasOpenFeed: true
             ) == .passThrough
         )
@@ -173,9 +189,10 @@ struct ArrowKeyCommandTests {
     /// round 4).
     @Test func nonArrowKeysPassThrough() {
         #expect(
-            ArrowKeyCommand.route(
+            FeedKeyCommand.route(
                 keyCode: 0,
                 modifiers: [],
+                isRepeat: false,
                 hasOpenFeed: true
             ) == .passThrough
         )
