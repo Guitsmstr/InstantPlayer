@@ -20,7 +20,8 @@ private struct PerfFixtures {
 /// The §8(1) display budget, measured from tooling: one page settle's
 /// extraction (decode → downsample → encode) must stay ≤ 300 ms for
 /// typical media (≤ 1080p clip, ≤ 24 MP still) and ≤ 1 s for heavy media,
-/// warm, on Apple-silicon reference hardware. XCTest `measure` is the
+/// warm, on Apple-silicon reference hardware; a cached preview must
+/// redisplay within one frame (< 16 ms). XCTest `measure` is the
 /// design's one deliberate Swift Testing exception (tasks.md 6.2); the
 /// measured numbers are recorded as story evidence from tooling (task 9).
 final class MediaPreviewPerformanceTests: XCTestCase {
@@ -85,6 +86,25 @@ final class MediaPreviewPerformanceTests: XCTestCase {
             let elapsed = Date().timeIntervalSince(start)
             recordEvidence("measure iteration: \(String(format: "%.1f", elapsed * 1000)) ms")
         }
+
+        // Warm cache-hit path (design §8(1)): a cached preview must
+        // redisplay within one frame (< 16 ms). Each pass primes the cache
+        // once (cold), then times the re-request — the cache hit.
+        assertWarmCacheHit(
+            service: service,
+            item: fixtures.videoItem,
+            name: "cache-hit < 16 ms (720p clip, design §8(1))"
+        )
+        assertWarmCacheHit(
+            service: service,
+            item: fixtures.stillItem,
+            name: "cache-hit < 16 ms (24 MP still, design §8(1))"
+        )
+        assertWarmCacheHit(
+            service: service,
+            item: fixtures.heavyItem,
+            name: "cache-hit < 16 ms (48 MP still, design §8(1))"
+        )
     }
 
     /// Builds the real-byte fixtures (design §10.2) inside the throwaway
@@ -125,6 +145,24 @@ final class MediaPreviewPerformanceTests: XCTestCase {
         let elapsed = Date().timeIntervalSince(start)
         recordEvidence("cold-pass \(name): \(String(format: "%.1f", elapsed * 1000)) ms")
         XCTAssertLessThan(elapsed, budget, "\(name) violated")
+    }
+
+    /// One warm cache-hit pass through the seam: prime the cache once
+    /// (discard → extract), then re-request the same item without
+    /// discarding — the hit must stay under the one-frame redisplay budget
+    /// (< 16 ms, design §8(1)).
+    private func assertWarmCacheHit(service: AVMediaPreviewService, item: MediaItem, name: String) {
+        awaitSeam {
+            await service.discardPreviews()
+            _ = await service.preview(for: item)
+        }
+        let start = Date()
+        awaitSeam {
+            _ = await service.preview(for: item)
+        }
+        let elapsed = Date().timeIntervalSince(start)
+        recordEvidence("\(name): \(String(format: "%.1f", elapsed * 1000)) ms")
+        XCTAssertLessThan(elapsed, 0.016, "\(name) violated")
     }
 
     // MARK: Evidence capture (tasks 6.5, 9.5)

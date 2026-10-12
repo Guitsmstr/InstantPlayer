@@ -329,7 +329,8 @@ Ticked by task 9, each backed by quoted tooling evidence:
   mislabeled video (`fake.mp4`) both show the neutral unavailable state — no file name, sticky, no
   retry — and the feed stays navigable.
 - [x] **AC5 · S14–S16, RNF-02** — chrome-free viewport (no name overlay, counter, scrollbar);
-  responsiveness budgets (design §8(1): 300 ms / 1 s) measured and recorded from tooling; zero
+  responsiveness budgets (design §8(1): 300 ms / 1 s, cached redisplay < 16 ms) measured and
+  recorded from tooling; zero
   added launch cost — `testLaunchPerformance` intact and green; welcome state unchanged (launch
   assertion green).
 - [x] **AC6 · RNF-04** — media reads only inside the open session (D19); derived data in memory
