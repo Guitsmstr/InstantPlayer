@@ -315,7 +315,15 @@ private struct PendingSlot {
 }
 
 /// Object box for `NSCache` (requires object values — design §0.4).
-private final class PreviewBox {
+///
+/// `nonisolated` on purpose: NSCache releases (and evicts) entries from
+/// whatever thread touches it, so the box must not carry an isolated
+/// deinit — default-MainActor isolation would route cross-thread
+/// deallocation through the deinit-on-executor machinery and corrupt the
+/// heap (found by the E2-S2 task 6 suites at runtime). The box is an
+/// immutable holder of a Sendable value; first runtime exercise is E2-S2
+/// task 6 (coordinator ratification of this one-word fix requested).
+private final nonisolated class PreviewBox {
     let preview: MediaPreview
 
     init(_ preview: MediaPreview) {

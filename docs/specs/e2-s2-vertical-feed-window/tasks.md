@@ -203,11 +203,11 @@ Deliverable (code): `InstantPlayer/App/AppDelegate.swift` (new),
 Deliverable (code): `InstantPlayerTests/` — extended `FeedViewModelTests`, preview-seam suite,
 fixture helper additions, the §8(1) performance test.
 
-- [ ] **6.1** Load `swift-security` + `swift-performance` before editing.
-- [ ] **6.2** Frameworks per house pattern: Swift Testing (`@testable import InstantPlayer`,
+- [x] **6.1** Load `swift-security` + `swift-performance` before editing.
+- [x] **6.2** Frameworks per house pattern: Swift Testing (`@testable import InstantPlayer`,
   `@Test` + `#expect`) for the suites; the design §8(1) performance test uses XCTest `measure`
   exactly as the design names it — the one deliberate exception.
-- [ ] **6.3** Paging & display state machine per design §10.1 (injected `MediaFolderRepository` +
+- [x] **6.3** Paging & display state machine per design §10.1 (injected `MediaFolderRepository` +
   `MediaPreviewService` doubles — no UI, no scroll hardware, no running app), row by row:
   folder-open → current = `collection.startIndex` (S1, S9); `pageForward`/`pageBackward` → ±1 (S5);
   clamping at both ends, no wrap, both mechanisms (S6); **gesture guard**: multi-page landing →
@@ -217,7 +217,7 @@ fixture helper additions, the §8(1) performance test.
   success → `.preview` (S3); `nil` → `.unavailable` sticky, no auto-retry (S12, S13); prefetch
   window → loads for current ± 1 only, current first, dropped-edge requests cancelled (RNF-02);
   welcome → no paging/display state (S16).
-- [ ] **6.4** Preview seam per design §10.2 (Feed Data suite + fixtures): a throwaway-folder helper
+- [x] **6.4** Preview seam per design §10.2 (Feed Data suite + fixtures): a throwaway-folder helper
   (E2-S1 §9.1's pattern) with a tiny **real** one-frame MP4 written by `AVAssetWriter` in setup
   (honest extraction needs real bytes), small PNG/JPEG constants of known aspect ratio, and junk
   cases. Rows: video → first-frame preview (S3); image → downsampled preview with the source's
@@ -225,14 +225,14 @@ fixture helper additions, the §8(1) performance test.
   nonexistent URL → `nil` (S12); output pixel size bounded by the display bound (downsample proof);
   concurrent calls for one item → one extraction (coalescing); cancelled task → no completed
   extraction; `discardPreviews()` empties the cache.
-- [ ] **6.5** Performance test per design §8(1): XCTest `measure` through the seam over the
+- [x] **6.5** Performance test per design §8(1): XCTest `measure` through the seam over the
   generated fixtures. Budget: page-settle → fully displayed **≤ 300 ms p95** typical (≤ 1080p
   clips, ≤ 24 MP stills) and **≤ 1 s p95** heavy media on Apple-silicon reference hardware. The
   measured numbers are recorded in task 9's evidence **from tooling, never from memory**.
-- [ ] **6.6** UI tests: **none added** (design §10.3 — the feed is unreachable without host-driven
+- [x] **6.6** UI tests: **none added** (design §10.3 — the feed is unreachable without host-driven
   entry; the spec's honest caveat). Verify the existing launch tests still pass unchanged
   (welcome at plain launch, S16; `testLaunchPerformance` as the launch-cost guard).
-- [ ] **6.7** Full gate — the tests run and must be green. Fix, tick; commit:
+- [x] **6.7** Full gate — the tests run and must be green. Fix, tick; commit:
   `test(e2-s2): task 6 — paging, display, and preview-seam tests`.
 
 ## Task 7 — Architecture reference updates `[P]` · design §13
