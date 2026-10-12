@@ -299,11 +299,13 @@ open across E3/E4/E5 per the backlog note.
    was unreachable while the composition still bound the stub seam (stub handles emit no events).
    Task 5 (`3c39ecb`) replaced it with the real `PlayerSurfaceView` wrap. No trace in the shipped
    code.
-7. **NOT taken:** [design](design.md) §3's arrow-phase fallback ("start arrow-paged items at the
-   clamped landing if programmatic page animations emit no phase signals") — the existing
-   scroll-phase plumbing sees arrow-page animations as designed, so the **settle-only start
-   shipped as designed**; `arrowPageForwardStartsOnlyAtSettle` pins it. No ratified deviation was
-   needed here (unlike E2-S2 round 4).
+7. **NOT taken — superseded by the functional review (see item 9):** [design](design.md) §3's
+   arrow-phase fallback ("start arrow-paged items at the clamped landing if programmatic page
+   animations emit no phase signals") — at story-task time the scroll-phase plumbing was believed to
+   see arrow-page animations as designed, so the **settle-only start shipped as designed**;
+   `arrowPageForwardStartsOnlyAtSettle` pinned it. Functional review disproved the §0/§3 assumption
+   (arrows emit no phase signals on this OS build), and the fallback was taken and ratified as item 9
+   below; that test was rewritten as `arrowPageForwardStartsTheLandingItemImmediately`.
 8. **Minor additive notes** (no contract change, listed for completeness): the view model tracks
    pause itself (`isPlaybackPaused`) — the minimal §2 handle has no state-query member by design,
    so §6's toggle matrix needs the flag; `syncPlayback()` skips the start when a live session for
@@ -312,6 +314,49 @@ open across E3/E4/E5 per the backlog note.
    anchor, so a *revisit* still restarts); `PlayerSurfaceView` bridges the opaque `AnyObject` with
    a conditional cast and a fallback empty view — a total wrap over an opaque value, no media
    operation.
+9. **RATIFIED — the design §3 arrow-phase fallback TAKEN** (`FeedViewModel.pageForward`/
+   `pageBackward` run the settle-equivalent via `finalizeArrowPage()`; review commit `b1bbd4e`).
+   Functional review showed the design §0.4/§3 assumption false on this OS build: programmatic
+   page animations (arrow-key `scrollPosition` moves) emit no `onScrollPhaseChange` idle, so the
+   settle gate never opened for arrows — no auto-play, and the toggle guard wedged. The arrow
+   landing is deterministic (its clamped landing is known synchronously), so the arrow action is
+   its own settle: in-flight gesture state is cleared (arrows win over any in-flight gesture) and
+   the at-rest `syncPlayback()` runs. Coordinator-ratified, exactly the design §3-named fallback.
+   **Impact:** the gesture-path phase plumbing and the S2 settle-only start are untouched —
+   `scrollGestureDidSettle()` keeps its correction and trigger role; the arrows now end at-rest by
+   construction. Pinned by `arrowPageForwardStartsTheLandingItemImmediately`,
+   `arrowPageBackwardStartsTheLandingItemImmediately`, `togglesWorkImmediatelyAfterArrowPaging`
+   (all existing gesture-path tests stayed green).
+10. **RATIFIED — per-session surface identity + departed-item poster revert** (a design §4
+    implementation correction; review commit `b2225d0`). Functional review: revisiting a video
+    showed no picture (audio played) — `updateNSView` is a no-op by contract, so a
+    `.player(old) → .player(new)` display-state transition (a departed item kept its stopped
+    `.player` state) never rebuilt the `NSView`. Two coordinated changes: `FeedItemView` keys
+    `PlayerSurfaceView`'s `.id` to the session handle's `ObjectIdentifier` (a new handle rebuilds
+    the representable — fresh `makeNSView`, one rebuild per session, never per frame, §8(5)
+    holds); `FeedViewModel` reverts a departed item's `.player` state to its parked poster state
+    on stop-on-away (`parkedPosterStates`, restored as `.preview`/`.loading`/`.unavailable` —
+    whatever the poster axis held; a late poster answer while live-playing parks instead of
+    painting over the surface). Coordinator-ratified. **Impact:** the cell remains a pure function
+    of the display state (nothing user-visible changes on the happy path); a revisit always
+    travels poster → `.player(freshHandle)`. Pinned by
+    `pagingAwayRevertsDepartedVideoToItsPosterState`, `revisitingARevertedVideoPaintsAFreshSurface`,
+    `latePosterWhilePlayingParksForTheRevert`.
+11. **RATIFIED — D22 mechanism amendment: custom viewport-independent paging behavior**
+    (`ItemPagingBehavior` replaces `.scrollTargetBehavior(.paging)`; review commit of this round).
+    Functional review: in native fullscreen the wheel needed many rotations to page — `.paging`'s
+    snap threshold scales with page height, so a wheel notch's fixed delta is a tiny fraction of a
+    fullscreen-height page and never crosses it (S4 violated at large viewports). The behavior
+    decides via the pure, unit-tested `pageDirection(displacement:velocity:)` with fixed,
+    documented thresholds — **120 pt displacement floor, 200 pt/s impulse-velocity floor, both
+    inclusive, deliberately not zero** (a tiny trackpad nudge below both still snaps back) — and
+    snaps the target rect onto the item grid. The one-item-per-gesture and no-wrap guarantees
+    still rest on the unchanged view-model settle guard (S4, S6 frozen semantics); the behavior
+    only picks the target. **Impact:** the §6 route table, the settle guard, and the resting
+    state (always one full item) are unchanged; window paging behavior is preserved (sub-threshold
+    gestures keep the nearest-item snap). Pinned by the `ItemPagingBehaviorTests` suite (wheel
+    notch advances, nudge snaps back, no compounding, inclusive thresholds) plus the existing
+    settle-guard clamp rows.
 
 No other deviation exists: the diff vs `main` touches exactly the [design](design.md) §1 inventory
 files (plus their tests and the story docs); `FeedState.swift`, `RootView.swift`,
