@@ -226,7 +226,7 @@ section. Test names are in `InstantPlayerTests` (Swift Testing, `@Test`), per ta
 | **S2** — current item letterboxed, filling the viewport | `FeedItemView` — aspect-fit via intrinsic `MediaPreview.pixelWidth/pixelHeight` + `.containerRelativeFrame([.horizontal, .vertical])` (the page **is** the viewport); test `imagePreviewKeepsTheSourceAspect` | §2, §5.1, §3 |
 | **S3** — video shows static first-frame poster | `AVMediaPreviewService.extractVideoPoster` — `AVAssetImageGenerator`, `appliesPreferredTrackTransform`, `CMTime.zero` with zero tolerance, async API, fail-`nil` on exact-frame failure; test `videoPreviewIsTheFirstFrameOfARealMP4` (real `AVAssetWriter` MP4); D23 | §4.2 |
 | **S4** — one gesture = one item, magnetic snap | `FeedViewModel.scrollGestureDidStart/scrollGestureDidSettle` + the pure guard `correctedTarget(forGestureStart:landing:itemCount:)`; `FeedView.onScrollPhaseChange` wiring; tests `gestureGuardCorrectionTable`, `gestureGuardCorrectsMultiPageForwardLanding`, `gestureGuardCorrectsMultiPageBackwardLanding`, `gestureGuardSnapBackStaysAtStartPage`, `zeroNetGestureAtAnEndDoesNotPage`; D22 | §5.2 |
-| **S5** — ↓/↑ arrow paging | `FeedView.onKeyPress(.downArrow/.upArrow)` → `pageForward()/pageBackward()`; test `pageForwardAndBackwardMoveExactlyOneItem`; D22 | §5.3 |
+| **S5** — ↓/↑ arrow paging | `FeedView.onKeyPress(.downArrow/.upArrow)` + `.onMoveCommand` delivery on the focusable scroll content (§8 deviation 2 — functional-review fix) → `pageForward()/pageBackward()`; test `pageForwardAndBackwardMoveExactlyOneItem`; D22 | §5.3 |
 | **S6** — clamping, no wrap, both mechanisms | `FeedViewModel.setIndex` clamp shared by gestures and arrows (no wrap); tests `clampingAtBothEndsHasNoWrap`, `zeroNetGestureAtAnEndDoesNotPage`; D22 | §5.2–§5.3 |
 | **S7** — feed in the single resizable window | `InstantPlayerApp` — the unchanged single `Window` scene (D18); the feed renders in it (`FeedView`); system-default frame persistence, no custom min size ([design](design.md) §5.6); functional review (AC9) | §5.6, §6 |
 | **S8** — close quits | `AppDelegate.applicationShouldTerminateAfterLastWindowClosed → true` registered via `@NSApplicationDelegateAdaptor` (termination policy only; D18's entry-routing reservation unbuilt); D24; functional review (AC9) | §6.1 |
@@ -276,13 +276,22 @@ across E2-S3/E3/E4/E5 per the backlog note.
    recorded in D23's consequences. **Impact:** none on the seam contract — names, signatures, and
    the `MediaPreview` value shape are unchanged; the box is a conformance-internal detail. It fixes
    a crash rather than introducing behavior.
-2. **Reportable judgment call — `.focusable()` + `.focusEffectDisabled()` on the paging surface**
-   (`InstantPlayer/Features/Feed/Presentation/FeedView.swift`). [Design](design.md) §5.3 names
-   `.onKeyPress(.downArrow/.upArrow)` for S5 but not the focus modifiers; `onKeyPress` delivers only
-   to a focused view, so without them the arrow-key contract would be dead code. The focus ring is
-   suppressed via `.focusEffectDisabled()` so the S14 chrome-free viewport is preserved. **Impact:**
-   enables S5; no visual change (ring disabled); the feed is the one focusable surface, consistent
-   with the single-state-machine window.
+2. **Deviation (functional-review fix) — shipped key delivery: `onMoveCommand` + `onKeyPress` on
+   the focusable scroll content** (`InstantPlayer/Features/Feed/Presentation/FeedView.swift`).
+   [Design](design.md) §5.3 names `.onKeyPress(.downArrow/.upArrow)` on the feed; the first
+   implementation carried those handlers plus `.focusable()` + `.focusEffectDisabled()` on the
+   `ScrollView` itself (recorded here as a judgment call). Stakeholder functional review failed the
+   arrow-key contract: clicking the feed never focused a node wrapping the `ScrollView` — the
+   AppKit scroll backing claims the click and takes first responder itself — so `onKeyPress` had no
+   focused owner; ↓/↑ fell through the responder chain unhandled (the macOS system "beep"), no
+   paging. The shipped fix moves the focusable key surface onto the scroll CONTENT (the view a
+   click actually lands on, so focus reliably lands) and adds `.onMoveCommand` — macOS delivers
+   arrow keys to a focused view as move commands, the documented SwiftUI mechanism — alongside the
+   design-named `onKeyPress` (single dispatch per keyDown: a handled key press consumes the event;
+   the move-command path is the one that fires in the scroll-view context). Both route into the
+   unchanged clamped state machine (`pageForward()`/`pageBackward()` — S5/S6 semantics untouched);
+   the focus ring stays suppressed (S14). Awaiting coordinator ratification. **Impact:** view-layer
+   key delivery only — no view-model change, no layout/scroll change, no visual change.
 3. **Minor additive notes** (no contract change, listed for completeness): `MediaPreview` and
    `FeedItemDisplayState` declare `Equatable` — the value shape is unchanged; `Equatable` backs the
    §8(2) wrap memoization (`wrappedFor != preview`) and test assertions. The `nonisolated` protocol

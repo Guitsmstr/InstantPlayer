@@ -54,6 +54,37 @@ struct FeedView: View {
                 }
             }
             .scrollTargetLayout()
+            // Key delivery (design §5.3 as shipped — functional-review fix,
+            // evidence §8): the focused surface is the scroll CONTENT, the
+            // thing a click actually lands on. A `.focusable()` wrapping the
+            // `ScrollView` never receives first responder — the AppKit scroll
+            // backing claims the click — so arrow keys were left ownerless
+            // (the system "beep"). Once focused, macOS delivers ↓/↑ as move
+            // commands (`onMoveCommand`, the macOS mechanism); `onKeyPress`
+            // stays for direct key-press delivery. Both route into the same
+            // clamped state machine (S5/S6).
+            .onKeyPress(.downArrow) {
+                viewModel.pageForward()
+                return .handled
+            }
+            .onKeyPress(.upArrow) {
+                viewModel.pageBackward()
+                return .handled
+            }
+            .onMoveCommand { direction in
+                switch direction {
+                case .down:
+                    viewModel.pageForward()
+                case .up:
+                    viewModel.pageBackward()
+                default:
+                    break
+                }
+            }
+            // The feed is the one focusable surface, with the focus ring
+            // suppressed to keep the viewport chrome-free (S14).
+            .focusable()
+            .focusEffectDisabled()
         }
         .scrollPosition(id: scrollPosition)
         .scrollTargetBehavior(.paging)
@@ -72,19 +103,6 @@ struct FeedView: View {
                 viewModel.scrollGestureDidStart()
             }
         }
-        .onKeyPress(.downArrow) {
-            viewModel.pageForward()
-            return .handled
-        }
-        .onKeyPress(.upArrow) {
-            viewModel.pageBackward()
-            return .handled
-        }
-        // Key delivery (design §5.3): `onKeyPress` fires on the focused
-        // view — the feed is the one focusable surface, with the focus
-        // ring suppressed to keep the viewport chrome-free (S14).
-        .focusable()
-        .focusEffectDisabled()
     }
 
     /// The two-way `scrollPosition(id:)` binding (design §5.1, §1.1): a
