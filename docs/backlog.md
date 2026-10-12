@@ -30,7 +30,7 @@ All E2–E5 feature stories implement on the architecture per [docs/architecture
   - Requirements: R1–R6, R34–R36 (entry, formats & filtering)
 - [x] **E2-S2 · Vertical feed & window** (one combined feed; current item fills the viewport; scroll/arrow paging; single window, new open replaces in place) · `done`
   - Requirements: R7–R10, R37–R40 (feed navigation, window)
-- [ ] **E2-S3 · Basic playback** (auto-play with no perceptible wait; play/pause; loop in place; media files never rewritten) · `in progress`
+- [x] **E2-S3 · Basic playback** (auto-play with no perceptible wait; play/pause; loop in place; media files never rewritten) · `done`
   - Requirements: R11, R12, R15, R17 (playback)
 
 ## E3 — Playback controls (inspect footage precisely without leaving the feed)

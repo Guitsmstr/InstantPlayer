@@ -408,7 +408,7 @@ Ticked by task 10, each backed by quoted tooling evidence:
 
 Converge-owned — the coordinator ticks these; task 10 never does:
 
-- [ ] **AC9 · stakeholder functional review** (this is a UI story): in the running app
+- [x] **AC9 · stakeholder functional review** (this is a UI story): in the running app
   (`./scripts/app.sh run`) — the design §10.4 list: auto-play on arrival and on every paging move
   starting only after settle (never mid-scroll); audible unmuted auto-play; instant-feeling start;
   seamless poster→video swap; spacebar toggle (no flap on hold, no beep on image pages); whole-page
@@ -416,9 +416,9 @@ Converge-owned — the coordinator ticks these; task 10 never does:
   restart from the beginning on revisit; loop at end without advancing; unavailable states
   (`fake.mp4` + vanished file) with the feed navigable; letterbox under resize/native fullscreen
   with live playback; files byte-identical on disk afterwards. Explicit approval required.
-- [ ] **AC10 · validator review** — adversarial PASS over spec S1–S16 and the product R-map,
+- [x] **AC10 · validator review** — adversarial PASS over spec S1–S16 and the product R-map,
   design §9.1's review table, and both pillar-skill checklists.
-- [ ] **AC11 · story closure** — backlog E2-S3 → `done`; `git merge --no-ff` into `main`; delete
+- [x] **AC11 · story closure** — backlog E2-S3 → `done`; `git merge --no-ff` into `main`; delete
   `feat/e2-s3-basic-playback`.
 
 ## Converge (coordinator)

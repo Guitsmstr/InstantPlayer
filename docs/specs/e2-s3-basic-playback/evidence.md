@@ -414,3 +414,43 @@ Converge-owned — the coordinator ticks these; task 10 never does:
 - [ ] **AC10** — validator adversarial review over S1–S16, the product R-map, design §9.1, and both
   pillar checklists.
 - [ ] **AC11** — story closure: backlog `done`, `git merge --no-ff`, branch delete.
+
+## 10 · Converge record (coordinator, 2026-10-12)
+
+### Stakeholder functional review (AC9) — PASSED
+
+Reviewed in the running app (`./scripts/app.sh run`) over the structured scenario guide (design §10.4). First round found three real defects, all root-caused and fixed (commits `b1bbd4e`, `b2225d0`, `3835452`, each with new unit tests; recorded in §8 items 9–11 and D22's consequences): (1) arrow-key paging never started playback and toggles stayed dead — programmatic page animations emit no scroll-phase settle signal; fixed by the design §3-sanctioned fallback (arrow pages settle deterministically: in-flight state cleared + `syncPlayback()` on the clamped landing); (2) revisiting a video played audio with no picture — `updateNSView` is a no-op so `.player(old) → .player(new)` never rebuilt the surface; fixed with per-session surface identity (`.id(ObjectIdentifier(handle))`) plus departed-item display-state revert to its parked poster; (3) fullscreen wheel paging needed many rotations — `.paging`'s snap threshold scales with page height; fixed with a custom viewport-size-independent `ItemPagingBehavior` (120 pt displacement floor, 200 pt/s impulse-velocity floor, pure `pageDirection(displacement:velocity:)`, 8 unit tests). A pre-existing E2-S2 perf-test flake under parallel-runner load was also stabilized by aligning its assertion with the design §8(1) p95 semantics (N=20, one allowed exceedance; `17c5316`, `74c9283`; §8 item 12). Environmental note: the stakeholder's Spotlight launches a stale copy at `/Volumes/guits_ext/Xcode/DerivedData/InstantPlayer-awmiyitmviidczdwehtzepoizwdw/` (old derived-data location) — review runs must use `./scripts/app.sh run`.
+
+**Stakeholder retest verdict: "All fixed — approve"** — arrows auto-play the landing item with toggles working immediately after; revisits and onward paging show the picture; fullscreen wheel paging works at normal rotations; drops work on the fresh instance; regression sweep clean (settle-only start, no spacebar flap, frozen-frame pause, guard cases no-op, page-away silence, restart-on-revisit, loop without advancing, unavailable states navigable, files unchanged on disk). Explicit stakeholder approval recorded 2026-10-12.
+
+### Validator review (AC10) — PASS
+
+Adversarial pass over S1–S16, the product R-map, design §9.1's table, and both pillar checklists: **zero gaps** — R17 write-path greps clean (no export/reader/writer/`write(to:`/`UserDefaults`/`bookmarkData` in production code), scoped-access calls only in E2-S1's repository seam, §2/§6 frozen contracts verbatim, guard matrix in the view model, three late-event braces in place, budgets tooling-backed, D21 zero-config diff reproduced, deviations honestly recorded, AC9–AC11 left converge-owned.
+
+### Final converge gate (the story's final gate record)
+
+`./scripts/validate.sh --uitests --json <tmp>/e2-s3-final-gate.json` over the complete story code (including all review fixes), verbatim:
+
+```json
+{
+  "branch": "feat/e2-s3-basic-playback",
+  "staged": false,
+  "result": "pass",
+  "steps": [
+    { "name": "ADR format (docs/decisions.md)", "status": "ok" },
+    { "name": "Internal links (docs + AGENTS.md)", "status": "ok" },
+    { "name": "Approved-spec hygiene (docs/specs/*/tasks.md)", "status": "ok" },
+    { "name": "Lint (SwiftLint)", "status": "ok" },
+    { "name": "Format check (SwiftFormat --lint)", "status": "ok" },
+    { "name": "Build (InstantPlayer)", "status": "ok" },
+    { "name": "Unit tests (InstantPlayerTests)", "status": "ok" },
+    { "name": "UI tests (InstantPlayerUITests)", "status": "ok" }
+  ]
+}
+```
+
+### AC9–AC11 (converge-owned — ticked by the coordinator)
+
+- [x] **AC9** — stakeholder functional review passed (first round's three defects fixed and retested; explicit approval above).
+- [x] **AC10** — validator adversarial PASS with zero gaps.
+- [x] **AC11** — story closure: backlog `done`; `git merge --no-ff` into `main` and branch delete executed immediately after this commit (E2-S1/E2-S2 precedent).
