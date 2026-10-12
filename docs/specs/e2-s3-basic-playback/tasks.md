@@ -201,25 +201,25 @@ Deliverable (code): `InstantPlayer/Features/Feed/Presentation/PlayerSurfaceView.
 `InstantPlayer/Features/Feed/Presentation/FeedItemView.swift` (extended),
 `InstantPlayer/Features/Feed/Presentation/FeedView.swift` (tap closure drill-down).
 
-- [ ] **5.1** Load `swift-security` + `swift-performance` before editing (SwiftUI views + video
+- [x] **5.1** Load `swift-security` + `swift-performance` before editing (SwiftUI views + video
   rendering — skill §2 applies directly).
-- [ ] **5.2** `PlayerSurfaceView` per design §1.1, §4 — the wrap: an `NSViewRepresentable` that
+- [x] **5.2** `PlayerSurfaceView` per design §1.1, §4 — the wrap: an `NSViewRepresentable` that
   vends `makeDisplayView()` into the hierarchy (`makeNSView` once per session, `updateNSView` a
   no-op — the handle is immutable per session). **AppKit only** — no AVFoundation/AVKit import in
   any Presentation file (architecture §4 check 3); no media operations here (a wrap, not
   processing).
-- [ ] **5.3** `FeedItemView` per design §4: the `.player` case renders `PlayerSurfaceView` — the
+- [x] **5.3** `FeedItemView` per design §4: the `.player` case renders `PlayerSurfaceView` — the
   layer's `resizeAspect` letterboxes inside the viewport-sized cell (E2-S2 S2 carries; resize and
   native fullscreen need **no code** — add none). The cell remains a pure function of the display
   state and never sees the item or its name (E2-S2 S14). Paused = the frozen frame only — **no**
   controls, progress indicator, or play button anywhere (S8); the unavailable and loading
   presentations are unchanged.
-- [ ] **5.4** Tap per design §6 (S6, S7): `FeedView` drills an `onTap` closure per page that
+- [x] **5.4** Tap per design §6 (S6, S7): `FeedView` drills an `onTap` closure per page that
   captures the item id and calls `viewModel.togglePlaybackFromTap(itemID:)`; the cell receives the
   closure only (the item stays structurally absent). Full-page hit target via `.contentShape` — the
   letterbox included. **No** App-level mouse monitor, **no** `onKeyPress`/focus handling anywhere
   (design §6; evidence §8's lesson is binding for keys only — taps are not focus-dependent).
-- [ ] **5.5** Chrome-free viewport holds (S8; E2-S2 S14 carried): hidden scroll indicators, no
+- [x] **5.5** Chrome-free viewport holds (S8; E2-S2 S14 carried): hidden scroll indicators, no
   overlays; the welcome branch untouched (its accessibility identifier keeps the launch UI tests
   green).
 - [ ] **5.6** Full gate. Fix, tick; commit:

@@ -3,28 +3,40 @@
 //  InstantPlayer
 //
 //  Feed Presentation — one feed page cell (E2-S2, design §2, §7 —
-//  S2, S3, S12–S14).
+//  S2, S3, S12–S14; E2-S3, design §4, §6 — S6–S8: the player surface,
+//  the whole-page tap target).
 //
 
 import AppKit
 import SwiftUI
 
-/// One feed page (design §2, §7): a pure function of one display state —
-/// the aspect-fit poster (S2, S3), the neutral unavailable state (S12,
-/// S13), or the neutral loading presentation. The cell receives only the
-/// display state — never the `MediaItem` — so the file name is
-/// structurally absent from the viewport (S14; D20: names display-only).
-/// Chrome-free (S14): the cell contains only the item or the placeholder.
-/// Geometry (S2): the preview's intrinsic pixel size is the sole aspect
-/// input; the letterbox is the window background (nothing painted).
-/// Video and image make no layout difference in this story (design §2) —
-/// both render as the static preview; the poster is the whole visible
-/// video contract until E2-S3 (S3 — no motion, no transport).
+/// One feed page (E2-S2 design §2, §7; E2-S3 design §4, §6): a pure
+/// function of one display state — the aspect-fit poster (S2, S3), the
+/// current video's live playback surface (E2-S3 S8: the paused
+/// presentation is the layer's frozen frame — no controls, no progress
+/// indicator, no play button), the neutral unavailable state (S12, S13),
+/// or the neutral loading presentation. The cell receives only the
+/// display state and the drilled `onTap` closure — never the `MediaItem`
+/// — so the file name is structurally absent from the viewport (S14;
+/// D20: names display-only). Chrome-free (S14; E2-S3 S8): the cell
+/// contains only the item or the placeholder. Geometry (S2): the
+/// preview's intrinsic pixel size is the sole aspect input; the letterbox
+/// is the window background (nothing painted) — the player layer
+/// aspect-fits the same viewport-sized cell (E2-S3 design §4: resize and
+/// native fullscreen need no code — none is added).
 struct FeedItemView: View {
     /// The item's display state. `nil` (not yet requested) presents like
     /// `.loading` — the state machine sets `.loading` the moment it
     /// requests, so `nil` is at worst the same neutral presentation.
     let displayState: FeedItemDisplayState?
+
+    /// The tap action (E2-S3 design §6 — S6, S7): drilled in per page by
+    /// `FeedView`, which captures the item id and routes to the view
+    /// model's guarded `togglePlaybackFromTap(itemID:)`. The cell never
+    /// sees the item; the whole page — letterbox included — is the hit
+    /// target (`.contentShape` below), and the guard matrix lives in the
+    /// view model, not here.
+    var onTap: () -> Void = {}
 
     /// The wrap memo (design §8(2), §1.1): the `Data` → platform-image
     /// wrap happens once per preview value, never per frame, never in
@@ -35,6 +47,8 @@ struct FeedItemView: View {
     var body: some View {
         content
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .contentShape(Rectangle())
+            .onTapGesture(perform: onTap)
             .onAppear(perform: wrapPoster)
             .onChange(of: displayState) {
                 wrapPoster()
@@ -69,14 +83,13 @@ struct FeedItemView: View {
                     .font(.title3.weight(.medium))
                     .foregroundStyle(.secondary)
             }
-        case .player:
-            // The live playback surface (E2-S3 design §4) — the session's
-            // layer owns this space. Interim presentation only: the real
-            // display-ready-view wrap (`PlayerSurfaceView`) lands with the
-            // view task (E2-S3 task 5), and this state is unreachable
-            // while the composition still binds the stub seam (stub
-            // handles emit no events).
-            Color.black
+        case let .player(playback):
+            // The live playback surface (E2-S3 design §4): the session's
+            // layer-hosting view, vended by the handle and wrapped by
+            // `PlayerSurfaceView` (a wrap, not processing — D27). Paused
+            // = the frozen frame only; no chrome of any kind ships here
+            // (S8 — no controls, no progress indicator, no play button).
+            PlayerSurfaceView(playback: playback)
         case .loading:
             // Neutral loading presentation (design §8(1): unknown-media
             // slowness degrades to `.loading`, never to a stall).

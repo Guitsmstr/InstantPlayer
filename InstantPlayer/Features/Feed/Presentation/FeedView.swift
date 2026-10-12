@@ -20,11 +20,16 @@ import SwiftUI
 /// `.scrollTargetBehavior(.paging)` (S4 — the resting state is always one
 /// full item), the two-way `scrollPosition(id:)` binding projected onto
 /// the view model (design §5.1, §1.1 — never view state), scroll-phase
-/// signals feeding the view model's gesture guard (§5.2). Arrow-key
-/// paging (§5.3 as shipped — evidence §8) is App-owned: an `NSEvent`
-/// local monitor (AppDelegate, round 4) routes ↓/↑ into the view model's
-/// paging methods, so this binder carries no key or focus handling of any
-/// kind. Chrome-free (S14): hidden scroll indicators, no
+/// signals feeding the view model's gesture guard (§5.2). Feed-key
+/// delivery (§5.3 as shipped — evidence §8) is App-owned: an `NSEvent`
+/// local monitor (AppDelegate) routes ↓/↑ and space into the view
+/// model's paging/toggle methods, so this binder carries no key or focus
+/// handling of any kind. The click toggle (E2-S3 design §6 — S6, S7) is
+/// a plain SwiftUI tap: `FeedView` drills one `onTap` closure per page
+/// (capturing the item id) into the guarded
+/// `togglePlaybackFromTap(itemID:)` — taps are not focus-dependent (the
+/// evidence §8 failure was key focus), and no App-level mouse monitor
+/// exists. Chrome-free (S14): hidden scroll indicators, no
 /// overlays of any kind. No state of its own, no Data imports (R2), no
 /// I/O in `body` (RNF-02).
 struct FeedView: View {
@@ -49,11 +54,18 @@ struct FeedView: View {
         ScrollView(.vertical) {
             LazyVStack(spacing: 0) {
                 ForEach(collection.items) { item in
-                    FeedItemView(displayState: viewModel.displayStates[item.id])
-                        // The page IS the viewport (design §5.1) — resize
-                        // and native fullscreen re-fill it with no code
-                        // (S10, S11).
-                        .containerRelativeFrame([.horizontal, .vertical])
+                    FeedItemView(
+                        displayState: viewModel.displayStates[item.id],
+                        // The per-page tap (E2-S3 design §6): the closure
+                        // captures the item id — the cell itself never
+                        // sees the item (S14's structural absence); the
+                        // guard matrix lives in the view model (S7).
+                        onTap: { viewModel.togglePlaybackFromTap(itemID: item.id) }
+                    )
+                    // The page IS the viewport (design §5.1) — resize
+                    // and native fullscreen re-fill it with no code
+                    // (S10, S11).
+                    .containerRelativeFrame([.horizontal, .vertical])
                 }
             }
             .scrollTargetLayout()
