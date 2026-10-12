@@ -10,10 +10,18 @@ import Testing
 
 /// Test-local conformance for case 4: the injected probe service whose
 /// constant must flow through the binding into the produced view model.
-/// Stateless — zero I/O (design §7).
-private struct ProbeMediaPlayerService: MediaPlayerService {
+/// Stateless — zero I/O (design §7). A `@MainActor final class` since the
+/// E2-S3 seam is `@MainActor` + `AnyObject` (E2-S3 design §1.2, §2 —
+/// class semantics for the mutable session state).
+private final class ProbeMediaPlayerService: MediaPlayerService {
     func wiringProbe() async -> String {
         "InjectedProbeService"
+    }
+
+    /// This double exists only for the wiring probes (case 4/5) — the
+    /// session member is a canned `nil`, never called by those tests.
+    func startPlayback(for _: MediaItem) async -> MediaPlayback? {
+        nil
     }
 }
 

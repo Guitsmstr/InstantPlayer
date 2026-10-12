@@ -72,8 +72,8 @@ Deliverable (code): `InstantPlayer/Features/Feed/Domain/MediaPlayerService.swift
 `InstantPlayer/Features/Feed/Domain/MediaPlaybackEvent.swift` (new),
 `InstantPlayer/Features/Feed/Data/StubMediaPlayerService.swift` (extended).
 
-- [ ] **1.1** Load `swift-security` + `swift-performance` before editing.
-- [ ] **1.2** `MediaPlayerService` per design §2 — the feature-owned seam grown to its real members
+- [x] **1.1** Load `swift-security` + `swift-performance` before editing.
+- [x] **1.2** `MediaPlayerService` per design §2 — the feature-owned seam grown to its real members
   (seam-placement rule unchanged: one consumer, Feed Presentation; architecture §4). Exactly the
   frozen contract: `@MainActor` (design §1.2's decision: D8's trigger unmet — no mutable state
   shared across isolation domains — and synchronous bite is contract), `AnyObject`;
@@ -82,19 +82,19 @@ Deliverable (code): `InstantPlayer/Features/Feed/Domain/MediaPlayerService.swift
   conformance never touches `isMuted`/`volume`); returns the opaque session handle or `nil`, the
   unified failure answer for vanished (S15) and mislabeled/unplayable (S14, D20) alike);
   `wiringProbe() async -> String` (house pattern). Domain stays Foundation-only (R10).
-- [ ] **1.3** `MediaPlayback.swift` per design §2 — the opaque playback-session handle
+- [x] **1.3** `MediaPlayback.swift` per design §2 — the opaque playback-session handle
   (`@MainActor protocol … : AnyObject`, Foundation-only): `var events: AsyncStream<
   MediaPlaybackEvent> { get }` (finished by `stop()`), `pause()` / `resume()` / `restart()` /
   `stop()` (all synchronous; `stop()` and `pause()` must bite before returning — design §8(2)),
   `makeDisplayView() -> AnyObject` (the display-ready platform view — the design §1.1
   architecture wording extension; Presentation wraps it, never processes it).
-- [ ] **1.4** `MediaPlaybackEvent.swift` per design §2: `nonisolated enum` with exactly
+- [x] **1.4** `MediaPlaybackEvent.swift` per design §2: `nonisolated enum` with exactly
   `.readyForDisplay`, `.reachedEnd`, `.failed` — pure values.
-- [ ] **1.5** `StubMediaPlayerService.swift` extended **in this same commit** (the composition still
+- [x] **1.5** `StubMediaPlayerService.swift` extended **in this same commit** (the composition still
   binds the stub until task 6, and the E2-S3 view model must compile from this commit on):
   stub `MediaPlayerService` vending stub handles — zero-I/O, no AVFoundation, canned/never-failing
   per the house stub pattern (tests use their own scripted doubles, task 7).
-- [ ] **1.6** Full gate `./scripts/validate.sh` — the new types must compile (that is what proves
+- [x] **1.6** Full gate `./scripts/validate.sh` — the new types must compile (that is what proves
   target membership). Fix, tick this task's boxes, commit:
   `feat(e2-s3): task 1 — playback seam, session handle, and stub`.
 
