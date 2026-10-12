@@ -29,6 +29,13 @@ import AVFoundation
 /// executed; no logging of paths or file names (D20).
 @MainActor
 final class AVMediaPlayerService: MediaPlayerService {
+    /// `nonisolated` on purpose (the `StubMediaPlayerService` precedent):
+    /// the composition root's default argument (`AppDependencies.init`)
+    /// evaluates in a nonisolated context, and this init is
+    /// allocation-only — it touches no isolated state (the session starts
+    /// `nil`; players exist only while a video is current, R13).
+    nonisolated init() {}
+
     /// The one live session (design §3: no pooling, no warm players, no
     /// kept-alive positions) — superseded and torn down by every
     /// `startPlayback`, so memory stays bounded at one `AVPlayer` + one

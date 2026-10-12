@@ -230,17 +230,17 @@ Deliverable (code): `InstantPlayer/Features/Feed/Presentation/PlayerSurfaceView.
 Deliverable (code): `InstantPlayer/App/AppDependencies.swift` (player binding).
 `FeedState.swift`, `RootView.swift`, `InstantPlayerApp.swift` stay untouched.
 
-- [ ] **6.1** Load `swift-security` + `swift-performance` before editing.
-- [ ] **6.2** Composition per design §1: `AppDependencies` binds `AVMediaPlayerService` as the
+- [x] **6.1** Load `swift-security` + `swift-performance` before editing.
+- [x] **6.2** Composition per design §1: `AppDependencies` binds `AVMediaPlayerService` as the
   `MediaPlayerService` default (replacing `StubMediaPlayerService()`; tests still inject
   conformances through the same initializer). `init` stays **allocation-only** (R13 of E1-S3,
   design §8(4)) — one binding allocation, nothing scheduled, no player created at launch (players
   exist only while a video is current). The factory's record-once `activeFeedModel` semantics are
   unchanged (the key monitor of task 4 consults it).
-- [ ] **6.3** D21 audit checkpoint (design §1.1, §9): confirm this task — and the story so far —
+- [x] **6.3** D21 audit checkpoint (design §1.1, §9): confirm this task — and the story so far —
   introduces **no** change under `InstantPlayer.xcodeproj/` or `InstantPlayer/Config/`: no
   entitlements, no plist keys, no build settings. Any apparent need → stop and report.
-- [ ] **6.4** Full gate. Fix, tick; commit:
+- [x] **6.4** Full gate. Fix, tick; commit:
   `feat(e2-s3): task 6 — composition binding the player service`.
 
 ## Task 7 — Unit suites: playback policy + seam + perf `[P]` · design §8(1), §10.1, §10.2
