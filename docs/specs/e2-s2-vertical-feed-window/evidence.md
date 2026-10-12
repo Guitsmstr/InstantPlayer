@@ -226,7 +226,7 @@ section. Test names are in `InstantPlayerTests` (Swift Testing, `@Test`), per ta
 | **S2** — current item letterboxed, filling the viewport | `FeedItemView` — aspect-fit via intrinsic `MediaPreview.pixelWidth/pixelHeight` + `.containerRelativeFrame([.horizontal, .vertical])` (the page **is** the viewport); test `imagePreviewKeepsTheSourceAspect` | §2, §5.1, §3 |
 | **S3** — video shows static first-frame poster | `AVMediaPreviewService.extractVideoPoster` — `AVAssetImageGenerator`, `appliesPreferredTrackTransform`, `CMTime.zero` with zero tolerance, async API, fail-`nil` on exact-frame failure; test `videoPreviewIsTheFirstFrameOfARealMP4` (real `AVAssetWriter` MP4); D23 | §4.2 |
 | **S4** — one gesture = one item, magnetic snap | `FeedViewModel.scrollGestureDidStart/scrollGestureDidSettle` + the pure guard `correctedTarget(forGestureStart:landing:itemCount:)`; `FeedView.onScrollPhaseChange` wiring; tests `gestureGuardCorrectionTable`, `gestureGuardCorrectsMultiPageForwardLanding`, `gestureGuardCorrectsMultiPageBackwardLanding`, `gestureGuardSnapBackStaysAtStartPage`, `zeroNetGestureAtAnEndDoesNotPage`; D22 | §5.2 |
-| **S5** — ↓/↑ arrow paging | `FeedView.onMoveCommand` on the `@FocusState`-focused scroll content (§8 deviation 2 — functional-review fix, round 3) → `pageForward()/pageBackward()`; test `pageForwardAndBackwardMoveExactlyOneItem`; D22 | §5.3 |
+| **S5** — ↓/↑ arrow paging | App-owned `NSEvent` local monitor (`AppDelegate`) routed through the pure `ArrowKeyCommand.route` table into `pageForward()/pageBackward()` (§8 deviation 2 — coordinator-ratified round-4 amendment); tests `plainDownArrowPagesForwardWhenFeedIsOpen`, `plainUpArrowPagesBackwardWhenFeedIsOpen`, `welcomePassesArrowsThrough`, `commandModifiedArrowsPassThrough`, `optionModifiedArrowsPassThrough`, `controlModifiedArrowsPassThrough`, `combinedCommandModifiersPassThrough`, `shiftAloneStillPages`, `systemArrowFlagsStillPage`, `nonRoutedArrowsPassThrough`, `nonArrowKeysPassThrough`; `pageForwardAndBackwardMoveExactlyOneItem`; D22 | §5.3 |
 | **S6** — clamping, no wrap, both mechanisms | `FeedViewModel.setIndex` clamp shared by gestures and arrows (no wrap); tests `clampingAtBothEndsHasNoWrap`, `zeroNetGestureAtAnEndDoesNotPage`; D22 | §5.2–§5.3 |
 | **S7** — feed in the single resizable window | `InstantPlayerApp` — the unchanged single `Window` scene (D18); the feed renders in it (`FeedView`); system-default frame persistence, no custom min size ([design](design.md) §5.6); functional review (AC9) | §5.6, §6 |
 | **S8** — close quits | `AppDelegate.applicationShouldTerminateAfterLastWindowClosed → true` registered via `@NSApplicationDelegateAdaptor` (termination policy only; D18's entry-routing reservation unbuilt); D24; functional review (AC9) | §6.1 |
@@ -276,21 +276,32 @@ across E2-S3/E3/E4/E5 per the backlog note.
    recorded in D23's consequences. **Impact:** none on the seam contract — names, signatures, and
    the `MediaPreview` value shape are unchanged; the box is a conformance-internal detail. It fixes
    a crash rather than introducing behavior.
-2. **Deviation (functional-review fix, round 3) — deterministic `@FocusState` feed focus + single
-   `.onMoveCommand` delivery** (`InstantPlayer/Features/Feed/Presentation/FeedView.swift`).
-   [Design](design.md) §5.3 names `.onKeyPress(.downArrow/.upArrow)` on the feed. Rounds 1–2
-   (`a356681`: `onKeyPress` + `onMoveCommand` on a `.focusable()` surface — first wrapping the
-   `ScrollView`, then placed on the scroll content) still failed the stakeholder retest: macOS
-   SwiftUI focusable views do not reliably acquire key focus by click, and both handlers fire only
-   on the focused view — no focused owner, keys fell through, the system "beep". Round 3 makes
-   focus deterministic: a `@FocusState` binding attached via `.focused(_:)` to the focusable feed
-   content is asserted programmatically when the feed appears (`.task`) and re-asserted on a plain
-   click (`.onTapGesture`), so arrows work immediately after opening a folder and after clicking —
-   focus is no longer acquired-by-click at all. Delivery is exactly one path — `.onMoveCommand`
-   (macOS' canonical arrow-key path for focused views); `onKeyPress` is removed so a single press
-   can never page twice. Focus ring suppressed (S14); S4 guard wiring, S6 clamping, and the view
-   model are untouched. Awaiting coordinator ratification. **Impact:** view-layer focus/delivery
-   only — no view-model change, no layout/scroll change, no visual change.
+2. **Deviation (functional-review fix, round 4 — coordinator-ratified design amendment) — App-owned
+   `NSEvent` local key monitor for arrow-key delivery** (`InstantPlayer/App/ArrowKeyCommand.swift`,
+   `InstantPlayer/App/AppDelegate.swift`, `InstantPlayer/App/AppDependencies.swift`,
+   `InstantPlayer/App/InstantPlayerApp.swift`; `FeedView.swift` restored to a pure binder).
+   [Design](design.md) §5.3 names `.onKeyPress(.downArrow/.upArrow)` on the feed. Three rounds of
+   SwiftUI focused-view delivery failed live stakeholder retests with the unhandled-key "beep":
+   round 1 — `onKeyPress` + `.focusable()` on the `ScrollView` (task 4, `8878679`); round 2 —
+   `onKeyPress` + `onMoveCommand` on a `.focusable()` scroll-content surface (`a356681`); round 3 —
+   `@FocusState` programmatic focus (`.focused` with an appear-time `.task` assertion and a tap
+   re-assert) with `onMoveCommand`-only delivery (`387541f`). Root cause, honest status: macOS key
+   focus could not be made to land (or hold) in the SwiftUI scroll content on this OS build, so no
+   focused view ever owned the key — an unresolved platform detail, not debuggable headlessly. Per
+   coordinator ratification the story ships the App-owned amendment: a pure, unit-tested routing
+   decision (`ArrowKeyCommand.route(keyCode:modifiers:hasOpenFeed:)` — plain ↓/↑ (hardware key
+   codes 125/126) with a feed
+   open → page commands; ⌘/⌥/⌃ or no open feed → pass-through; ⇧ is not a command modifier and
+   pages; `.function`/`.numericPad` flags on real arrow events still page), installed by
+   `AppDelegate.applicationDidFinishLaunching` as a local `.keyDown` monitor that consumes page
+   commands (returns `nil`) and passes everything else through untouched. The factory records the
+   active model on the container (`activeFeedModel` — weak, the view layer's `@State` owns it;
+   record-once, since `State(initialValue:)` keeps the first instance); the delegate owns the one
+   container so monitor and view tree share it (D18). The paging call is the unchanged `@MainActor`
+   view-model method — S4/S5/S6 semantics frozen; the monitor is main-thread O(1) (RNF-02);
+   auto-repeat while held = repeated presses, one item per keyDown (standard, accepted).
+   **Impact:** delivery layer only — the binder carries no key or focus handling (S14 trivially
+   true); no view-model change; no entitlement/plist/pbxproj change.
 3. **Minor additive notes** (no contract change, listed for completeness): `MediaPreview` and
    `FeedItemDisplayState` declare `Equatable` — the value shape is unchanged; `Equatable` backs the
    §8(2) wrap memoization (`wrappedFor != preview`) and test assertions. The `nonisolated` protocol

@@ -45,7 +45,8 @@ InstantPlayer/
 ├── Assets.xcassets                                  template asset catalog (unchanged)
 ├── App/                                             composition root (D10)
 │   ├── InstantPlayerApp.swift                       @main entry + `Window` scene wiring
-│   ├── AppDelegate.swift                            close-quits policy (S8)
+│   ├── AppDelegate.swift                            close-quits policy (S8) + arrow-key monitor (S5)
+│   ├── ArrowKeyCommand.swift                        pure arrow-key routing decision (S5)
 │   ├── AppDependencies.swift                        the binding container
 │   └── RootView.swift                               App-owned root view (owns the entry modifiers)
 ├── Config/                                          project config (partial plist + entitlements)

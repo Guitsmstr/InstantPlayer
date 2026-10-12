@@ -27,6 +27,17 @@ final class AppDependencies {
     let mediaFolderRepository: any MediaFolderRepository
     let mediaPreviewService: any MediaPreviewService
 
+    /// The active feed view model, recorded by the factory (E2-S2 round 4 —
+    /// evidence §8): the App-owned arrow-key monitor (AppDelegate, D10)
+    /// consults it. Weak on purpose — the view layer's `@State` owns the
+    /// instance (the one window's one model, D18), and the container must
+    /// not extend a superseded model's lifetime. Recorded once: the first
+    /// factory call is the instance `RootView`'s `@State` keeps
+    /// (`State(initialValue:)` ignores later values), while SwiftUI body
+    /// re-evaluations may re-run the factory with transient, immediately
+    /// discarded models — those must not steal the registration.
+    private(set) weak var activeFeedModel: FeedViewModel?
+
     /// Binding API: production uses the defaults; tests and previews inject
     /// conformances through the same initializer. The default folder seam
     /// is the real security-scoped actor (E2-S1 design §1); the default
@@ -47,10 +58,16 @@ final class AppDependencies {
     /// pass through, tests inject conformances via the initializer).
     /// Called on demand — by `RootView` (design §7.3), never at app init.
     func makeFeedViewModel() -> FeedViewModel {
-        FeedViewModel(
+        let viewModel = FeedViewModel(
             mediaPlayerService: mediaPlayerService,
             mediaFolderRepository: mediaFolderRepository,
             mediaPreviewService: mediaPreviewService
         )
+        // Registration for the App-owned arrow-key monitor (round 4 — see
+        // `activeFeedModel`): once, on the instance the view tree keeps.
+        if activeFeedModel == nil {
+            activeFeedModel = viewModel
+        }
+        return viewModel
     }
 }

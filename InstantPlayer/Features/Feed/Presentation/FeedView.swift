@@ -20,23 +20,19 @@ import SwiftUI
 /// `.scrollTargetBehavior(.paging)` (S4 — the resting state is always one
 /// full item), the two-way `scrollPosition(id:)` binding projected onto
 /// the view model (design §5.1, §1.1 — never view state), scroll-phase
-/// signals feeding the view model's gesture guard (§5.2), and arrow-key
-/// paging (§5.3). Chrome-free (S14): hidden scroll indicators, no
-/// overlays of any kind. No state of its own beyond the key-focus
-/// ownership (§5.3 as shipped), no Data imports (R2), no I/O in `body`
-/// (RNF-02).
+/// signals feeding the view model's gesture guard (§5.2). Arrow-key
+/// paging (§5.3 as shipped — evidence §8) is App-owned: an `NSEvent`
+/// local monitor (AppDelegate, round 4) routes ↓/↑ into the view model's
+/// paging methods, so this binder carries no key or focus handling of any
+/// kind. Chrome-free (S14): hidden scroll indicators, no
+/// overlays of any kind. No state of its own, no Data imports (R2), no
+/// I/O in `body` (RNF-02).
 struct FeedView: View {
     let viewModel: FeedViewModel
 
     /// Window-drop hover state owned by `RootView` (design §3.1); drives
     /// the welcome surface's hover affordance.
     var isDropTargeted: Bool = false
-
-    /// Key-focus ownership of the feed surface (design §5.3 as shipped —
-    /// evidence §8): asserted programmatically when the feed appears and
-    /// re-asserted on a plain click, so arrow-key paging always has a
-    /// focused owner (S5) without relying on click-to-focus.
-    @FocusState private var isFeedFocused: Bool
 
     var body: some View {
         switch viewModel.state {
@@ -61,35 +57,6 @@ struct FeedView: View {
                 }
             }
             .scrollTargetLayout()
-            // Key focus & delivery (design §5.3 as shipped, round 3 —
-            // evidence §8): macOS SwiftUI focusable views do not reliably
-            // take key focus from a click, and both `onKeyPress` and
-            // `onMoveCommand` fire only on the focused view — rounds 1–2
-            // shipped handlers that never fired (the system "beep"). Focus
-            // is therefore deterministic: the `@FocusState` binding is
-            // asserted when the feed appears (`.task` — runs after the view
-            // is on screen) and re-asserted on a plain click. With focus
-            // held, macOS delivers ↓/↑ as move commands — the single
-            // delivery path (`onKeyPress` removed so one press can never
-            // page twice) — routed into the unchanged clamped state machine
-            // (S5/S6).
-            .focused($isFeedFocused)
-            .task { isFeedFocused = true }
-            .onTapGesture { isFeedFocused = true }
-            .onMoveCommand { direction in
-                switch direction {
-                case .down:
-                    viewModel.pageForward()
-                case .up:
-                    viewModel.pageBackward()
-                default:
-                    break
-                }
-            }
-            // The feed is the one focusable surface, with the focus ring
-            // suppressed to keep the viewport chrome-free (S14).
-            .focusable()
-            .focusEffectDisabled()
         }
         .scrollPosition(id: scrollPosition)
         .scrollTargetBehavior(.paging)
