@@ -89,7 +89,15 @@ struct FeedItemView: View {
             // `PlayerSurfaceView` (a wrap, not processing — D27). Paused
             // = the frozen frame only; no chrome of any kind ships here
             // (S8 — no controls, no progress indicator, no play button).
+            // Per-session view identity (design §4 implementation
+            // correction): `updateNSView` is a no-op by contract, so the
+            // representable must be rebuilt when the session changes —
+            // keying `.id` to the handle's identity gives every session a
+            // fresh `makeNSView`; a direct `.player(old) → .player(new)`
+            // transition can never reuse the old stopped surface. One
+            // rebuild per session, never per frame (design §8(5), RNF-02).
             PlayerSurfaceView(playback: playback)
+                .id(ObjectIdentifier(playback))
         case .loading:
             // Neutral loading presentation (design §8(1): unknown-media
             // slowness degrades to `.loading`, never to a stall).

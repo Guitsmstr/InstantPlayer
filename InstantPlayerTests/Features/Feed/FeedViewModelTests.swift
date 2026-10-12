@@ -1021,6 +1021,110 @@ struct FeedViewModelTests {
         #expect(handle0.stopCount == 1, "stop() must be recorded synchronously with the page change (S9)")
     }
 
+    /// §10.1 / design §4 implementation correction — stop-on-away display
+    /// hygiene: the departed video's `.player` state reverts to its poster
+    /// state, so the cell never keeps a stopped player surface (the review
+    /// defect: revisiting a video showed no picture).
+    @Test func pagingAwayRevertsDepartedVideoToItsPosterState() async {
+        let folder = Self.uniqueFolder("revert-poster")
+        let item0 = Self.makeItem(folder, named: "a.mp4", kind: .video)
+        let item1 = Self.makeItem(folder, named: "b.mp4", kind: .video)
+        let collection = Self.makeCollection(folderURL: folder, items: [item0, item1], startIndex: 0)
+        let handle0 = ScriptedMediaPlayback()
+        let players = ScriptedMediaPlayerService(answers: [handle0])
+        let previews = RecordingPreviewService(result: Self.knownPreview)
+        let viewModel = await Self.openCollection(
+            collection,
+            mediaPlayerService: players,
+            previews: previews
+        )
+        guard await Self.installPlayback(item0, handle: handle0, in: viewModel, service: players) else { return }
+
+        viewModel.pageForward()
+
+        #expect(
+            viewModel.displayStates[item0.id] == .preview(Self.knownPreview),
+            "the departed item must revert to its poster state — never keep a stopped .player (design §4)"
+        )
+    }
+
+    /// §10.1 / design §4 implementation correction — a revisit after the
+    /// revert installs a FRESH session whose surface paints: the display
+    /// state travels poster → `.player(newHandle)`, never
+    /// `.player(oldHandle)` (S10's fresh start, made visible).
+    @Test func revisitingARevertedVideoPaintsAFreshSurface() async {
+        let folder = Self.uniqueFolder("revisit-fresh")
+        let item0 = Self.makeItem(folder, named: "a.mp4", kind: .video)
+        let item1 = Self.makeItem(folder, named: "b.mp4", kind: .video)
+        let collection = Self.makeCollection(folderURL: folder, items: [item0, item1], startIndex: 0)
+        let handle0 = ScriptedMediaPlayback()
+        let handle1 = ScriptedMediaPlayback()
+        let handle2 = ScriptedMediaPlayback()
+        let players = ScriptedMediaPlayerService(answers: [handle0, handle1, handle2])
+        let previews = RecordingPreviewService(result: Self.knownPreview)
+        let viewModel = await Self.openCollection(
+            collection,
+            mediaPlayerService: players,
+            previews: previews
+        )
+        guard await Self.installPlayback(item0, handle: handle0, in: viewModel, service: players) else { return }
+
+        viewModel.pageForward() // away — item1's arrow start answers with handle1
+        let forward = await Self.waitFor(
+            { viewModel.displayStates[item0.id] == .preview(Self.knownPreview) },
+            "the departed item must revert to its poster state"
+        )
+        guard forward else { return }
+
+        viewModel.pageBackward() // revisit — a fresh session for item0
+        let back = await Self.waitFor(
+            { players.calls == [item0, item1, item0] },
+            "the revisit must start a fresh session (S10)"
+        )
+        guard back else { return }
+        #expect(handle2 !== handle0, "a fresh handle, not the old session (S10)")
+        handle2.emit(.readyForDisplay)
+        _ = await Self.waitFor(
+            { viewModel.displayStates[item0.id] == .player(handle2) },
+            "the fresh session's surface must paint — poster → .player(newHandle)"
+        )
+    }
+
+    /// §10.1 / design §4 implementation correction — a poster answer that
+    /// arrives while the item is live-playing never paints over the
+    /// surface; it parks and becomes the stop-on-away revert target.
+    @Test func latePosterWhilePlayingParksForTheRevert() async {
+        let folder = Self.uniqueFolder("late-poster")
+        let item0 = Self.makeItem(folder, named: "a.mp4", kind: .video)
+        let item1 = Self.makeItem(folder, named: "b.mp4", kind: .video)
+        let collection = Self.makeCollection(folderURL: folder, items: [item0, item1], startIndex: 0)
+        let handle0 = ScriptedMediaPlayback()
+        let handle1 = ScriptedMediaPlayback()
+        let players = ScriptedMediaPlayerService(answers: [handle0, handle1])
+        let previews = GatedPreviewService()
+        let viewModel = await Self.openCollection(
+            collection,
+            mediaPlayerService: players,
+            previews: previews
+        )
+        guard await Self.installPlayback(item0, handle: handle0, in: viewModel, service: players) else { return }
+
+        await previews.releaseFirst(for: item0.url, with: Self.knownPreview)
+        for _ in 0 ..< 50 {
+            await Task.yield()
+        }
+        #expect(
+            viewModel.displayStates[item0.id] == .player(handle0),
+            "the late poster must not paint over the live surface"
+        )
+
+        viewModel.pageForward()
+        #expect(
+            viewModel.displayStates[item0.id] == .preview(Self.knownPreview),
+            "the parked late poster is the revert target on stop-on-away (design §4)"
+        )
+    }
+
     /// §10.1 — restart-on-revisit (S10): paging back starts a FRESH
     /// session — no resume, nothing carried across visits; the old handle
     /// is never resumed or restarted, and a new handle is vended.

@@ -151,6 +151,15 @@ final class FeedViewModel {
     /// "way out").
     private var playbackFailedItemIDs: Set<MediaItem.ID> = []
 
+    /// The poster-axis state parked under a live player surface (E2-S3
+    /// design §4 implementation correction): when `.readyForDisplay`
+    /// swaps the poster for the surface, what the poster axis held is
+    /// parked here; stop-on-away restores it, so a departed item's cell
+    /// never keeps a stopped player and a revisit always travels
+    /// poster → `.player` (with `PlayerSurfaceView`'s per-session view
+    /// identity). Entries live exactly as long as their `.player` state.
+    private var parkedPosterStates: [MediaItem.ID: FeedItemDisplayState] = [:]
+
     init(
         mediaPlayerService: any MediaPlayerService,
         mediaFolderRepository: any MediaFolderRepository,
@@ -404,13 +413,21 @@ final class FeedViewModel {
         guard generation == latestEntryGeneration else { return } // brace 3
         guard playback === handle else { return } // brace 2 — identity
         switch event {
-        case .readyForDisplay:
+        case .readyForDisplay where !isShowingPlayer(id):
+            // The poster→player swap (design §4): the poster-axis state
+            // parks first — it is the revert target when the item is
+            // departed (stop-on-away hygiene). Never parks a `.player`
+            // state (a repeated `.readyForDisplay` is idempotent).
+            parkedPosterStates[id] = displayStates[id] ?? .loading
             displayStates[id] = .player(handle)
+        case .readyForDisplay:
+            break // the surface is already installed
         case .reachedEnd:
             handle.restart()
         case .failed:
             stopPlayback()
             playbackFailedItemIDs.insert(id)
+            parkedPosterStates[id] = nil // playback failure is sticky — the poster revert is moot
             displayStates[id] = .unavailable
         }
     }
@@ -428,6 +445,7 @@ final class FeedViewModel {
         cancelAllPreviewTasks()
         stopPlayback()
         playbackFailedItemIDs = [] // a fresh entry action resets everything (design §7)
+        parkedPosterStates = [:]
         displayStates = [:]
         gestureStartIndex = nil
         currentIndex = collection.startIndex
@@ -445,6 +463,7 @@ final class FeedViewModel {
         cancelAllPreviewTasks()
         stopPlayback()
         playbackFailedItemIDs = []
+        parkedPosterStates = [:]
         displayStates = [:]
         gestureStartIndex = nil
         currentIndex = nil
@@ -464,10 +483,34 @@ final class FeedViewModel {
         guard case let .folderOpen(collection) = state, !collection.items.isEmpty else { return }
         let clamped = min(max(index, 0), collection.items.count - 1)
         guard clamped != currentIndex else { return }
+        let departedItemID = currentItemID
         stopPlayback()
         currentIndex = clamped
         currentItemID = collection.items[clamped].id
+        revertDepartedDisplayState(departedItemID)
         refreshDisplayStates()
+    }
+
+    /// Stop-on-away display hygiene (E2-S3 design §4 implementation
+    /// correction): the departed item is off-screen — its `.player` state
+    /// reverts to the parked poster state (`.preview`/`.loading`/
+    /// `.unavailable`, whatever the poster axis held), so the cell never
+    /// keeps a stopped player surface and a revisit always travels
+    /// poster → `.player` instead of `.player(old) → .player(new)` — the
+    /// transition SwiftUI cannot rebuild (the review defect: revisiting
+    /// showed no picture). Paired with `PlayerSurfaceView`'s per-session
+    /// view identity.
+    private func revertDepartedDisplayState(_ itemID: MediaItem.ID?) {
+        guard let itemID, isShowingPlayer(itemID) else { return }
+        displayStates[itemID] = parkedPosterStates.removeValue(forKey: itemID) ?? .loading
+    }
+
+    /// True while the item's cell is showing a live player surface.
+    private func isShowingPlayer(_ itemID: MediaItem.ID) -> Bool {
+        if case .player = displayStates[itemID] {
+            return true
+        }
+        return false
     }
 
     /// Prefetch window (design §5.5, RNF-02): request previews for the
@@ -513,10 +556,17 @@ final class FeedViewModel {
     /// `nil` → sticky `.unavailable` (S12, S13). Results for a superseded
     /// collection are dropped by the generation counter (S9 — a late
     /// result for the old collection never paints); results of cancelled
-    /// (dropped-edge) requests are dropped too.
+    /// (dropped-edge) requests are dropped too. A late answer for an item
+    /// that is already live-playing must not paint over the surface — it
+    /// parks as the stop-on-away revert target instead (design §4
+    /// implementation correction).
     private func apply(_ preview: MediaPreview?, toItemID id: MediaItem.ID, generation: Int) {
         guard generation == latestEntryGeneration else { return }
         guard !Task.isCancelled else { return }
+        if isShowingPlayer(id) {
+            parkedPosterStates[id] = preview.map { FeedItemDisplayState.preview($0) } ?? .unavailable
+            return
+        }
         guard displayStates[id] == .loading else { return }
         displayStates[id] = preview.map { FeedItemDisplayState.preview($0) } ?? .unavailable
     }
