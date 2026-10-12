@@ -357,6 +357,14 @@ open across E3/E4/E5 per the backlog note.
     gestures keep the nearest-item snap). Pinned by the `ItemPagingBehaviorTests` suite (wheel
     notch advances, nudge snaps back, no compounding, inclusive thresholds) plus the existing
     settle-guard clamp rows.
+12. **RATIFIED — E2-S2 preview perf assertion aligned to the design's p95 semantics**
+    (`InstantPlayerTests/Features/Feed/MediaPreviewPerformanceTests.swift`). After an observed
+    parallel-load flake (a 24 MP cold pass measured 303.4 ms against the per-pass < 300 ms assert;
+    passed on retry; no budget changed), the typical cold passes are asserted as the p95 of the
+    measured passes (max-of-N at this small N, documented in-test) per the E2-S2 design §8(1)
+    "≤ 300 ms p95" wording. Coordinator-ratified. **Impact:** the test's assertion form only —
+    same fixtures, same pass count; no budget, fixture, or production change; the cached-hit
+    asserts and the `measure` block are untouched.
 
 No other deviation exists: the diff vs `main` touches exactly the [design](design.md) §1 inventory
 files (plus their tests and the story docs); `FeedState.swift`, `RootView.swift`,
