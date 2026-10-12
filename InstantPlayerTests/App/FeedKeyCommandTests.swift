@@ -197,4 +197,130 @@ struct FeedKeyCommandTests {
             ) == .passThrough
         )
     }
+
+    // MARK: Space routing (E2-S3 design §6 — S5; tasks.md 7.4 matrix)
+
+    /// Space (keyCode 49), first press, feed open → toggle playback (S5).
+    @Test func spaceFirstPressToggles() {
+        #expect(
+            FeedKeyCommand.route(
+                keyCode: 49,
+                modifiers: [],
+                isRepeat: false,
+                hasOpenFeed: true
+            ) == .togglePlayback
+        )
+    }
+
+    /// Space auto-repeat is consumed and ignored — a held space must never
+    /// flap play/pause (design §6; unlike arrows, where auto-repeat pages).
+    @Test func spaceAutoRepeatIsConsumedAndIgnored() {
+        #expect(
+            FeedKeyCommand.route(
+                keyCode: 49,
+                modifiers: [],
+                isRepeat: true,
+                hasOpenFeed: true
+            ) == .ignore
+        )
+        #expect(
+            FeedKeyCommand.route(
+                keyCode: 49,
+                modifiers: [.shift],
+                isRepeat: true,
+                hasOpenFeed: true
+            ) == .ignore
+        )
+    }
+
+    /// ⇧ is not a command modifier — ⇧space toggles, like ⇧↓ pages
+    /// (documented decision, design §6).
+    @Test func shiftSpaceToggles() {
+        #expect(
+            FeedKeyCommand.route(
+                keyCode: 49,
+                modifiers: [.shift],
+                isRepeat: false,
+                hasOpenFeed: true
+            ) == .togglePlayback
+        )
+    }
+
+    /// Real space keyDown events can carry system flags — those are not
+    /// command modifiers and must still toggle (the arrow-flags
+    /// regression pin's space counterpart).
+    @Test func systemSpaceFlagsStillToggle() {
+        #expect(
+            FeedKeyCommand.route(
+                keyCode: 49,
+                modifiers: [.function, .numericPad],
+                isRepeat: false,
+                hasOpenFeed: true
+            ) == .togglePlayback
+        )
+    }
+
+    /// ⌘/⌥/⌃-modified space passes through — system shortcuts are never
+    /// robbed (design §6; ⌃space alone is the input-source shortcut).
+    @Test func commandModifiedSpacePassesThrough() {
+        let commandModifiers: [NSEvent.ModifierFlags] = [
+            [.command],
+            [.option],
+            [.control],
+            [.command, .option, .control],
+        ]
+        for modifiers in commandModifiers {
+            #expect(
+                FeedKeyCommand.route(
+                    keyCode: 49,
+                    modifiers: modifiers,
+                    isRepeat: false,
+                    hasOpenFeed: true
+                ) == .passThrough
+            )
+        }
+    }
+
+    /// Welcome: space passes through like every key — no feed, no feed
+    /// commands (S16).
+    @Test func welcomePassesSpaceThrough() {
+        #expect(
+            FeedKeyCommand.route(
+                keyCode: 49,
+                modifiers: [],
+                isRepeat: false,
+                hasOpenFeed: false
+            ) == .passThrough
+        )
+        #expect(
+            FeedKeyCommand.route(
+                keyCode: 49,
+                modifiers: [.shift],
+                isRepeat: true,
+                hasOpenFeed: false
+            ) == .passThrough
+        )
+    }
+
+    /// Arrow auto-repeat still pages — repeated presses are the carried,
+    /// accepted arrow behavior (design §6); only space repeats are
+    /// consumed and ignored.
+    @Test func arrowAutoRepeatStillPages() {
+        #expect(
+            FeedKeyCommand.route(
+                keyCode: 125,
+                modifiers: [],
+                isRepeat: true,
+                hasOpenFeed: true
+            ) == .pageForward
+        )
+        #expect(
+            FeedKeyCommand.route(
+                keyCode: 126,
+                modifiers: [],
+                isRepeat: true,
+                hasOpenFeed: true
+            ) == .pageBackward
+        )
+    }
 }

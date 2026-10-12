@@ -270,3 +270,117 @@ extension MediaFixture {
         return url
     }
 }
+
+// MARK: - Short multi-frame clip (E2-S3 design §10.2)
+
+extension MediaFixture {
+    /// Writes a tiny real multi-frame H.264 MP4 at `url` (E2-S3 design
+    /// §10.2 — the end/loop timing helper): `frameCount` solid frames at
+    /// `fps`, so a started session plays to its natural end in bounded,
+    /// deterministic time. Same builder shape as `writeOneFrameMP4` above;
+    /// kept alongside it rather than merged (task 7.5 lands the helper,
+    /// not a refactor). Retries transient VideoToolbox/AVAssetWriter
+    /// failures: the gate runs test classes in parallel processes, and
+    /// concurrent encoder sessions can fail a single attempt. `nonisolated`:
+    /// the AVAssetWriter work runs off the main thread.
+    nonisolated static func writeShortMP4(
+        to url: URL,
+        pixelWidth: Int,
+        pixelHeight: Int,
+        frameCount: Int = 6,
+        fps: Int32 = 30
+    ) async throws {
+        var attempts = 0
+        while true {
+            attempts += 1
+            do {
+                try await writeShortMP4Attempt(
+                    to: url,
+                    pixelWidth: pixelWidth,
+                    pixelHeight: pixelHeight,
+                    frameCount: frameCount,
+                    fps: fps
+                )
+                return
+            } catch {
+                guard attempts < 3 else { throw error }
+                try? await Task.sleep(for: .milliseconds(250))
+            }
+        }
+    }
+
+    /// One encode attempt (the `writeOneFrameMP4` builder shape, looping
+    /// over `frameCount` frames).
+    private nonisolated static func writeShortMP4Attempt(
+        to url: URL,
+        pixelWidth: Int,
+        pixelHeight: Int,
+        frameCount: Int,
+        fps: Int32
+    ) async throws {
+        try? FileManager.default.removeItem(at: url)
+        let writer = try AVAssetWriter(outputURL: url, fileType: .mp4)
+        let settings: [String: Any] = [
+            AVVideoCodecKey: AVVideoCodecType.h264,
+            AVVideoWidthKey: pixelWidth,
+            AVVideoHeightKey: pixelHeight,
+        ]
+        let input = AVAssetWriterInput(mediaType: .video, outputSettings: settings)
+        let adaptor = AVAssetWriterInputPixelBufferAdaptor(
+            assetWriterInput: input,
+            sourcePixelBufferAttributes: [
+                kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA,
+                kCVPixelBufferWidthKey as String: pixelWidth,
+                kCVPixelBufferHeightKey as String: pixelHeight,
+            ]
+        )
+        writer.add(input)
+        guard writer.startWriting() else { throw MediaFixtureError.encodeFailed }
+        writer.startSession(atSourceTime: .zero)
+        defer { input.markAsFinished() }
+
+        guard let pool = adaptor.pixelBufferPool else { throw MediaFixtureError.pixelBufferPoolUnavailable }
+        for frame in 0 ..< frameCount {
+            var pooled: CVPixelBuffer?
+            guard CVPixelBufferPoolCreatePixelBuffer(kCFAllocatorDefault, pool, &pooled) == kCVReturnSuccess,
+                  let buffer = pooled else { throw MediaFixtureError.pixelBufferUnavailable }
+            try fill(buffer, pixelWidth: pixelWidth, pixelHeight: pixelHeight)
+
+            var waits = 0
+            while input.isReadyForMoreMediaData == false {
+                usleep(1000)
+                waits += 1
+                if waits > 2000 {
+                    throw MediaFixtureError.encoderNotReady
+                }
+            }
+            let time = CMTime(value: CMTimeValue(frame), timescale: fps)
+            guard adaptor.append(buffer, withPresentationTime: time) else { throw MediaFixtureError.sampleAppendFailed }
+        }
+        writer.endSession(atSourceTime: CMTime(value: CMTimeValue(frameCount), timescale: fps))
+        await writer.finishWriting()
+        guard writer.status == .completed else { throw MediaFixtureError.encodeFailed }
+    }
+
+    /// Instance convenience: a real short multi-frame MP4 named `name`
+    /// inside the fixture tree (async test bodies call this directly).
+    @discardableResult
+    func writeShortMP4(
+        named name: String = "clip.mp4",
+        pixelWidth: Int = 64,
+        pixelHeight: Int = 32,
+        frameCount: Int = 6,
+        fps: Int32 = 30,
+        into folder: URL? = nil
+    ) async throws -> URL {
+        let url = (folder ?? root).appending(path: name)
+        try await Self.writeShortMP4(
+            to: url,
+            pixelWidth: pixelWidth,
+            pixelHeight: pixelHeight,
+            frameCount: frameCount,
+            fps: fps
+        )
+        return url
+    }
+}

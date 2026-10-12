@@ -249,11 +249,11 @@ Deliverable (code): `InstantPlayerTests/` — extended `FeedViewModelTests` (pla
 `FeedKeyCommand` route-table tests (renamed), `AVMediaPlayerServiceTests`/session suite, fixture
 helper additions, the §8(1) performance test.
 
-- [ ] **7.1** Load `swift-security` + `swift-performance` before editing.
-- [ ] **7.2** Frameworks per house pattern: Swift Testing (`@testable import InstantPlayer`,
+- [x] **7.1** Load `swift-security` + `swift-performance` before editing.
+- [x] **7.2** Frameworks per house pattern: Swift Testing (`@testable import InstantPlayer`,
   `@Test` + `#expect`) for the suites; the design §8(1) performance test uses XCTest `measure`
   exactly as the design names it — the one deliberate exception.
-- [ ] **7.3** Playback policy per design §10.1 (injected `MediaFolderRepository` +
+- [x] **7.3** Playback policy per design §10.1 (injected `MediaFolderRepository` +
   `MediaPreviewService` + `MediaPlayerService` doubles — spy + scripted handle whose events the test
   drives; no UI, no window, no AVFoundation), row by row: become-current trigger set (folder open at
   `startIndex`; `pageForward`/`pageBackward` at rest; replace-in-place at its `startIndex`; images
@@ -266,10 +266,10 @@ helper additions, the §8(1) performance test.
   event → sticky `.unavailable`, never re-attempted (S14, S15; per-axis stickiness, design §7);
   late events from stopped/superseded handles never paint or sound (design §3's three braces);
   pause leaves the display state `.player` (S8); adopt/welcome teardown stops and drops (design §3).
-- [ ] **7.4** Route table per design §6 (task 4's frozen contract): the key/modifier/repeat matrix —
+- [x] **7.4** Route table per design §6 (task 4's frozen contract): the key/modifier/repeat matrix —
   49 → toggle, repeat → ignore, 125/126 → pages (repeat pages), ⌘/⌥/⌃ → pass-through, no feed →
   pass-through, other keys → pass-through.
-- [ ] **7.5** Playback seam per design §10.2 (Feed Data suite + fixtures): the existing
+- [x] **7.5** Playback seam per design §10.2 (Feed Data suite + fixtures): the existing
   `MediaFixture` throwaway-folder pattern plus a new tiny short multi-frame MP4 helper for end/loop
   timing. Rows: real clip → handle + `.readyForDisplay` and **unmuted** (`isMuted == false`,
   `volume` untouched — S3, via `@testable` internals; note the internals in task 10's deviations
@@ -278,14 +278,14 @@ helper additions, the §8(1) performance test.
   `fake.mp4` text bytes → `nil` (S14 — D20's contract pinned); vanished URL → `nil` (S15);
   `stop()` → stream finishes, no further events, display view released; a superseded session is
   torn down by the next `startPlayback` (one live player — design §8(3)).
-- [ ] **7.6** Performance test per design §8(1): XCTest `measure` through the real conformance —
+- [x] **7.6** Performance test per design §8(1): XCTest `measure` through the real conformance —
   the start call to `.readyForDisplay` over the generated fixture clip. Budget: **≤ 300 ms p95**
   typical (≤ 1080p clips) and **≤ 1 s p95** heavy media on Apple-silicon reference hardware. The
   measured numbers are recorded in task 10's evidence **from tooling, never from memory**.
-- [ ] **7.7** UI tests: **none added** (design §10.3 — playback is unreachable without host-driven
+- [x] **7.7** UI tests: **none added** (design §10.3 — playback is unreachable without host-driven
   entry; the spec's honest caveat). Verify the existing launch tests still pass unchanged (welcome
   at plain launch; `testLaunchPerformance` as the zero-launch-cost guard — design §8(4)).
-- [ ] **7.8** Full gate — the tests run and must be green. Fix, tick; commit:
+- [x] **7.8** Full gate — the tests run and must be green. Fix, tick; commit:
   `test(e2-s3): task 7 — playback policy and seam tests`.
 
 ## Task 8 — Architecture reference updates `[P]` · design §13
