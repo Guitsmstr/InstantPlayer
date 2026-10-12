@@ -10,11 +10,15 @@ import SwiftUI
 
 @main
 struct InstantPlayerApp: App {
-    /// Container created once per app instance; zero work beyond
-    /// allocation-only construction (design §6, §7.3 — the launch-path
-    /// additions are exactly two allocations: the repository actor here
-    /// and the `FeedViewModel` when `RootView` appears).
-    @State private var dependencies = AppDependencies()
+    /// Close-quits lifecycle policy (E2-S2, design §6.1 — S8) and, since
+    /// round 4 (evidence §8), the arrow-key monitor: the adaptor is also
+    /// the owner of the one composition container (D10) — the same one
+    /// `RootView` binds to and the monitor consults (one window, one
+    /// model, D18). Container construction stays allocation-only (R13).
+    /// D18's adaptor reservation for *entry routing* stays deliberately
+    /// unbuilt (RootView's note stands — a divergence would be a
+    /// coordinator escalation, not built here).
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
     var body: some Scene {
         // One `Window` on purpose (E2-S1, design §3.4): one window owns the
@@ -22,7 +26,7 @@ struct InstantPlayerApp: App {
         // the precondition for "one entry action routed once" (S1–S7).
         // R37–R40's window behaviors remain E2-S2's work.
         Window("InstantPlayer", id: "main") {
-            RootView(dependencies: dependencies)
+            RootView(dependencies: appDelegate.dependencies)
         }
     }
 }

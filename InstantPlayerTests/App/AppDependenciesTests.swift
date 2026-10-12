@@ -62,4 +62,25 @@ struct AppDependenciesTests {
                 == "SecurityScopedMediaFolderRepository"
         )
     }
+
+    /// Case 6 — the factory records the produced model on the container for
+    /// the arrow-key monitor (E2-S2 round 4 — evidence §8): the recorded
+    /// instance IS the returned one (identity).
+    @Test func factoryRecordsTheActiveFeedModel() {
+        let dependencies = AppDependencies()
+        let model = dependencies.makeFeedViewModel()
+        #expect(dependencies.activeFeedModel === model)
+    }
+
+    /// Case 7 — registration is record-once: the first factory call is the
+    /// instance `RootView`'s `@State` keeps (`State(initialValue:)` ignores
+    /// later values), so later transient factory calls (SwiftUI body
+    /// re-evaluations) must not steal the registration (E2-S2 round 4 —
+    /// evidence §8).
+    @Test func factoryRegistrationIsRecordOnce() {
+        let dependencies = AppDependencies()
+        let first = dependencies.makeFeedViewModel()
+        _ = dependencies.makeFeedViewModel()
+        #expect(dependencies.activeFeedModel === first)
+    }
 }
