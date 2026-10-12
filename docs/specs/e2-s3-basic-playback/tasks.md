@@ -294,7 +294,7 @@ Deliverable (docs): `docs/architecture.md` — the three required same-story upd
 Follows the E2-S1/E2-S2 precedent: the standing architecture reference is updated by its own docs
 commit once the code it documents has landed (tasks 1–6; the task-4 rename included).
 
-- [ ] **8.1** Update `docs/architecture.md` exactly per design §13: (1) **§3 source tree** gains
+- [x] **8.1** Update `docs/architecture.md` exactly per design §13: (1) **§3 source tree** gains
   `Features/Feed/Domain/MediaPlayback.swift`, `MediaPlaybackEvent.swift`,
   `Features/Feed/Data/AVMediaPlayerService.swift`, `AVMediaPlayback.swift`,
   `Features/Feed/Presentation/PlayerSurfaceView.swift`; renames `App/ArrowKeyCommand.swift` →
@@ -305,8 +305,8 @@ commit once the code it documents has landed (tasks 1–6; the task-4 rename inc
   into the view hierarchy — a wrap, not processing; (3) **§8's actor note** records that no new
   actor ships in this story — the player conformance is `@MainActor` because D8's trigger is unmet
   (no cross-isolation shared state) and synchronous stop/pause bite is contract (design §1.2).
-- [ ] **8.2** Internal links must resolve (the gate checks them) — link only to existing files.
-- [ ] **8.3** Stage, then gate `./scripts/validate.sh --staged`; fix; tick; commit:
+- [x] **8.2** Internal links must resolve (the gate checks them) — link only to existing files.
+- [x] **8.3** Stage, then gate `./scripts/validate.sh --staged`; fix; tick; commit:
   `docs(e2-s3): task 8 — architecture reference updates`.
 
 ## Task 9 — ADR batch D25–D28 `[P]` · design §11
