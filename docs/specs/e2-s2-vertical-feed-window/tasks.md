@@ -284,30 +284,30 @@ Deliverable (docs): `docs/decisions.md` — append D22–D24.
 Deliverable (docs): `docs/specs/e2-s2-vertical-feed-window/evidence.md` (new) +
 acceptance-criteria ticks in this file.
 
-- [ ] **9.1** Load `swift-security` + `swift-performance` (the walk covers the pillar rows).
-- [ ] **9.2** Traceability walk: **S1–S16 row by row** — for each row name the shipped artifact
+- [x] **9.1** Load `swift-security` + `swift-performance` (the walk covers the pillar rows).
+- [x] **9.2** Traceability walk: **S1–S16 row by row** — for each row name the shipped artifact
   (file, test, or ADR) that satisfies it, with its design section — and then the **product R-map**
   of the spec's acceptance table (product R7–R10, R37–R40 → story outcome → verified by), plus the
   S15/R16 cross-cutting note. Record both tables in evidence.md.
-- [ ] **9.3** Run the full gate with machine-readable evidence:
+- [x] **9.3** Run the full gate with machine-readable evidence:
   `./scripts/validate.sh --json <tmp>/e2-s2-gate.json` (`<tmp>` = session temp dir outside the
   repo; the JSON is never committed). Quote it **verbatim** into evidence.md — `result` plus every
   step name and status — and confirm the SwiftLint and SwiftFormat steps read `pass`.
-- [ ] **9.4** **UI-test mandate (spec Story context; R14 of E1-S2):** run
+- [x] **9.4** **UI-test mandate (spec Story context; R14 of E1-S2):** run
   `./scripts/validate.sh --uitests --json <tmp>/e2-s2-uitests-gate.json` and quote it **verbatim**
   (design §10.3). The run is additive and fail-closed: a failing UI test fails it; the flag never
   skips or weakens a step ([docs/development.md](../../development.md) §3).
-- [ ] **9.5** Record from tooling, never from memory: the design §8(1) performance measurement
+- [x] **9.5** Record from tooling, never from memory: the design §8(1) performance measurement
   (the `measure` run's numbers against the 300 ms / 1 s budgets, from task 6.5) and the **D21
   audit** (design §1.1, §9): the `codesign -d --entitlements` output showing the four D19 keys
   **unchanged**, and the `git diff main...HEAD` stat restricted to
   `InstantPlayer.xcodeproj/ InstantPlayer/Config/` showing **no changes** (empty output quoted).
-- [ ] **9.6** Deviations honest: list every deviation from the approved design (files, signatures,
+- [x] **9.6** Deviations honest: list every deviation from the approved design (files, signatures,
   fixtures, UI copy, budgets) with its impact, marked for coordinator ratification — silently
   deviating is forbidden (standing rule 6).
-- [ ] **9.7** Tick AC1–AC8 below and mirror them in evidence.md; leave the converge-owned AC9–AC11
+- [x] **9.7** Tick AC1–AC8 below and mirror them in evidence.md; leave the converge-owned AC9–AC11
   unticked.
-- [ ] **9.8** Commit (docs-only): `docs(e2-s2): task 9 — evidence and acceptance`.
+- [x] **9.8** Commit (docs-only): `docs(e2-s2): task 9 — evidence and acceptance`.
 
 ---
 
@@ -315,29 +315,29 @@ acceptance-criteria ticks in this file.
 
 Ticked by task 9, each backed by quoted tooling evidence:
 
-- [ ] **AC1 · R7, R8 / S1–S3** — one combined vertical feed in snapshot order (never sorted);
+- [x] **AC1 · R7, R8 / S1–S3** — one combined vertical feed in snapshot order (never sorted);
   current item letterboxed, filling the viewport; video items honestly show a static first-frame
   poster (unit tests + stakeholder functional review).
-- [ ] **AC2 · R9, R10 / S4–S6** — paging semantics covered by unit tests on the state machine (one
+- [x] **AC2 · R9, R10 / S4–S6** — paging semantics covered by unit tests on the state machine (one
   item per gesture via the guard's pure logic — including multi-page and snap-back corrections;
   ↓/↑ move one item; clamping with no wrap at both ends, both mechanisms) and functional review
   (magnetic snap, always a full item).
-- [ ] **AC3 · R37–R40 / S7–S11** — single resizable window showing the feed; closing it quits the
+- [x] **AC3 · R37–R40 / S7–S11** — single resizable window showing the feed; closing it quits the
   app; a new open replaces the collection in place at its starting item (generation-guarded);
   resize and native fullscreen keep the current item filling the view — functional review.
-- [ ] **AC4 · S12, S13** — fail-safe display unit-tested and reviewed: vanished/unreadable item and
+- [x] **AC4 · S12, S13** — fail-safe display unit-tested and reviewed: vanished/unreadable item and
   mislabeled video (`fake.mp4`) both show the neutral unavailable state — no file name, sticky, no
   retry — and the feed stays navigable.
-- [ ] **AC5 · S14–S16, RNF-02** — chrome-free viewport (no name overlay, counter, scrollbar);
+- [x] **AC5 · S14–S16, RNF-02** — chrome-free viewport (no name overlay, counter, scrollbar);
   responsiveness budgets (design §8(1): 300 ms / 1 s) measured and recorded from tooling; zero
   added launch cost — `testLaunchPerformance` intact and green; welcome state unchanged (launch
   assertion green).
-- [ ] **AC6 · RNF-04** — media reads only inside the open session (D19); derived data in memory
+- [x] **AC6 · RNF-04** — media reads only inside the open session (D19); derived data in memory
   only, discarded with the session (S9); names display-only; **no entitlement/plist/pbxproj diff**
   (D21 audit: empty diff + unchanged `codesign` output recorded); design §9.1 review table walked.
-- [ ] **AC7 · R14 (E1-S2)** — the `--uitests` converge-mandate run is green and quoted verbatim
+- [x] **AC7 · R14 (E1-S2)** — the `--uitests` converge-mandate run is green and quoted verbatim
   (design §10.3: no new UI tests — feed presentation is host-driven-entry territory).
-- [ ] **AC8 · evidence & coverage** — full gate `--json` quoted verbatim (lint/format `pass`); the
+- [x] **AC8 · evidence & coverage** — full gate `--json` quoted verbatim (lint/format `pass`); the
   S1–S16 + product R-map walk recorded; D22–D24 in `docs/decisions.md` house format; the design §13
   architecture updates done; all deviations listed honestly.
 
