@@ -128,7 +128,7 @@ Swift Testing rows in `InstantPlayerTests/`; "FVM tests" = `FeedViewModelTests.s
 | S3 bar on mouse move, idle hides | `noteMouseMoved(itemID:)` + generation-guarded `Task.sleep` idle (3 s) + `refreshControlBar` (§4) + `PlaybackControlBarView` four elements + FVM `mouseMovementOnTheCurrentVideoPageShowsAndArmsTheBar` | §3, §4 |
 | S4 images: no bar, no seek | `seekGuard` live-session row + `refreshControlBar` structural `nil` (§5, §7) + FVM `seekInputsOnAnImagePageAreQuietNoOps` | §4, §5 |
 | S5 drag pauses + live frame | gesture-scoped `handle.pause()` (isPlaybackPaused untouched) + `displayedPosition` ownership (§5) + FVM `beginScrubDoesNotFlipIsPlaybackPaused`, `dragMachine…` | §5 |
-| S6 tolerant fluid preview | `.preview` → `SeekScheduler` latest-wins (§2) + seek suites `previewSeekDispatchesOnceAndLandsApproximate`, `previewBurstDispatchesFarFewerSeeksAndNewestTargetLands`, `previewStormKeepsOneInFlight…` | §2, §8(5) |
+| S6 fluid live preview (zero-tolerance — converge amendment) | `.preview` → zero tolerance + `SeekScheduler` latest-wins (§2) + seek suites `previewSeekDispatchesOnceAndLandsWithinOneFrameDuration`, `previewBurstDispatchesFarFewerSeeksAndNewestTargetLands`, `previewStormKeepsOneInFlight…` | §2, §8(5) |
 | S7 frame-exact release | `.exact` → `.zero`/`.zero` immediate (§2) + seek suites `exactSeekLandsWithinOneFrameDuration`, `exactDuringPreviewStormLandsFrameExact` + `SeekLandingPerformanceTests` | §2, §8(2) |
 | S8 resume vs frozen frame | `scrubEnded` S8 restore (`wasPlayingBeforeDrag`) + FVM `dragMachinePlayingCase…` (resume), `dragMachineWasPausedStaysPausedOnTheFrozenFrame` | §5 |
 | S9 hold-to-repeat | route `isRepeat` parity (§6) + FVM key-step arithmetic (two presses net 10 s) + `FeedKeyCommandTests.seekAutoRepeatStillSteps` | §2, §6 |
@@ -139,13 +139,13 @@ Swift Testing rows in `InstantPlayerTests/`; "FVM tests" = `FeedViewModelTests.s
 | S14 end handover | `endHandover(resumeAfter:handle:)` — restart vs seek-0 (§5) + FVM `endHandoverFromClickAndKeyStepsRestartsPlaying`, `endHandoverFromPausedClickSeeksZeroAndStaysPaused`, `endHandoverFromDragReleaseFollowsWasPlaying` (index untouched — R15) | §5 |
 | S15 nothing carried | `stopPlayback` resets drag/position/bar/clock (§7) + FVM `pagingAwayResetsDragPositionAndBarState` | §7 |
 | S16 read-only seek | §9's posture — §4.1's walked table above; seek suites' clock test asserts the clock never seeks (`seekDispatchCount == 0`); ADRs [D32](../../decisions.md), D33 | §9 |
-| S17 responsiveness | §8 budgets — the measure record (§3 above) + cadence-ceiling and storm-bound unit pins + zero launch cost (no `Timer`/run-loop sources; `testLaunchPerformance` green in §1's gate) | §8 |
+| S17 responsiveness | §8 budgets — the measure record (§3 above) + the preview-cadence measurement `zeroTolerancePreviewCadenceIsSmoothOnTypicalMedia` + cadence-ceiling and storm-bound unit pins + zero launch cost (no `Timer`/run-loop sources; `testLaunchPerformance` green in §1's gate) | §8 |
 
 ## 6 · Product R-map (task 11.2; the spec's acceptance table carried)
 
 | Product requirement | Story outcome | Verified by |
 |---|---|---|
-| R13 (scrub/seek to the indicated point) | S1 (drag on the bar), S2 (keyboard ±5 s), S5–S8 (drag: pause + live fluid preview, frame-exact release, state restoration), S11 (track click), S12 (guard matrix), S13–S14 (clamping, end handover) | unit tests (seek policy: step size, hold-to-repeat, guard matrix, clamping, end handover, state preservation, tolerant/precision split — tasks 4–5) + functional review (drag, click, keys, live preview, frame-exact landing) |
+| R13 (scrub/seek to the indicated point) | S1 (drag on the bar), S2 (keyboard ±5 s), S5–S8 (drag: pause + live fluid preview, frame-exact release, state restoration), S11 (track click), S12 (guard matrix), S13–S14 (clamping, end handover) | unit tests (seek policy: step size, hold-to-repeat, guard matrix, clamping, end handover, state preservation, dispatch-policy split — tasks 4–5) + functional review (drag, click, keys, live preview, frame-exact landing) |
 | R16 (smooth & responsive) — cross-cutting share via S17, not claimed | S17 — no stalls or beachballing during scrub/seek; fluid live preview | validator performance review (RNF-02; §3's measured budgets) + functional review (drag stays fluid) |
 | R17 (media files never rewritten) — inherited no-regression contract, not re-claimed | S16 — seek writes nothing, persists nothing; no new access paths (D19) | validator security review (§4.1's walked table) + functional review (files byte-identical on disk after scrubbing) |
 
@@ -224,6 +224,29 @@ evidence is supporting material, never the approval:
    re-assertion on the surface's own window, and the coordinator-held closure refresh in
    `updateNSView` — was re-verified statically; no other concrete defect was found. The full gate
    is re-run green after the fix (same step set, `result: pass`).
+7. **Functional-review defect — drag previews landed on keyframes (this loop's fix; coordinator-ratified
+   amendment):** during a drag the picture updated only at a few points ("like 3 frames"), not the
+   frame under the scrubber. Root cause: `.preview` mapped to maximum tolerance
+   (`toleranceBefore/After = .positiveInfinity`), so `AVPlayer` landed on the nearest **sync sample**
+   (keyframe), not the requested point — the design §2 originally chose that ("approximate while the
+   drag lasts"). Fix: `.preview` now issues a **zero-tolerance** seek (`.zero`/`.zero`), identical to
+   `.exact`; the `.preview`/`.exact` split and the coalescing are unchanged — the distinction is now
+   dispatch policy (latest-wins coalesced vs immediate/superseding), not landing slack, and both land
+   the frame whose presentation interval contains the requested point. This supersedes the spec S6
+   "approximate position" clause (design §2 converge amendment; D32 inline amendment). **Cadence
+   measurement** (tooling, on the 720p 60-frame reference fixture — the design §8(2) typical media):
+   `AVMediaPlaybackSeekTests.zeroTolerancePreviewCadenceIsSmoothOnTypicalMedia` times raw
+   zero-tolerance seek completions on the paused session — warm-up **6.3 ms**, **1.9 ms average over
+   ten seeks → ~517 updates/s**. The coalescing lands one frame per completion, so it already outpaces
+   pointer input by a wide margin; **`SeekScheduler` is unchanged** (no bounded refresh policy
+   needed), and its `previewStormKeepsOneInFlightAndOnePendingTarget` bound still holds. Heavy
+   long-GOP media remains the design's accepted honesty limit (functional-review/Instruments
+   territory, §2). Tests updated: the preview conformance row is now
+   `previewSeekDispatchesOnceAndLandsWithinOneFrameDuration` (lands within one frame duration, like
+   `.exact`; still one synchronous dispatch); the burst row's dispatch bound is unchanged.
+   Thumb/label smoothness audited: `FeedViewModel.scrubChanged` writes `displayedPosition` and
+   rebuilds the bar model (`scrubFraction` included) on **every** gesture update while visible — no
+   throttling or hidden-skip interference; no defect found. Full gate re-run green.
 
 No other deviation from the approved design exists: signatures, budgets, fixtures, and file
 inventory match the design §1–§13 as approved.
@@ -235,9 +258,9 @@ and not claimed here).
 
 - **AC1 · product R13 / S1, S2** — both invocations land: drag-scrub on the bar moves the position
   to the point under the scrubber, and ←/→ step ±5 s per press with hold-to-repeat — covered by
-  the policy suite (step size, drift-free arithmetic, repeat parity, tolerant/precision split) and
-  the conformance suite (frame-exact landing within one frame; approximate fast previews) +
-  functional review. ✔ (§5 rows S1, S2; §3 budgets)
+  the policy suite (step size, drift-free arithmetic, repeat parity, dispatch-policy split) and
+  the conformance suite (frame-exact landing within one frame for both modes; zero-tolerance fluid
+  previews) + functional review. ✔ (§5 rows S1, S2; §3 budgets)
 - **AC2 · product R13 / S5–S8** — drag semantics unit-tested and reviewed: pause for the drag
   (gesture-scoped — the user's play/pause intent preserved), fluid live frame tracking the
   scrubber, frame-exact release, and state restoration (resume iff it was playing before). ✔

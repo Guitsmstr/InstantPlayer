@@ -65,8 +65,8 @@ final class AVMediaPlayback: MediaPlayback {
     /// initialization completes; every access is on the main actor.
     /// `[weak self]`: the closure is retained by the scheduler, which
     /// this session owns (skill §4 — no cycle).
-    private lazy var seekScheduler = SeekScheduler { [weak self] seconds, tolerance in
-        self?.issueSeek(to: seconds, tolerance: tolerance)
+    private lazy var seekScheduler = SeekScheduler { [weak self] seconds, _ in
+        self?.issueSeek(to: seconds)
     }
 
     /// The internal dispatch counter (design §10.2's noted route): how
@@ -203,9 +203,11 @@ final class AVMediaPlayback: MediaPlayback {
 
     /// Issues a seek (design §2): synchronous dispatch in this main-actor
     /// turn — the scheduler decides and `issueSeek` reaches the player
-    /// before returning. `.preview` rides the scheduler (tolerant,
-    /// latest-wins coalesced); `.exact` supersedes and dispatches
-    /// immediately. Never changes rate (S10).
+    /// before returning. `.preview` rides the scheduler (latest-wins
+    /// coalesced) and `.exact` supersedes and dispatches immediately — the
+    /// split is now **dispatch policy, not landing slack** (the
+    /// functional-review converge amendment: both modes land frame-exact).
+    /// Never changes rate (S10).
     func seek(to seconds: TimeInterval, tolerance: MediaSeekTolerance) {
         guard !isStopped else { return }
         seekScheduler.seek(to: seconds, tolerance: tolerance)
@@ -286,17 +288,18 @@ final class AVMediaPlayback: MediaPlayback {
 
     /// The one place a seek reaches the player (the scheduler's dispatch
     /// closure — task 2.3). The defensive re-bound (the caller clamps to
-    /// `[0, duration]`; the conformance bounds again — S13), the tolerance
-    /// mapping (`.preview` → `.positiveInfinity` both sides — the fastest
-    /// convenient serve, approximate landing, S6; `.exact` → `.zero` both
-    /// sides — the frame whose presentation interval contains the
-    /// requested time, S7), and the completion discipline: only
+    /// `[0, duration]`; the conformance bounds again — S13), the
+    /// **zero-tolerance** landing (both modes: the displayed frame is the
+    /// frame whose presentation interval contains the requested point —
+    /// S7's exactness, and since the converge amendment S6's preview too;
+    /// the `.preview`/`.exact` split is dispatch policy in `SeekScheduler`,
+    /// not landing slack), and the completion discipline: only
     /// `finished == true` callbacks complete the scheduler's in-flight
     /// slot (a superseded seek reports `finished == false` — design §0.1).
     /// Completions arrive on arbitrary threads and hop to the main actor
     /// before touching session state (design §1.2); no completion event or
     /// callback crosses the seam (D8, R4); the rate is never touched (S10).
-    private func issueSeek(to seconds: TimeInterval, tolerance: MediaSeekTolerance) {
+    private func issueSeek(to seconds: TimeInterval) {
         guard !isStopped else { return }
         let target = min(max(seconds, 0), duration)
         let time = CMTime(seconds: target, preferredTimescale: 600)
@@ -307,22 +310,16 @@ final class AVMediaPlayback: MediaPlayback {
                 self?.seekScheduler.seekFinished()
             }
         }
-        switch tolerance {
-        case .preview:
-            player.seek(
-                to: time,
-                toleranceBefore: .positiveInfinity,
-                toleranceAfter: .positiveInfinity,
-                completionHandler: onFinished
-            )
-        case .exact:
-            player.seek(
-                to: time,
-                toleranceBefore: .zero,
-                toleranceAfter: .zero,
-                completionHandler: onFinished
-            )
-        }
+        // One call for both modes: zero tolerance on both sides. A
+        // maximum-tolerance preview snapped to the nearest sync sample
+        // (keyframe) — the functional-review defect: a drag showed only a
+        // few keyframe-steppy pictures, not the frame under the scrubber.
+        player.seek(
+            to: time,
+            toleranceBefore: .zero,
+            toleranceAfter: .zero,
+            completionHandler: onFinished
+        )
     }
 }
 

@@ -9,17 +9,20 @@
 import Foundation
 
 /// The seek-tolerance modes (design §2) — the S6/S7 split as values:
-/// `.preview` serves the drag's live frame fast (tolerant, coalesced);
-/// `.exact` lands the requested time precisely (zero tolerance, immediate).
+/// both land the frame at the requested point (zero tolerance); the split
+/// is dispatch policy — `.preview` is the drag's latest-wins coalesced
+/// live preview, `.exact` is the immediate, superseding commit seek.
 /// Foundation-only (R10); no third mode ever grows this type (design §12).
 nonisolated enum MediaSeekTolerance: Sendable {
-    /// Tolerant + coalesced (S6): a maximum-tolerance serve — the fastest
-    /// convenient position, approximate landing — with latest-wins
-    /// dispatch (≤ 1 seek in flight; a newer target replaces the pending
-    /// one, never queued). The drag's live preview.
+    /// Coalesced (S6): the drag's live preview — latest-wins dispatch
+    /// (≤ 1 seek in flight; a newer target replaces the pending one,
+    /// never queued). Zero-tolerance landing since the functional-review
+    /// converge amendment: the displayed frame is the frame under the
+    /// scrubber (a maximum-tolerance serve snapped to the nearest sync
+    /// sample — the defect).
     case preview
 
-    /// Zero-tolerance + immediate (S7): the playhead lands on the requested
+    /// Immediate + superseding (S7): the playhead lands on the requested
     /// time — the frame whose presentation interval contains it —
     /// superseding any in-flight or pending seek. Every commit action
     /// (drag release, track click, key step).
@@ -72,14 +75,16 @@ protocol MediaPlayback: AnyObject {
     var timeUpdates: AsyncStream<TimeInterval> { get }
 
     /// Issues a seek (design §2). Synchronous dispatch — decided and
-    /// issued in this main-actor turn (design §8(6)). `.preview` is the
-    /// drag's tolerant, coalesced live preview (S6: ≤ 1 seek in flight,
-    /// newer targets replace the pending one); `.exact` is every commit
-    /// action's zero-tolerance, immediate seek (S7: supersedes any
-    /// in-flight or pending seek). Never changes rate (S10). Seconds are
-    /// clamped by the caller to `[0, duration]` (S13) and defensively
-    /// re-bounded in the conformance; completion is mechanism — no
-    /// completion event or callback crosses this seam (D8, R4).
+    /// issued in this main-actor turn (design §8(6)). Both modes land the
+    /// frame at the requested point (zero tolerance — the converge
+    /// amendment); the split is dispatch policy: `.preview` is the drag's
+    /// coalesced live preview (S6: ≤ 1 seek in flight, newer targets
+    /// replace the pending one), `.exact` is every commit action's
+    /// immediate seek (S7: supersedes any in-flight or pending seek).
+    /// Never changes rate (S10). Seconds are clamped by the caller to
+    /// `[0, duration]` (S13) and defensively re-bounded in the
+    /// conformance; completion is mechanism — no completion event or
+    /// callback crosses this seam (D8, R4).
     func seek(to seconds: TimeInterval, tolerance: MediaSeekTolerance)
 
     /// Pauses (S5, S6) — synchronous, deterministic (design §8(2)): the

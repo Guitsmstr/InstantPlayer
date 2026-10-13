@@ -124,6 +124,43 @@ struct AVMediaPlaybackSeekTests {
         return false
     }
 
+    /// One zero-tolerance seek's completion latency, measured directly on
+    /// the session's player: the cost the coalescing waits on before it can
+    /// dispatch the next preview. Zero tolerance is what both modes now
+    /// issue (the converge amendment), so this is exactly a preview's cost.
+    private func measureZeroToleranceSeek(
+        _ session: AVMediaPlayback,
+        to target: TimeInterval
+    ) async -> TimeInterval {
+        let time = CMTime(seconds: target, preferredTimescale: 600)
+        let started = Date()
+        await withCheckedContinuation { continuation in
+            session.player.seek(
+                to: time,
+                toleranceBefore: .zero,
+                toleranceAfter: .zero
+            ) { _ in
+                continuation.resume()
+            }
+        }
+        return Date().timeIntervalSince(started)
+    }
+
+    /// The scratch file the measured cadence lands in — the perf suite's
+    /// pattern (the app caches directory, resolves through the sandbox
+    /// container): test-only timing evidence, never committed.
+    private static var cadenceEvidenceFile: URL {
+        let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first
+            ?? FileManager.default.temporaryDirectory
+        return caches.appendingPathComponent("e3s1-preview-cadence-evidence.txt")
+    }
+
+    /// Records the measured cadence line (best-effort: a failed write must
+    /// not fail the measurement itself).
+    private static func recordCadenceEvidence(_ line: String) {
+        try? line.write(to: cadenceEvidenceFile, atomically: true, encoding: .utf8)
+    }
+
     /// §10.2 row (S7 — the §2 frame-exact contract pinned): a paused
     /// session's `.exact` seek lands `currentTime` within one frame
     /// duration of the target and stays there.
@@ -146,27 +183,86 @@ struct AVMediaPlaybackSeekTests {
         handle.stop()
     }
 
-    /// §10.2 row (S6): a `.preview` seek issues synchronously (exactly
-    /// one dispatch), completes promptly, and lands approximate — the
-    /// tolerant serve may land at any convenient in-clip position, which
-    /// is the tolerance contract itself.
-    @Test func previewSeekDispatchesOnceAndLandsApproximate() async throws {
+    /// §10.2 row (S6 — the converge amendment): a `.preview` seek issues
+    /// synchronously (exactly one dispatch) and lands the **frame at the
+    /// requested point** — within one frame duration, exactly like the
+    /// `.exact` contract. The `.preview`/`.exact` split is dispatch policy
+    /// (coalesced vs immediate), no longer landing slack: maximum
+    /// tolerance snapped to the nearest sync sample, which was the
+    /// functional-review defect.
+    @Test func previewSeekDispatchesOnceAndLandsWithinOneFrameDuration() async throws {
         let (handle, session) = try await makeTwoSecondClip()
         defer { windowHost.close() }
         handle.pause()
 
-        handle.seek(to: 1.0, tolerance: .preview)
+        let target = 1.0 // on the conformance's 600-grid — no added rounding
+        handle.seek(to: target, tolerance: .preview)
         #expect(
             session.seekDispatchCount == 1,
             "the preview dispatch is synchronous — one seek issued in the caller's turn"
         )
 
-        let settled = await waitForPositionToSettle(session)
-        #expect(settled, "the tolerant seek must complete promptly (S6's fast serve)")
-        let position = session.player.currentTime().seconds
+        let landed = await waitForLanding(session, near: target, within: frameDuration)
         #expect(
-            position.isFinite && position >= 0 && position <= session.duration + 0.001,
-            "the tolerant landing stays within the clip (S6's approximate)"
+            landed,
+            "the preview must land the frame under the scrubber — within one frame duration (S6)"
+        )
+        handle.stop()
+    }
+
+    /// §10.2 row + the functional-review cadence measurement (the converge
+    /// amendment's decision input): with zero-tolerance previews, each
+    /// coalesced landing costs one decode from the preceding sync sample.
+    /// Measured on the 720p reference fixture — the design §8(2) typical
+    /// media — by timing raw zero-tolerance seek completions on the paused
+    /// session. The coalescing dispatches one landing per completion, so
+    /// the drag's update rate is 1 / latency; the decision to keep
+    /// `SeekScheduler` unchanged rests on these numbers (recorded in the
+    /// story evidence from tooling, never memory).
+    @Test func zeroTolerancePreviewCadenceIsSmoothOnTypicalMedia() async throws {
+        let url = try await fixture.writeShortMP4(
+            named: "preview-720p.mp4",
+            pixelWidth: 1280,
+            pixelHeight: 720,
+            frameCount: 60
+        )
+        let handle = try #require(await service.startPlayback(for: makeItem(url)))
+        let session = try #require(handle as? AVMediaPlayback)
+        if let view = handle.makeDisplayView() as? NSView {
+            windowHost.host(view)
+        }
+        defer { windowHost.close() }
+        let ready = await nextEvent(of: handle, where: { $0 == .readyForDisplay })
+        try #require(ready == .readyForDisplay, "the fixture session must reach its first frame")
+        handle.pause()
+
+        // Warm-up: the first zero-tolerance seek pays the cold pipeline.
+        let warmup = await measureZeroToleranceSeek(session, to: 0.5)
+
+        // Ten alternating targets — every seek forces a real decode from
+        // the preceding sync sample.
+        var latencies: [TimeInterval] = []
+        for index in 0 ..< 10 {
+            let target = index.isMultiple(of: 2) ? 1.0 : 0.5
+            latencies.append(await measureZeroToleranceSeek(session, to: target))
+        }
+        let average = latencies.reduce(0, +) / Double(latencies.count)
+        let cadence = average > 0 ? 1.0 / average : 0
+        let line = String(
+            format: "e3-s1 zero-tolerance preview cadence (720p 60f): warm-up %.1f ms; "
+                + "avg %.1f ms over %d seeks → %.0f updates/s",
+            warmup * 1000, average * 1000, latencies.count, cadence
+        )
+        print(line)
+        Self.recordCadenceEvidence(line)
+
+        // The measured cadence must clear the steppy floor with margin: a
+        // coalesced drag lands one frame per completion, so sub-50 ms
+        // previews deliver ≥ ~20 updates/s — clearly fluid, no bounded
+        // refresh policy needed.
+        #expect(
+            average < 0.05,
+            "previews must stay fluid — avg latency under 50 ms (~20 updates/s): \(average * 1000) ms"
         )
         handle.stop()
     }

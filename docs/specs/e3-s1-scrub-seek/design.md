@@ -161,6 +161,18 @@ without AVFoundation (§10.2). The rejected placements are in §12.
 (±5 s steps, drag fractions), never by reading the player's possibly-stale position — two quick key
 presses net exactly 10 s, and coalescing intermediate seeks cannot eat a step (§5).
 
+**Converge amendment — `.preview` zero-tolerance (2026-10-13, coordinator-ratified, functional
+review):** `.preview` now issues a **zero-tolerance** seek (`.zero`/`.zero`), not
+`.positiveInfinity`. Functional review found maximum tolerance landed on the nearest sync sample
+(keyframe), so a drag showed only a few keyframe-steppy pictures instead of the frame under the
+scrubber — the stakeholder requires the frame under the scrubber. The `.preview`/`.exact` split and
+the coalescing are unchanged: the distinction is now **dispatch policy** (latest-wins coalesced vs
+immediate/superseding), not landing slack — both modes land the frame whose presentation interval
+contains the requested point. Measured zero-tolerance preview cost on the 720p reference fixture:
+warm-up 6.3 ms, 1.9 ms average over ten seeks → ~517 updates/s (see [evidence](evidence.md) §8),
+so the coalescing already outpaces pointer input and `SeekScheduler` is unchanged — no bounded
+refresh policy is needed.
+
 ## 3 · Time display source (elapsed/duration without a timer storm)
 
 - **Duration** is a synchronous handle value (fact 2): known when `startPlayback` returns; the

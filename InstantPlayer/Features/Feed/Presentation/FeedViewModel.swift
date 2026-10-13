@@ -438,8 +438,9 @@ final class FeedViewModel {
 
     /// Drag movement (S5, S6 — design §5 step 2): the mapped target owns
     /// the display (labels/thumb track the pointer exactly) and issues a
-    /// tolerant, coalesced `.preview` seek (S6 — the frame follows at the
-    /// design §8(1) cadence and may lag the pointer within budget).
+    /// coalesced `.preview` seek (S6 — zero-tolerance since the converge
+    /// amendment, so the displayed frame is the frame under the scrubber;
+    /// the coalescing still bounds dispatch).
     func scrubChanged(itemID: MediaItem.ID, fraction: Double) {
         guard isScrubbing else { return } // design §5 step 2's guard
         guard let handle = seekGuard(itemID: itemID) else { return } // S12
