@@ -203,6 +203,27 @@ evidence is supporting material, never the approval:
    and the playing-path reset is now pinned: `endHandoverFromClickAndKeyStepsRestartsPlaying`
    drives the displayed position non-zero (a tick, then the ordinary `0.98` seek) before each
    handover and asserts `0` after it — the test fails without the reset (review loop 2).
+6. **Functional-review defect — tracking-area handler selector (this loop's fix):** the control bar
+   never appeared on mouse movement (checklist §7 items 1–3 blocked). Root cause, verified by
+   tooling: `PlayerSurfaceView.Coordinator` is a plain `NSObject`, so `@objc func
+   mouseMoved(with:)` synthesized the selector **`mouseMovedWith:`**, while `NSTrackingArea`
+   messages its owner with **`mouseMoved:`** (the imported `NSResponder` selector). The owner
+   never exposed `mouseMoved:`, so the event was never delivered, `noteMouseMoved(itemID:)` was
+   never called, and the bar never showed. Fix (one annotation): pin the selector explicitly —
+   `@objc(mouseMoved:) func mouseMoved(with _: NSEvent)` — landing the method on the selector
+   AppKit actually dispatches; the doc comment records why. Regression pin: the new
+   `PlayerSurfaceViewTests` (Feed Presentation tests; unit-level, no window/UI) asserts
+   `Coordinator.responds(to: Selector("mouseMoved:"))` and drives that selector through
+   `perform(_:with:)` with a constructed `NSEvent`, proving the sink receives the page's item id
+   (and that an unwired page reports nothing). Verified to fail without the pin: with the
+   annotation reverted, the unit-test step fails with `coordinatorRespondsToTheTrackingAreaSelector`,
+   `invokingMouseMovedForwardsTheItemIDToTheSink`, and `invokingMouseMovedWithoutAnItemIDIsAQuietNoOp`
+   all failing (the dispatch rows guard on `responds(to:)` so the regression is a clean recorded
+   issue, never an unrecognized-selector crash). The rest of the visibility path — tracking-area
+   options (`.mouseMoved`, `.activeInKeyWindow`, `.inVisibleRect`), the `acceptsMouseMovedEvents`
+   re-assertion on the surface's own window, and the coordinator-held closure refresh in
+   `updateNSView` — was re-verified statically; no other concrete defect was found. The full gate
+   is re-run green after the fix (same step set, `result: pass`).
 
 No other deviation from the approved design exists: signatures, budgets, fixtures, and file
 inventory match the design §1–§13 as approved.

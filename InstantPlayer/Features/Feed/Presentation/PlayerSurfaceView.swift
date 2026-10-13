@@ -115,11 +115,17 @@ struct PlayerSurfaceView: NSViewRepresentable {
             self.onMouseMoved = onMouseMoved
         }
 
-        /// `@objc` on purpose: the tracking area messages its owner
-        /// through the Objective-C runtime, and an `NSObject` (not an
-        /// `NSResponder`) must expose the selector for the dispatch to
-        /// find it. AppKit delivers on the main thread.
-        @objc func mouseMoved(with _: NSEvent) {
+        /// `@objc(mouseMoved:)` — the selector pinned **explicitly** and
+        /// on purpose: `NSTrackingArea` messages its owner with
+        /// `mouseMoved:` (the `NSResponder` selector), but plain selector
+        /// synthesis on an `NSObject` subclass does not inherit that
+        /// imported declaration — `@objc func mouseMoved(with:)`
+        /// synthesizes `mouseMovedWith:`, which the tracking area never
+        /// sends (the functional-review defect: the bar never showed).
+        /// The explicit annotation lands the method on the selector
+        /// AppKit actually dispatches. AppKit delivers on the main
+        /// thread.
+        @objc(mouseMoved:) func mouseMoved(with _: NSEvent) {
             guard let itemID else { return }
             onMouseMoved(itemID)
         }
