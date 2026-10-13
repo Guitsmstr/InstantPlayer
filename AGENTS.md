@@ -6,7 +6,7 @@ Instant video player for **macOS** (SwiftUI). Stack: **Swift + SwiftUI, Xcode 26
 
 ## Hard rules
 
-1. **Spec-driven.** `docs/spec.md` is the product source of truth. Story work happens through the `sdd` coordinator (switch agents with Tab); its artifacts live in `docs/specs/<story>/`. The default `build` agent is only for one-line fixes, typos, or mechanical renames.
+1. **Spec-driven.** `docs/spec.md` is the product source of truth. Story work happens through the `sdd` coordinator (opencode: switch agents with Tab · pi: run `/sdd <story-id>`); its artifacts live in `docs/specs/<story>/`. The default `build` agent is only for one-line fixes, typos, or mechanical renames.
 2. **Two pillars, non-negotiable: security and performance** (RNF-04/RNF-02 in `docs/spec.md`). Before building or reviewing anything that touches persisted data, network, permissions, secrets, playback, lists, images, threading, or launch: load the matching skill (`swift-security` / `swift-performance`).
 3. **Deterministic gate.** `./scripts/validate.sh` must pass before every commit; it is enforced by the pre-commit hook. Never bypass it (`--no-verify` is forbidden). If the gate fails, fix the code — not the gate.
 4. **Stakeholder gates.** The user approves spec, design, and tasks before implementation. Agents never self-approve a phase.
@@ -24,7 +24,7 @@ Instant video player for **macOS** (SwiftUI). Stack: **Swift + SwiftUI, Xcode 26
 
 | When | Read / use |
 |---|---|
-| Starting story work | switch to the `sdd` agent (Tab); pick a `ready` story from `docs/backlog.md` |
+| Starting story work | pick a `ready` story from `docs/backlog.md`; run the `sdd` coordinator (opencode: switch agents with Tab · pi: `/sdd <story-id>`) |
 | Starting or finishing story work | create/merge the story branch per hard rule 7 (`feat/<id>-<slug>`) |
 | Spec/design/tasks conventions unknown | read `docs/specs/README.md` |
 | Building or reviewing persisted data, network, permissions, secrets, file handling | load skill `swift-security` |
@@ -38,4 +38,4 @@ Instant video player for **macOS** (SwiftUI). Stack: **Swift + SwiftUI, Xcode 26
 
 - `docs/spec.md` — product source of truth · `docs/decisions.md` — ADR log · `docs/backlog.md` — work queue
 - `docs/specs/<story>/` — per-story SDD artifacts (`spec.md`, `design.md`, `tasks.md`)
-- `.opencode/` — agents and skills · `scripts/validate.sh` — deterministic gate · `scripts/app.sh` — app run/stop for functional review · `scripts/repo-fs.sh` — guarded deletion · `.githooks/` — pre-commit hook
+- `.opencode/` — opencode harness (agents and skills) · `.pi/` — pi harness (agents, skills, prompts, sdd-guard) · `scripts/validate.sh` — deterministic gate · `scripts/app.sh` — app run/stop for functional review · `scripts/repo-fs.sh` — guarded deletion · `.githooks/` — pre-commit hook

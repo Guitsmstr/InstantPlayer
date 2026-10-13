@@ -106,7 +106,7 @@ if [ "$staged" -eq 1 ]; then
   step "Branch policy (staged changes vs. 'main' allowlist)"
   if [ "$branch" = "main" ]; then
     offenders="$(git diff --cached --name-only --diff-filter=ACMRD 2>/dev/null \
-      | grep -vE '^(docs/|\.opencode/|\.githooks/|scripts/|AGENTS\.md$|opencode\.json$|\.gitignore$|\.swift-version$)' || true)"
+      | grep -vE '^(docs/|\.opencode/|\.pi/|\.githooks/|scripts/|AGENTS\.md$|opencode\.json$|\.gitignore$|\.swift-version$)' || true)"
     if [ -n "$offenders" ]; then
       printf '%s\n%s\n' "$branch" "$offenders" > "$logdir/branch-policy.txt"
       err "branch policy: code changes are not allowed on 'main' — create a story branch \`feat/<story-id>-<slug>\` (see AGENTS.md → Hard rule 7)
@@ -114,7 +114,7 @@ offending path(s):
 $offenders"
     else
       printf '%s\n' "$branch" > "$logdir/branch-policy.txt"
-      ok "staged paths within 'main' allowlist (docs/, .opencode/, AGENTS.md, scripts/)"
+      ok "staged paths within 'main' allowlist (docs/, .opencode/, .pi/, AGENTS.md, scripts/)"
     fi
   else
     printf '%s\n' "${branch:-detached HEAD}" > "$logdir/branch-policy.txt"
@@ -127,7 +127,7 @@ fi
 docs_only=0
 if [ "$staged" -eq 1 ] && [ "$uitests" -eq 0 ]; then
   files=$(git diff --cached --name-only 2>/dev/null || true)
-  if [ -n "$files" ] && ! grep -qvE '^(\.opencode/|\.githooks/|scripts/|docs/|AGENTS\.md|opencode\.json|\.gitignore|\.swift-version|.*\.md$)' <<< "$files"; then
+  if [ -n "$files" ] && ! grep -qvE '^(\.opencode/|\.pi/|\.githooks/|scripts/|docs/|AGENTS\.md|opencode\.json|\.gitignore|\.swift-version|.*\.md$)' <<< "$files"; then
     docs_only=1
     step "Staged set is docs/harness only — skipping build steps"
   fi
