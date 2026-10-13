@@ -4,9 +4,14 @@
 # stay out of the subagent allowlists (see .opencode/agents/implementer*.md).
 #
 # Usage:
-#   ./scripts/app.sh run      build and launch the app
+#   ./scripts/app.sh run      build, install to ~/Applications, and launch the app
 #   ./scripts/app.sh stop     quit the app gracefully (fallback: terminate)
 #   ./scripts/app.sh status   print the app's process state
+#
+# `run` installs a copy at ~/Applications/InstantPlayer.app and registers it with
+# Launch Services + Spotlight: the pinned derived-data path (.deriveddata/) is
+# hidden and Spotlight does not index it, so Finder "Open With" and Spotlight
+# would otherwise resolve to stale copies and the app would be undiscoverable.
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -30,8 +35,16 @@ case "$cmd" in
       -destination 'platform=macOS' -derivedDataPath "$derived_data" build
     built="$(app_path)"
     [ -d "$built" ] || { echo "error: built app not found at $built" >&2; exit 2; }
-    open "$built"
-    echo "app launched: $bundle_id"
+    install_dir="$HOME/Applications"
+    installed="$install_dir/InstantPlayer.app"
+    lsregister=/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/LaunchServices.framework/Versions/A/Support/lsregister
+    mkdir -p "$install_dir"
+    rm -rf "$installed"
+    ditto "$built" "$installed"
+    "$lsregister" -f -R -trusted "$installed"
+    mdimport "$installed" >/dev/null 2>&1 || true
+    open "$installed"
+    echo "app launched: $bundle_id (installed: $installed)"
     ;;
   stop)
     osascript -e 'quit app id "'"$bundle_id"'"' 2>/dev/null || true
