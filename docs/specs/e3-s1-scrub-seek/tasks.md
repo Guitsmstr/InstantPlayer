@@ -465,37 +465,37 @@ this file.
 
 Ticked by task 11, each backed by quoted tooling evidence:
 
-- [ ] **AC1 · product R13 / S1, S2** — both invocations land: drag-scrub on the bar moves the
+- [x] **AC1 · product R13 / S1, S2** — both invocations land: drag-scrub on the bar moves the
   position to the point under the scrubber, and ←/→ step ±5 s per press with hold-to-repeat —
   covered by the policy suite (step size, drift-free arithmetic, repeat parity, tolerant/precision
   split) and the conformance suite (frame-exact landing within one frame; approximate fast
   previews) + functional review.
-- [ ] **AC2 · product R13 / S5–S8** — drag semantics unit-tested and reviewed: pause for the drag
+- [x] **AC2 · product R13 / S5–S8** — drag semantics unit-tested and reviewed: pause for the drag
   (gesture-scoped — the user's play/pause intent preserved), fluid live frame tracking the
   scrubber, frame-exact release, and state restoration (resume iff it was playing before).
-- [ ] **AC3 · S3, S4, S11 (+ the E2-S3 S8 amendment)** — demand-driven chrome: the bar shows on
+- [x] **AC3 · S3, S4, S11 (+ the E2-S3 S8 amendment)** — demand-driven chrome: the bar shows on
   mouse movement over the current video page (playing and paused), hides after the 3 s idle, is
   never shown on image pages or on keyboard seek, and hidden — paused included — the display shows
   only the frozen frame; the track click seeks without toggling while the strip is excluded from
   the whole-page toggle target and clicks elsewhere still toggle (visibility policy unit tests +
   functional review).
-- [ ] **AC4 · S12–S15** — the guard matrix is unit-tested row by row (quiet consumed no-ops, never
+- [x] **AC4 · S12–S15** — the guard matrix is unit-tested row by row (quiet consumed no-ops, never
   beep); clamping at both ends; a seek landing at the end hands over to the loop contract — the
   same video restarts and the feed **never** auto-advances (index untouched) — with the paused →
   frozen frame at the beginning rule; nothing is carried across visits (unit tests + functional
   review).
-- [ ] **AC5 · S16 / product R17 · RNF-04** — read-only seek walked: no rewrite/export/reader/
+- [x] **AC5 · S16 / product R17 · RNF-04** — read-only seek walked: no rewrite/export/reader/
   writer, no sidecars or derived files, no persisted positions, no new access paths (D19 session
   not re-derived); **no entitlement/plist/pbxproj diff** (D21 audit: empty diff + unchanged
   `codesign` output quoted); design §9.1 review table walked; media files byte-identical on disk
   after review.
-- [ ] **AC6 · S17 / product R16 share · RNF-02** — responsiveness budgets measured and recorded
+- [x] **AC6 · S17 / product R16 share · RNF-02** — responsiveness budgets measured and recorded
   from tooling (drag-preview issuance ≤ 16 ms and frame ≤ 150 ms p95 as reviewed; exact landing
   ≤ 300 ms p95 typical / ≤ 500 ms atypical); the seek-storm bound (≤ 1 in flight, one pending
   target) and the clock cadence ceiling (≤ 12 ticks/s, 10 Hz source) unit-asserted; zero added
   launch cost (`testLaunchPerformance` intact, no `Timer`/run-loop sources); drag fluid in
   functional review.
-- [ ] **AC7 · R14 (E1-S2) decision + evidence & coverage** — the UI-test-mandate decision recorded
+- [x] **AC7 · R14 (E1-S2) decision + evidence & coverage** — the UI-test-mandate decision recorded
   (default gate scope, no `--uitests` obligation, with the honest caveat); full gate `--json`
   quoted verbatim (lint/format `pass`); the S1–S17 + product R-map walk recorded; the three ADRs in
   `docs/decisions.md` house format with design §11 titles; the design §13 `docs/architecture.md`
