@@ -331,9 +331,14 @@ final class FeedViewModel {
     /// deceleration starts a new gesture from the then-visible index —
     /// this method is called again and re-records (§5.2 step 3). A paging
     /// gesture in flight also drops the bar model to `nil` at once (S12's
-    /// premise — design §4) and suspends the idle machinery.
+    /// premise — design §4), suspends the idle machinery, and **clears
+    /// the scrub state** — a paging gesture supersedes any in-flight drag
+    /// (S12: its page lost eligibility), so the machine can never wedge
+    /// with `isScrubbing` set.
     func scrollGestureDidStart() {
         gestureStartIndex = currentIndex
+        isScrubbing = false
+        wasPlayingBeforeDrag = false
         controlBarModel = nil
         suspendIdlePolicy()
     }
@@ -451,7 +456,17 @@ final class FeedViewModel {
     /// duration (S14), and the idle countdown restart (S3(a)).
     func scrubEnded(itemID: MediaItem.ID, fraction: Double) {
         guard isScrubbing else { return } // design §5 step 3's guard
-        guard let handle = seekGuard(itemID: itemID) else { return } // S12
+        guard let handle = seekGuard(itemID: itemID) else {
+            // The drag's page lost eligibility mid-drag (a paging gesture
+            // started, the session died, …): exit consistently — the
+            // scrub state clears and the machine is never wedged (S12
+            // hygiene). The bar/idle context is already consistent on
+            // every such path (the failing guard's own handler cleared
+            // it).
+            isScrubbing = false
+            wasPlayingBeforeDrag = false
+            return
+        }
         isScrubbing = false
         let target = Self.clampedTarget(fromFraction: fraction, duration: handle.duration)
         if target == handle.duration {

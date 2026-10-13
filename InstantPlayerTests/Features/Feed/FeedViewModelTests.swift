@@ -1882,6 +1882,58 @@ struct FeedViewModelTests {
         )
     }
 
+    /// Guard hygiene (S12 — the review fix): a paging gesture starting
+    /// mid-drag supersedes the drag — the scrub state clears, so the
+    /// machine can never wedge with `isScrubbing` set (keyboard seeks
+    /// stay alive afterwards).
+    @Test func pagingGestureDuringADragClearsTheScrubState() async {
+        let clock = ManualClock()
+        let handle = ScriptedMediaPlayback()
+        let (viewModel, _, collection) = await Self.arrangeSeekRow(
+            handle: handle, duration: 100, clock: clock
+        )
+        let item = collection.items[0]
+
+        viewModel.beginScrub(itemID: item.id)
+        viewModel.scrubChanged(itemID: item.id, fraction: 0.5)
+        viewModel.scrollGestureDidStart() // the drag is superseded mid-flight
+        viewModel.scrollGestureDidSettle() // zero-net — the same video stays current
+
+        viewModel.seekForwardByKeyboard()
+        #expect(
+            Self.seekSeconds(handle).last == 55,
+            "keyboard seek works after the interrupted drag — no wedge (50 + 5, S12 hygiene)"
+        )
+    }
+
+    /// Guard hygiene (S12 — the review fix): a release whose guard fails
+    /// (the page lost eligibility mid-drag) exits with the machine
+    /// consistent — `isScrubbing` never survives the method.
+    @Test func scrubEndedWithADeadGuardLeavesAConsistentMachine() async {
+        let clock = ManualClock()
+        let handle = ScriptedMediaPlayback()
+        let (viewModel, _, collection) = await Self.arrangeSeekRow(
+            handle: handle, duration: 100, clock: clock
+        )
+        let item = collection.items[0]
+
+        viewModel.beginScrub(itemID: item.id)
+        viewModel.scrubChanged(itemID: item.id, fraction: 0.5)
+        viewModel.scrollGestureDidStart() // eligibility lost mid-drag
+        viewModel.scrubEnded(itemID: item.id, fraction: 0.6) // the guard must fail — no seek, no wedge
+        #expect(
+            Self.seekSeconds(handle) == [50] && Self.seekTolerances(handle) == [.preview],
+            "the failed-guard release must seek nothing (S12)"
+        )
+        viewModel.scrollGestureDidSettle()
+
+        viewModel.seekForwardByKeyboard()
+        #expect(
+            Self.seekSeconds(handle).last == 55,
+            "consistent machine — keyboard seek works after the dead release (50 + 5)"
+        )
+    }
+
     /// Clamping (S13): out-of-range targets clamp to `[0, duration]` —
     /// the clamp also doubles as input validation for unbounded geometry.
     @Test func clampedTargetsAtBothEnds() async {
