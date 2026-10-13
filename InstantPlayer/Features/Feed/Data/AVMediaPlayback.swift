@@ -3,7 +3,8 @@
 //  InstantPlayer
 //
 //  Feed Data — one live playback session (E2-S3, design §2, §4, §5 —
-//  S5–S11, S14).
+//  S5–S11, S14; E3-S1, design §2, §3 — the seek mechanism and the
+//  periodic clock bridge, S1–S2, S5–S7, S17).
 //
 
 import AppKit
@@ -46,13 +47,31 @@ final class AVMediaPlayback: MediaPlayback {
     let events: AsyncStream<MediaPlaybackEvent>
     private let continuation: AsyncStream<MediaPlaybackEvent>.Continuation
 
-    /// Elapsed ticks (design §3): separate from `events`, finished by
-    /// `stop()` (brace 1 parity). Task-1 minimal shape (this story's task
-    /// 1.4: compile-only growth) — silent until task 2 bridges the 10 Hz
-    /// periodic observer into it and sets its `.bufferingNewest(1)`
-    /// buffering (design §3).
+    /// Elapsed ticks (design §3): separate from `events` — the rare
+    /// correctness events keep their ordered, never-dropped semantics —
+    /// created with `.bufferingNewest(1)` (a stalled main actor drops
+    /// stale ticks instead of replaying a backlog, design §3) and fed by
+    /// the 10 Hz periodic clock bridge; finished by `stop()` (brace 1
+    /// parity — both streams die with the session).
     let timeUpdates: AsyncStream<TimeInterval>
     private let timeUpdatesContinuation: AsyncStream<TimeInterval>.Continuation
+
+    /// The seek mechanism's state machine (design §2): ≤ 1 seek in
+    /// flight, one latest-wins pending target, `.exact` superseding —
+    /// see `SeekScheduler`. Conformance-internal; the injected dispatch
+    /// closure is the only way seeks reach the player, so completion
+    /// state never crosses the seam (D8, R4). `lazy` because the closure
+    /// captures `self`, which is only available once phase-1
+    /// initialization completes; every access is on the main actor.
+    /// `[weak self]`: the closure is retained by the scheduler, which
+    /// this session owns (skill §4 — no cycle).
+    private lazy var seekScheduler = SeekScheduler { [weak self] seconds, tolerance in
+        self?.issueSeek(to: seconds, tolerance: tolerance)
+    }
+
+    /// The periodic clock observer's token (design §3) — removed by
+    /// `stop()`.
+    private var timeObserver: Any?
 
     /// Bridges from AVFoundation threads onto the main actor (design
     /// §1.2) — cancelled by `stop()`.
@@ -71,8 +90,12 @@ final class AVMediaPlayback: MediaPlayback {
         playerLayer = AVPlayerLayer(player: player)
         playerLayer.videoGravity = .resizeAspect
         (events, continuation) = AsyncStream.makeStream(of: MediaPlaybackEvent.self)
-        (timeUpdates, timeUpdatesContinuation) = AsyncStream.makeStream(of: TimeInterval.self)
+        (timeUpdates, timeUpdatesContinuation) = AsyncStream.makeStream(
+            of: TimeInterval.self,
+            bufferingPolicy: .bufferingNewest(1)
+        )
         observeEvents()
+        observeClock()
     }
 
     // MARK: Observation → the event stream (design §2, marshaled to main)
@@ -121,6 +144,35 @@ final class AVMediaPlayback: MediaPlayback {
         continuation.yield(event)
     }
 
+    // MARK: Clock bridge (design §3)
+
+    /// The periodic clock bridge (task 2.5): a 100 ms (10 Hz) periodic
+    /// observer on AVFoundation's queue (`queue: nil`) — a paused session
+    /// produces no ticks, so there is no timer to gate (design §0.2). Each
+    /// callback marshals to the main actor at this boundary (D25's brace
+    /// pattern, design §1.2) before touching session state; the tick
+    /// stream's `.bufferingNewest(1)` buffering means a stalled main actor
+    /// drops stale ticks instead of replaying a backlog (design §3).
+    private func observeClock() {
+        timeObserver = player.addPeriodicTimeObserver(
+            forInterval: CMTime(value: 1, timescale: 10),
+            queue: nil,
+            using: { [weak self] time in
+                Task { @MainActor [weak self] in
+                    self?.emitTick(time)
+                }
+            }
+        )
+    }
+
+    /// The single tick emission point — main-actor by construction; drops
+    /// ticks after `stop()` (brace 1 lives here too: the stream is
+    /// finished, nothing more is yielded) and non-numeric player times.
+    private func emitTick(_ time: CMTime) {
+        guard !isStopped, time.isNumeric else { return }
+        timeUpdatesContinuation.yield(time.seconds)
+    }
+
     // MARK: MediaPlayback (frozen seam contract, design §2)
 
     /// The media duration in seconds (design §3): the synchronous
@@ -134,12 +186,15 @@ final class AVMediaPlayback: MediaPlayback {
         return seconds.isFinite ? seconds : 0
     }
 
-    /// Task-1 minimal shape (this story's task 1.4: compile-only growth —
-    /// no caller exists until the task-3 policy lands): the real mechanism —
-    /// the `SeekScheduler`'s ≤ 1-in-flight latest-wins dispatch, the
-    /// tolerance → `CMTime` mapping, the defensive re-bound — is task 2's
-    /// deliverable and replaces this body.
-    func seek(to _: TimeInterval, tolerance _: MediaSeekTolerance) {}
+    /// Issues a seek (design §2): synchronous dispatch in this main-actor
+    /// turn — the scheduler decides and `issueSeek` reaches the player
+    /// before returning. `.preview` rides the scheduler (tolerant,
+    /// latest-wins coalesced); `.exact` supersedes and dispatches
+    /// immediately. Never changes rate (S10).
+    func seek(to seconds: TimeInterval, tolerance: MediaSeekTolerance) {
+        guard !isStopped else { return }
+        seekScheduler.seek(to: seconds, tolerance: tolerance)
+    }
 
     func pause() {
         guard !isStopped else { return }
@@ -173,6 +228,16 @@ final class AVMediaPlayback: MediaPlayback {
         player.pause()
         // Item detached — decode buffers release with it (design §2).
         player.replaceCurrentItem(with: nil)
+        // The periodic clock observer dies with the session (design §3):
+        // removed before the tick stream finishes, so no tick is emitted
+        // into a finished stream.
+        if let timeObserver {
+            player.removeTimeObserver(timeObserver)
+        }
+        timeObserver = nil
+        // Seek state dies with the session (design §8(5)): nothing pending
+        // survives, no late dispatch can follow.
+        seekScheduler.reset()
         // Observers and bridges die with the session (design §3 brace 1).
         for bridge in bridges {
             bridge.cancel()
@@ -200,6 +265,48 @@ final class AVMediaPlayback: MediaPlayback {
         // hierarchy — a wrap, not processing (design §1.1). The wrap
         // vends it once per session; the handle is immutable per session.
         PlayerHostView(playerLayer: playerLayer)
+    }
+
+    // MARK: Seek mechanism (design §2 — conformance-internal, D8/R4)
+
+    /// The one place a seek reaches the player (the scheduler's dispatch
+    /// closure — task 2.3). The defensive re-bound (the caller clamps to
+    /// `[0, duration]`; the conformance bounds again — S13), the tolerance
+    /// mapping (`.preview` → `.positiveInfinity` both sides — the fastest
+    /// convenient serve, approximate landing, S6; `.exact` → `.zero` both
+    /// sides — the frame whose presentation interval contains the
+    /// requested time, S7), and the completion discipline: only
+    /// `finished == true` callbacks complete the scheduler's in-flight
+    /// slot (a superseded seek reports `finished == false` — design §0.1).
+    /// Completions arrive on arbitrary threads and hop to the main actor
+    /// before touching session state (design §1.2); no completion event or
+    /// callback crosses the seam (D8, R4); the rate is never touched (S10).
+    private func issueSeek(to seconds: TimeInterval, tolerance: MediaSeekTolerance) {
+        guard !isStopped else { return }
+        let target = min(max(seconds, 0), duration)
+        let time = CMTime(seconds: target, preferredTimescale: 600)
+        let onFinished: @Sendable (Bool) -> Void = { [weak self] finished in
+            guard finished else { return }
+            Task { @MainActor [weak self] in
+                self?.seekScheduler.seekFinished()
+            }
+        }
+        switch tolerance {
+        case .preview:
+            player.seek(
+                to: time,
+                toleranceBefore: .positiveInfinity,
+                toleranceAfter: .positiveInfinity,
+                completionHandler: onFinished
+            )
+        case .exact:
+            player.seek(
+                to: time,
+                toleranceBefore: .zero,
+                toleranceAfter: .zero,
+                completionHandler: onFinished
+            )
+        }
     }
 }
 

@@ -116,35 +116,35 @@ is **untouched** (design §1).
 Deliverable (code): `InstantPlayer/Features/Feed/Data/SeekScheduler.swift` (new),
 `InstantPlayer/Features/Feed/Data/AVMediaPlayback.swift` (extended).
 
-- [ ] **2.1** Load `swift-security` + `swift-performance` before editing (pointer-rate dispatch of
+- [x] **2.1** Load `swift-security` + `swift-performance` before editing (pointer-rate dispatch of
   seeks on user media bytes — both pillars directly in play).
-- [ ] **2.2** `SeekScheduler` per design §2 — the pure latest-wins seek-dispatch state machine,
+- [x] **2.2** `SeekScheduler` per design §2 — the pure latest-wins seek-dispatch state machine,
   conformance-internal (one consumer; seam-placement rule, architecture §4), **no AVFoundation
   import** so it is unit-testable without hardware (task 4): at most **one** seek in flight; while
   one is in flight, newer preview targets **replace** the pending one (never queued — the entire
   pending state is one target); when the in-flight seek completes, exactly one seek to the newest
   pending target is issued; `.exact` supersedes pending and dispatches immediately; pending state is
   dropped on stop (design §8(5)'s storm bound).
-- [ ] **2.3** `seek(to:tolerance:)` per design §2 on the `@MainActor` conformance: `.preview` → a
+- [x] **2.3** `seek(to:tolerance:)` per design §2 on the `@MainActor` conformance: `.preview` → a
   maximum-tolerance seek (`.positiveInfinity` both sides) routed through `SeekScheduler` (S1, S5,
   S6); `.exact` → `.zero`/`.zero` issued immediately, abandoning and superseding any in-flight or
   pending seek (AVPlayer's self-superseding semantics — design §0(1); S7, S11, S2/S9 commits);
   synchronous dispatch in the same main-actor turn; seconds defensively re-bounded when converted to
   `CMTime`; **rate never touched** (S10). Seek completion state stays inside the conformance — no
   completion event, no callback crosses the seam (D8, R4).
-- [ ] **2.4** `duration` per design §3 — the synchronous `AVPlayerItem.duration` value (known once
+- [x] **2.4** `duration` per design §3 — the synchronous `AVPlayerItem.duration` value (known once
   the asset load `startPlayback` already awaits completes; E2-S3 §2 carries).
-- [ ] **2.5** Clock bridge per design §3: `addPeriodicTimeObserver(forInterval:queue:using:)` at
+- [x] **2.5** Clock bridge per design §3: `addPeriodicTimeObserver(forInterval:queue:using:)` at
   **100 ms (10 Hz)** on AVFoundation's queue, marshaled to the main actor at the conformance
   boundary (D25's brace pattern); `timeUpdates` is a **separate** `AsyncStream` from `events`,
   created with **`.bufferingNewest(1)`** (a stalled main actor drops stale ticks, never replays a
   backlog); `stop()` finishes **both** streams and removes the periodic observer (design §3 braces).
   `MediaPlaybackEvent` and its unbounded, never-dropped semantics stay untouched.
-- [ ] **2.6** Security per design §9 (S16, RNF-04): reads only inside the D19 session — no
+- [x] **2.6** Security per design §9 (S16, RNF-04): reads only inside the D19 session — no
   `start/stopAccessingSecurityScopedResource`; playback/seek APIs only — **no**
   `AVAssetExportSession`, **no** `AVAssetReader`/`AVAssetWriter`, no `write(to:)`, no sidecar, no
   disk cache, no persistence (no `UserDefaults`); no logging of paths or names (D20).
-- [ ] **2.7** Full gate. Fix, tick; commit:
+- [x] **2.7** Full gate. Fix, tick; commit:
   `feat(e3-s1): task 2 — seek scheduler and clock bridge`.
 
 ## Task 3 — Scrub & seek policy in `FeedViewModel` · design §3, §4 (policy), §5, §6, §7
