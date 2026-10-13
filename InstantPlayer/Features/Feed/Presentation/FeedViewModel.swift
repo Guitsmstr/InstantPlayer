@@ -569,19 +569,23 @@ final class FeedViewModel {
         refreshControlBar(visible: controlBarModel?.isVisible ?? false)
     }
 
-    /// One clock tick (design §3): updates the displayed position and the
-    /// bar model — ignored during a scrub drag (the drag target owns the
-    /// display) and suppressed for 250 ms after any `.exact` seek (a
-    /// stale tick would bounce the thumb backwards). When the bar is
-    /// hidden the tick still costs its O(1) store — no view invalidates
-    /// beyond the bar's labels + thumb while visible (§8(3)).
+    /// One clock tick (design §3): updates the displayed position —
+    /// ignored during a scrub drag (the drag target owns the display) and
+    /// suppressed for 250 ms after any `.exact` seek (a stale tick would
+    /// bounce the thumb backwards). While the bar is **hidden** the tick
+    /// costs the O(1) position store only (§8(3): zero consumer work —
+    /// no property the feed body reads is mutated, so no view
+    /// invalidates); the model is rebuilt from the current position when
+    /// the bar becomes visible.
     private func applyTick(_ seconds: TimeInterval) {
         guard !isScrubbing else { return } // the drag owns the display
         if let until = exactSeekSuppressUntil, now() < until {
             return // 250 ms post-commit (design §3)
         }
         displayedPosition = seconds
-        refreshControlBar(visible: controlBarModel?.isVisible ?? false)
+        if controlBarModel?.isVisible == true {
+            refreshControlBar(visible: true)
+        }
     }
 
     /// Recomputes the bar model (design §7): non-`nil` only for the

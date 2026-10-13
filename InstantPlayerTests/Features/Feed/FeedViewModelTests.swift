@@ -2097,13 +2097,64 @@ struct FeedViewModelTests {
         )
     }
 
+    /// Time display (§3, §8(3) — the review fix): ticks while the bar is
+    /// **hidden** mutate no property the feed body reads — the model is
+    /// untouched (no 10 Hz invalidation); the position store still
+    /// advances, and the model rebuilds from it when the bar becomes
+    /// visible.
+    @Test func hiddenTicksCauseNoBarModelChangeAndVisibilityRebuilds() async {
+        let clock = ManualClock()
+        let handle = ScriptedMediaPlayback()
+        let (viewModel, _, collection) = await Self.arrangeSeekRow(
+            handle: handle, duration: 100, clock: clock
+        )
+        let item = collection.items[0]
+
+        // Pipeline proof: the consumer processes ticks within a few
+        // main-actor turns.
+        handle.emitTick(2)
+        let primed = await Self.waitFor(
+            { viewModel.displayedPosition == 2 },
+            "the clock consumer must be live"
+        )
+        guard primed else { return }
+
+        let hiddenModel = viewModel.controlBarModel
+        #expect(hiddenModel?.isVisible == false, "arrange: the bar is hidden at rest (design §7)")
+
+        handle.emitTick(9)
+        handle.emitTick(17)
+        let processed = await Self.waitFor(
+            { viewModel.displayedPosition == 17 },
+            "the hidden ticks must still advance the position store (drift-free arithmetic)"
+        )
+        guard processed else { return }
+        #expect(
+            viewModel.controlBarModel == hiddenModel,
+            "hidden ticks must not rebuild the bar model — no feed invalidation (design §8(3))"
+        )
+
+        viewModel.noteMouseMoved(itemID: item.id)
+        #expect(viewModel.controlBarModel?.isVisible == true, "movement shows the bar (S3)")
+        #expect(
+            viewModel.controlBarModel?.elapsed == 17,
+            "the visible model is rebuilt from the current position (§3)"
+        )
+    }
+
     /// Time display (§3): ticks update the displayed position and the
     /// bar model's elapsed.
+    /// Time display (§3): ticks update the displayed position and — while
+    /// the bar is **visible** — the bar model's elapsed.
     @Test func ticksUpdateDisplayedPositionAndTheBarModel() async {
         let clock = ManualClock()
         let handle = ScriptedMediaPlayback()
-        let (viewModel, _, _) = await Self.arrangeSeekRow(handle: handle, duration: 100, clock: clock)
+        let (viewModel, _, collection) = await Self.arrangeSeekRow(
+            handle: handle, duration: 100, clock: clock
+        )
+        let item = collection.items[0]
 
+        viewModel.noteMouseMoved(itemID: item.id) // visible — ticks feed the model
         handle.emitTick(12.5)
         let applied = await Self.waitFor(
             { viewModel.displayedPosition == 12.5 },
