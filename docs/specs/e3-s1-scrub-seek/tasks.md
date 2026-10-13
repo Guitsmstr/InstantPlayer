@@ -303,8 +303,8 @@ held callback).
 Deliverable (code): `InstantPlayer/Features/Feed/Presentation/FeedItemView.swift`,
 `InstantPlayer/Features/Feed/Presentation/FeedView.swift`.
 
-- [ ] **7.1** Load `swift-security` + `swift-performance` before editing.
-- [ ] **7.2** `FeedItemView` per design §4/§7 — the `.player` case becomes a `ZStack` of two sibling
+- [x] **7.1** Load `swift-security` + `swift-performance` before editing.
+- [x] **7.2** `FeedItemView` per design §4/§7 — the `.player` case becomes a `ZStack` of two sibling
   layers: the **tap surface** (full-bleed display content with `.contentShape` + `.onTapGesture` →
   `togglePlaybackFromTap(itemID:)` — E2-S3 S6/S7 unchanged) and, above it, the **bar strip**
   (task 6's `PlaybackControlBarView`) rendered **iff the page's bar model is non-`nil`** —
@@ -314,11 +314,11 @@ Deliverable (code): `InstantPlayer/Features/Feed/Presentation/FeedItemView.swift
   specify. Hidden = `opacity(0)` with `allowsHitTesting(false)` — a hidden bar can never swallow
   clicks, so the whole-page toggle is intact at rest. `FeedItemDisplayState.player(MediaPlayback)`
   is unchanged, and the cell still never sees the item (E2-S2 S14's structural absence holds).
-- [ ] **7.3** `FeedView` per design §7 — drills per-page `PlaybackControlBarModel?` **and** an
+- [x] **7.3** `FeedView` per design §7 — drills per-page `PlaybackControlBarModel?` **and** an
   actions value (scrub begin/change/end, track click, mouse-moved — each capturing the item id, the
   `togglePlaybackFromTap(itemID:)` tap-closure precedent of E2-S3 §6) into the §5 entry points of
   task 3. No App-level mouse monitor, no focus handling anywhere (D28; design §6).
-- [ ] **7.4** Full gate. Fix, tick; commit:
+- [x] **7.4** Full gate. Fix, tick; commit:
   `feat(e3-s1): task 7 — bar overlay wiring in the feed views`.
 
 ## Task 8 — App keyboard seek rows `[P]` · design §6
