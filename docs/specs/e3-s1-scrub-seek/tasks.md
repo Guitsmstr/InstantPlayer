@@ -375,7 +375,7 @@ its §13 records the permission boundary; this task-phase deliverable is exactly
 
 Deliverable (docs): `docs/decisions.md` — append the three ADRs of design §11.
 
-- [ ] **10.1** Append three ADRs **continuing the numbering from the log's current end** (the house
+- [x] **10.1** Append three ADRs **continuing the numbering from the log's current end** (the house
   rule — AGENTS.md rule 6, the e2-s3 task-9 precedent "continuing the numbering"). The design §11
   labels them D30–D32 because the log ended at D29 when the design was written; harness ADRs have
   since claimed those numbers (`ac919ca`), so at authoring the next free numbers are **D32, D33,
@@ -388,7 +388,7 @@ Deliverable (docs): `docs/decisions.md` — append the three ADRs of design §11
   transport chrome: overlay control bar with AppKit tracking-area mouse-move visibility and
   view-model idle policy** (→ S3, S4, S11, and the E2-S3 S8 amendment) · **D34 — Keyboard seek on
   the feed-key router: ←/→ = ±5 s with paging's repeat parity** (→ S2, S9, S10).
-- [ ] **10.2** Pull each entry's alternatives from the matching design §12 rows — D32: coalescing
+- [x] **10.2** Pull each entry's alternatives from the matching design §12 rows — D32: coalescing
   in the view model, trusting `AVPlayer`'s self-superseding seeks, coalescing as its own Domain
   seam, two intent-named seek members, a `.seekFinished` completion event, a paused-aware
   `restart()` overload, "at the end" as a within-one-frame epsilon; D33: clock through the `events`
@@ -399,14 +399,14 @@ Deliverable (docs): `docs/decisions.md` — append the three ADRs of design §11
   thumb-only drag, thumb-follows-only-the-player position; D34: `.seek(delta:)` as one payload
   route case, repeat-ignored ←/→ like space, tolerant keyboard steps, passing ←/→ through on
   ineligible states, seeking mid-drag keyboard input through.
-- [ ] **10.3** Status `accepted`. Each entry cites its implementing task commits (tasks 1–8) in its
+- [x] **10.3** Status `accepted`. Each entry cites its implementing task commits (tasks 1–8) in its
   consequences. D32 carries the §2 honesty limits (frame-grid exactness, sub-frame rounding,
   long-GOP landing cost, rate-after-seek ordering); D33 carries the E2-S2 evidence §8 lesson
   reference (SwiftUI input delivery other than plain taps failed three rounds —
   [E2-S2 evidence §8](../e2-s2-vertical-feed-window/evidence.md) — `NSTrackingArea.mouseMoved` is
   the deterministic 1:1 mechanism) and the 3 s idle value as this story's RNF-02 output; D34
   carries the frozen-table contract change (123/124 no longer pass through).
-- [ ] **10.4** Stage, then gate `./scripts/validate.sh --staged` (docs-only mode: ADR format +
+- [x] **10.4** Stage, then gate `./scripts/validate.sh --staged` (docs-only mode: ADR format +
   internal links); fix; tick; commit:
   `docs(e3-s1): task 10 — ADRs D32–D34 — seek mechanism, transport chrome, and keyboard seek`.
 
