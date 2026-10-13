@@ -30,7 +30,12 @@ import SwiftUI
 /// correct across resize and native fullscreen (`.inVisibleRect`); each
 /// `mouseMoved` reaches the view model through the coordinator-held
 /// closure as `noteMouseMoved(itemID:)` — the deterministic 1:1
-/// mechanism, no focus dependence (E2-S2 evidence §8's lesson).
+/// mechanism, no focus dependence (E2-S2 evidence §8's lesson). The
+/// design §4's recorded fallback is **taken** (review-ratified): the
+/// surface enables `NSWindow.acceptsMouseMovedEvents` for its own window
+/// — AppKit gates `mouseMoved` delivery on that flag, and without it the
+/// tracking area could exist while the window never delivers.
+/// (Recorded as a ratified deviation in the story's evidence.)
 struct PlayerSurfaceView: NSViewRepresentable {
     /// The live playback-session handle — its display view is vended
     /// exactly once, in `makeNSView`.
@@ -65,16 +70,31 @@ struct PlayerSurfaceView: NSViewRepresentable {
                 userInfo: nil
             )
         )
+        enableMouseMoved(on: view)
         return view
     }
 
-    func updateNSView(_: NSView, context: Context) {
+    func updateNSView(_ nsView: NSView, context: Context) {
         // The coordinator-held plumbing is the only mutable part (design
         // §4): refreshed on every update so `mouseMoved` always reaches
         // the current page's id and sink — the vended view itself is
         // never touched (once per session, E2-S3 design §4).
         context.coordinator.itemID = itemID
         context.coordinator.onMouseMoved = onMouseMoved
+        // The window flag may only be settable once the view is in the
+        // hierarchy — every update re-asserts it (idempotent, scoped to
+        // this surface's own window).
+        enableMouseMoved(on: nsView)
+    }
+
+    /// The design §4 recorded fallback, taken (coordinator-ratified in
+    /// review): AppKit gates `mouseMoved` delivery on
+    /// `NSWindow.acceptsMouseMovedEvents`, which defaults off for windows
+    /// that never opted in — without this one AppKit line the tracking
+    /// area could exist while the window never delivers. Scoped to this
+    /// surface's own window only; idempotent.
+    private func enableMouseMoved(on view: NSView) {
+        view.window?.acceptsMouseMovedEvents = true
     }
 
     func makeCoordinator() -> Coordinator {
