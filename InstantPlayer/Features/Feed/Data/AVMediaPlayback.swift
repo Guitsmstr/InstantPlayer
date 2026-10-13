@@ -69,6 +69,13 @@ final class AVMediaPlayback: MediaPlayback {
         self?.issueSeek(to: seconds, tolerance: tolerance)
     }
 
+    /// The internal dispatch counter (design §10.2's noted route): how
+    /// many actual seeks this session has issued to the player — the
+    /// storm bound (§8(5): a burst of N preview seeks must dispatch far
+    /// fewer) is asserted through `@testable` internals, since the frozen
+    /// seam contract deliberately carries no state-query members.
+    private(set) var seekDispatchCount = 0
+
     /// The periodic clock observer's token (design §3) — removed by
     /// `stop()`.
     private var timeObserver: Any?
@@ -285,6 +292,7 @@ final class AVMediaPlayback: MediaPlayback {
         guard !isStopped else { return }
         let target = min(max(seconds, 0), duration)
         let time = CMTime(seconds: target, preferredTimescale: 600)
+        seekDispatchCount += 1
         let onFinished: @Sendable (Bool) -> Void = { [weak self] finished in
             guard finished else { return }
             Task { @MainActor [weak self] in

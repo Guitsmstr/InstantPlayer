@@ -210,16 +210,16 @@ Deliverable (code): `InstantPlayerTests/` — `SeekSchedulerTests` (pure), the s
 suite (extending the E2-S3 session suite and `MediaFixture` throwaway-temp-folder pattern with the
 existing one-frame + short multi-frame MP4 fixtures), the §8(2) performance case.
 
-- [ ] **4.1** Load `swift-security` + `swift-performance` before editing.
-- [ ] **4.2** Frameworks per house pattern: Swift Testing (`@testable import InstantPlayer`,
+- [x] **4.1** Load `swift-security` + `swift-performance` before editing.
+- [x] **4.2** Frameworks per house pattern: Swift Testing (`@testable import InstantPlayer`,
   `@Test` + `#expect`) for the suites; the design §8(2) performance case uses XCTest `measure`
   exactly as the design names it — the one deliberate exception (the D25 run-loop-pumped,
   nonisolated pattern; a semaphore bridge would deadlock the `@MainActor` seam).
-- [ ] **4.3** `SeekScheduler` rows per design §10.1 (pure, Feed Data): latest-wins pending; **≤ 1
+- [x] **4.3** `SeekScheduler` rows per design §10.1 (pure, Feed Data): latest-wins pending; **≤ 1
   in flight** (the design §8(5) bound, unit-asserted); exactly one dispatch after completion to the
   newest pending target; `.exact` supersedes pending and dispatches immediately; pending dropped on
   stop.
-- [ ] **4.4** Conformance rows per design §10.2 (the real `AVMediaPlayback`): `seek(.exact)` lands
+- [x] **4.4** Conformance rows per design §10.2 (the real `AVMediaPlayback`): `seek(.exact)` lands
   `currentTime` **within one frame duration** of the target (the §2 frame-exact contract pinned);
   `seek(.preview)` lands approximate and fast; a burst of N preview seeks dispatches **far fewer**
   actual seeks (internal dispatch counter via `@testable`) and the final target lands (S6 storm
@@ -227,11 +227,11 @@ existing one-frame + short multi-frame MP4 fixtures), the §8(2) performance cas
   `timeUpdates` ticks at **≤ 12/s** while playing and produces nothing while paused (§3);
   `stop()` finishes **both** streams and removes the observer; a superseded session drops pending
   seeks (E2-S3 §10.2 patterns carry).
-- [ ] **4.5** Performance case per design §8(2): the landing-latency `measure` — release/keypress/
+- [x] **4.5** Performance case per design §8(2): the landing-latency `measure` — release/keypress/
   click → `.exact` issued immediately and landed frame within budget: **≤ 300 ms p95 typical**
   (≤ 1080p clips), **≤ 500 ms p95 atypical heavy media**. Measured numbers are recorded in task 11
   **from tooling, never from memory**.
-- [ ] **4.6** Full gate — the tests run and must be green. Fix, tick; commit:
+- [x] **4.6** Full gate — the tests run and must be green. Fix, tick; commit:
   `test(e3-s1): task 4 — seek scheduler and playback-seam tests`.
 
 ## Task 5 — Policy suite: `FeedViewModel` scrub/seek rows `[P]` · design §10.1
