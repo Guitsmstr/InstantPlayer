@@ -236,14 +236,21 @@ evidence is supporting material, never the approval:
    "approximate position" clause (design §2 converge amendment; D32 inline amendment). **Cadence
    measurement** (tooling, on the 720p 60-frame reference fixture — the design §8(2) typical media):
    `AVMediaPlaybackSeekTests.zeroTolerancePreviewCadenceIsSmoothOnTypicalMedia` times raw
-   zero-tolerance seek completions on the paused session — warm-up **6.3 ms**, **1.9 ms average over
-   ten seeks → ~517 updates/s**. The coalescing lands one frame per completion, so it already outpaces
-   pointer input by a wide margin; **`SeekScheduler` is unchanged** (no bounded refresh policy
-   needed), and its `previewStormKeepsOneInFlightAndOnePendingTarget` bound still holds. Heavy
-   long-GOP media remains the design's accepted honesty limit (functional-review/Instruments
-   territory, §2). Tests updated: the preview conformance row is now
+   zero-tolerance seek completions on the paused session — measured **≈2–7 ms per seek across runs**
+   (single snapshots: 1.9 ms average with a 6.3 ms warm-up on one run; 2.7 ms average on another) →
+   **~150–500 updates/s**, comfortably above a steppy floor. The coalescing lands one frame per
+   completion, so it already outpaces pointer input by a wide margin; **`SeekScheduler` is unchanged**
+   (no bounded refresh policy needed), and its `previewStormKeepsOneInFlightAndOnePendingTarget` bound
+   still holds. Heavy long-GOP media remains the design's accepted honesty limit
+   (functional-review/Instruments territory, §2). Tests updated: the preview conformance row is now
    `previewSeekDispatchesOnceAndLandsWithinOneFrameDuration` (lands within one frame duration, like
-   `.exact`; still one synchronous dispatch); the burst row's dispatch bound is unchanged.
+   `.exact`; a mid-GOP target sweep on the standard fixture, so a keyframe snap fails it; the
+   first dispatch is still synchronous); the burst row's dispatch bound is unchanged. Verified to
+   fail under max tolerance (the item-6 precedent): with the unified zero-tolerance call reverted to
+   `.positiveInfinity` in a scratch copy, the unit-test step fails —
+   `previewSeekDispatchesOnceAndLandsWithinOneFrameDuration` fails after its mid-GOP sweep times out
+   (31 s: each target snaps to a sync sample over a frame away), alongside the exact-landing/perf
+   rows that ride the same call; restoring the fix returns the gate to green.
    Thumb/label smoothness audited: `FeedViewModel.scrubChanged` writes `displayedPosition` and
    rebuilds the bar model (`scrubFraction` included) on **every** gesture update while visible — no
    throttling or hidden-skip interference; no defect found. Full gate re-run green.

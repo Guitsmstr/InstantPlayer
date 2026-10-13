@@ -14,7 +14,8 @@
   elapsed/duration labels; it is never shown on image pages. During a drag, playback pauses and the
   displayed frame follows the scrubber live; on release it resumes if it was playing before the
   drag, and stays paused with the frozen frame at the new position if it was not. During the drag,
-  seeks are fast and tolerant (fluid preview); on release the position lands **frame-exact** on the
+  the displayed frame corresponds to the point under the scrubber, updating fluidly (the preview's
+  updates are coalesced and bounded); on release the position lands **frame-exact** on the
   requested point. ←/→ step ±5 s per press with hold-to-repeat (like the ↑/↓ paging keys), working
   while playing and while paused and never changing the play/pause state. A click on the bar's
   progress track seeks straight to that point and never toggles play/pause — the bar's strip is
@@ -55,7 +56,7 @@
   obligation** for this story ([docs/development.md](../../development.md) §3). Honest caveat,
   recorded in the predecessors' form: even a `--uitests` run could not exercise scrub/seek (no
   media is open in the launch tests), so the behavior is verified by unit tests — bar visibility and
-  idle-hiding policy, drag state preservation, the tolerant/precision split, key step and routing
+  idle-hiding policy, drag state preservation, the coalesced/immediate dispatch split, key step and routing
   semantics, the seek guard matrix, clamping and end handover — plus stakeholder functional review.
 - **Inherited contracts and how each interaction composes (E2-S1–E2-S3).** Seek is a property of
   the **settled current video** — the same premise as E2-S3's settle-only auto-play (S2) and click
@@ -149,19 +150,27 @@ the scrubber live (the live preview). This pause is gesture-scoped, not a user t
 change the "was playing before" state that S8 restores.
 
 - **S6:** WHEN the scrubber is being dragged
-  THE SYSTEM SHALL serve the live frame updates as fast, tolerant seeks that keep the preview
-  fluid, accepting an approximate position while the drag lasts
+  THE SYSTEM SHALL keep the displayed frame corresponding to the point under the scrubber, with
+  updates dispatched coalesced and bounded so the preview stays fluid for the whole drag
 
-*Derivation (S6):* settled interview answer 4's first half — during the drag, fluidity beats
-precision (the preview is what the user is reading). S7 makes the release authoritative.
+*Derivation (S6):* settled interview answer 4's first half — during the drag, the preview is what the
+user is reading, so the frame must track the point under the scrubber while staying fluid. S7 makes
+the release authoritative.
+
+*Converge amendment (2026-10-13, coordinator-ratified, stakeholder functional review):* S6's earlier
+wording — "fast, tolerant seeks … accepting an approximate position while the drag lasts" — described
+an approximate landing that in practice snapped to the nearest sync sample, so a drag showed only a
+few keyframe-steppy frames instead of the frame under the scrubber. The visible contract is now the
+frame under the scrubber, updated fluidly; how the updates are dispatched (coalesced, bounded) is
+design detail. S-numbering and product-R citations are unchanged.
 
 - **S7:** WHEN the scrub drag is released
   THE SYSTEM SHALL settle the playback position frame-exactly on the point indicated by the
   scrubber
 
 *Derivation (S7):* settled interview answer 4's second half — the release is the commit point: the
-tolerant preview positions of S6 are replaced by one frame-exact landing at the requested point,
-and S8's state decision applies to that landing.
+preview positions of S6 are replaced by one frame-exact landing at the requested point, and S8's
+state decision applies to that landing.
 
 - **S8:** WHEN the scrub drag is released
   THE SYSTEM SHALL resume playback if the video was playing before the drag began, and SHALL leave
@@ -313,7 +322,7 @@ neither is claimed as this story's own:
 
 | Product requirement | Story outcome | Verified by |
 |---|---|---|
-| R13 (scrub/seek to the indicated point) | S1 (drag on the bar), S2 (keyboard ±5 s), S5–S8 (drag: pause + live fluid preview, frame-exact release, state restoration), S11 (track click), S12 (guard matrix), S13–S14 (clamping, end handover) | unit tests (seek policy: step size, hold-to-repeat, guard matrix, clamping, end handover, state preservation, tolerant/precision split) + functional review (drag, click, keys, live preview, frame-exact landing) |
+| R13 (scrub/seek to the indicated point) | S1 (drag on the bar), S2 (keyboard ±5 s), S5–S8 (drag: pause + live fluid preview, frame-exact release, state restoration), S11 (track click), S12 (guard matrix), S13–S14 (clamping, end handover) | unit tests (seek policy: step size, hold-to-repeat, guard matrix, clamping, end handover, state preservation, coalesced/immediate dispatch split) + functional review (drag, click, keys, live preview, frame-exact landing) |
 | R16 (smooth & responsive) — cross-cutting share via S17, not claimed | S17 — no stalls or beachballing during scrub/seek; fluid live preview | validator performance review (RNF-02; numeric budgets from this story's design) + functional review (drag stays fluid) |
 | R17 (media files never rewritten) — inherited no-regression contract, not re-claimed | S16 — seek writes nothing, persists nothing; no new access paths (D19) | validator security review (no write/sidecar/persistence paths; session not re-derived) + functional review (files byte-identical on disk after scrubbing) |
 
@@ -325,8 +334,9 @@ neither is claimed as this story's own:
   hidden-at-rest — paused included — still shows only the frozen frame.
 - [x] Scrub & seek semantics are explicit and testable: both invocations (S1, S2), bar
   visibility and contents with the drag-visible/idle-hidden policy (S3), images excluded (S4), drag
-  pause with live frame tracking (S5), tolerant seeks during the drag vs frame-exact landing on
-  release (S6, S7), state restoration on release (S8), keyboard step with hold-to-repeat and
+  pause with live frame tracking (S5), a fluid frame-tracking preview during the drag vs
+  frame-exact landing on release (S6, S7), state restoration on release (S8), keyboard step with
+  hold-to-repeat and
   state-neutrality (S9, S10), track click without toggle and the toggle-target carve-out (S11),
   the full applicability guard (S12), clamping (S13), end handover to loop without auto-advance
   (S14), and no position carried across visits (S15).

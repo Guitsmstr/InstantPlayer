@@ -184,29 +184,37 @@ struct AVMediaPlaybackSeekTests {
     }
 
     /// §10.2 row (S6 — the converge amendment): a `.preview` seek issues
-    /// synchronously (exactly one dispatch) and lands the **frame at the
-    /// requested point** — within one frame duration, exactly like the
-    /// `.exact` contract. The `.preview`/`.exact` split is dispatch policy
-    /// (coalesced vs immediate), no longer landing slack: maximum
-    /// tolerance snapped to the nearest sync sample, which was the
-    /// functional-review defect.
+    /// synchronously and lands the **frame at the requested point** —
+    /// within one frame duration, exactly like the `.exact` contract. The
+    /// `.preview`/`.exact` split is dispatch policy (coalesced vs
+    /// immediate), no longer landing slack: maximum tolerance snapped to
+    /// the nearest sync sample, which was the functional-review defect.
+    ///
+    /// The sweep targets sit inside the first second — off the fixture's
+    /// sync samples (its GOP is at least a second and no target sits on the
+    /// frame-0 keyframe) — so a max-tolerance landing would snap well over
+    /// a frame away and this assertion fails if `.positiveInfinity` is
+    /// restored.
     @Test func previewSeekDispatchesOnceAndLandsWithinOneFrameDuration() async throws {
         let (handle, session) = try await makeTwoSecondClip()
         defer { windowHost.close() }
         handle.pause()
 
-        let target = 1.0 // on the conformance's 600-grid — no added rounding
-        handle.seek(to: target, tolerance: .preview)
-        #expect(
-            session.seekDispatchCount == 1,
-            "the preview dispatch is synchronous — one seek issued in the caller's turn"
-        )
-
-        let landed = await waitForLanding(session, near: target, within: frameDuration)
-        #expect(
-            landed,
-            "the preview must land the frame under the scrubber — within one frame duration (S6)"
-        )
+        let targets: [TimeInterval] = [0.2, 0.5, 0.8]
+        for (index, target) in targets.enumerated() {
+            handle.seek(to: target, tolerance: .preview)
+            if index == 0 {
+                #expect(
+                    session.seekDispatchCount == 1,
+                    "the preview dispatch is synchronous — one seek issued in the caller's turn"
+                )
+            }
+            let landed = await waitForLanding(session, near: target, within: frameDuration)
+            #expect(
+                landed,
+                "the preview must land the frame under the scrubber at \(target)s — within one frame duration (S6)"
+            )
+        }
         handle.stop()
     }
 

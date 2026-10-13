@@ -44,7 +44,10 @@ implementation, each task's boxes in its own commit (bookkeeping — not a secon
    suppression). Name/signature/shape changes are design amendments: stop and report to the
    coordinator, never deviate silently. Same for any design §0 fact that no longer holds. (The
    design §4 `acceptsMouseMovedEvents` fallback is design-sanctioned but becomes a **ratified
-   deviation** with its own record — task 11's deviations list — if taken.)
+   deviation** with its own record — task 11's deviations list — if taken. **Converge amendment
+   (2026-10-13):** `.preview` now lands zero-tolerance too — the `.preview`/`.exact` split is
+   dispatch policy (coalesced vs immediate), not landing slack; spec S6 was amended accordingly
+   (see design §2).)
 7. **No invented behavior:** spec non-goals hold — no playback speed (E3-S2 — never touch `rate`
    beyond play/pause), no volume/mute (E3-S3 — never set `isMuted`/`volume`), no drag-on-video
    scrubbing (foreclosed by D27), no bar contents beyond the four named elements (no hover
@@ -469,7 +472,9 @@ Ticked by task 11, each backed by quoted tooling evidence:
   position to the point under the scrubber, and ←/→ step ±5 s per press with hold-to-repeat —
   covered by the policy suite (step size, drift-free arithmetic, repeat parity, tolerant/precision
   split) and the conformance suite (frame-exact landing within one frame; approximate fast
-  previews) + functional review.
+  previews) + functional review. *Converge amendment (2026-10-13):* previews now land the frame
+  under the scrubber too (spec S6 amended) — "tolerant/precision" and "approximate fast previews"
+  here are superseded.
 - [x] **AC2 · product R13 / S5–S8** — drag semantics unit-tested and reviewed: pause for the drag
   (gesture-scoped — the user's play/pause intent preserved), fluid live frame tracking the
   scrubber, frame-exact release, and state restoration (resume iff it was playing before).

@@ -169,9 +169,8 @@ scrubber — the stakeholder requires the frame under the scrubber. The `.previe
 the coalescing are unchanged: the distinction is now **dispatch policy** (latest-wins coalesced vs
 immediate/superseding), not landing slack — both modes land the frame whose presentation interval
 contains the requested point. Measured zero-tolerance preview cost on the 720p reference fixture:
-warm-up 6.3 ms, 1.9 ms average over ten seeks → ~517 updates/s (see [evidence](evidence.md) §8),
-so the coalescing already outpaces pointer input and `SeekScheduler` is unchanged — no bounded
-refresh policy is needed.
+**≈2–7 ms per seek across runs** (see [evidence](evidence.md) §8), so the coalescing already
+outpaces pointer input and `SeekScheduler` is unchanged — no bounded refresh policy is needed.
 
 ## 3 · Time display source (elapsed/duration without a timer storm)
 
