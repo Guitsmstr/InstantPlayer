@@ -92,22 +92,22 @@ Deliverable (code): `InstantPlayer/Features/Feed/Domain/MediaPlayback.swift` (gr
 `InstantPlayer/Features/Feed/Data/StubMediaPlayerService.swift` (grown). `MediaPlaybackEvent.swift`
 is **untouched** (design §1).
 
-- [ ] **1.1** Load `swift-security` + `swift-performance` before editing.
-- [ ] **1.2** `MediaPlayback` grows exactly the design §2 members (Foundation-only — R10; no
+- [x] **1.1** Load `swift-security` + `swift-performance` before editing.
+- [x] **1.2** `MediaPlayback` grows exactly the design §2 members (Foundation-only — R10; no
   `CMTime`, no `AVPlayer`, no completion handler in any Domain signature, design §1.1): `enum
   MediaSeekTolerance: Sendable { case preview, exact }` (lives with the handle per design §1);
   `var duration: TimeInterval { get }` (known once `startPlayback` returns — design §3);
   `var timeUpdates: AsyncStream<TimeInterval> { get }` (elapsed ticks; finished by `stop()` like
   `events`); `func seek(to seconds: TimeInterval, tolerance: MediaSeekTolerance)` — synchronous
   dispatch, never changes rate (S10), seconds clamped by the caller to `[0, duration]` (S13).
-- [ ] **1.3** Stub handle grows the same members in **this same commit** (house stub pattern; the
+- [x] **1.3** Stub handle grows the same members in **this same commit** (house stub pattern; the
   composition still binds the stub until this story's code is complete and tests use their own
   scripted doubles): canned non-zero `duration`, a `timeUpdates` stream that finishes on `stop()`,
   seeks recorded and reflected into `displayedPosition` feeds — zero I/O, no AVFoundation.
-- [ ] **1.4** Existing call sites and test doubles updated minimally so everything compiles from
+- [x] **1.4** Existing call sites and test doubles updated minimally so everything compiles from
   this commit on (scripted handles in `FeedViewModelTests` gain the three members; full suites are
   tasks 4–5). `MediaPlaybackEvent` semantics unchanged — no edit to that file.
-- [ ] **1.5** Full gate `./scripts/validate.sh` — the grown protocol and stub must compile (that is
+- [x] **1.5** Full gate `./scripts/validate.sh` — the grown protocol and stub must compile (that is
   what proves target membership). Fix, tick this task's boxes, commit:
   `feat(e3-s1): task 1 — seek seam additions and stub`.
 

@@ -1761,14 +1761,32 @@ private final class ScriptedMediaPlayback: MediaPlayback {
     let events: AsyncStream<MediaPlaybackEvent>
     private let continuation: AsyncStream<MediaPlaybackEvent>.Continuation
 
+    /// Scripted duration (task 1.4's minimal member): tests overwrite it
+    /// when the guard/clamp rows need a known length (task 5); the
+    /// non-zero default matches the stub's canned answer shape.
+    var duration: TimeInterval = 90
+
+    /// Elapsed ticks (task 1.4's minimal member): finished on `stop()` —
+    /// brace 1 parity with the real session (design §3). The task-5 suite
+    /// drives ticks through it.
+    let timeUpdates: AsyncStream<TimeInterval>
+    private let timeUpdatesContinuation: AsyncStream<TimeInterval>.Continuation
+
     private(set) var pauseCount = 0
     private(set) var resumeCount = 0
     private(set) var restartCount = 0
     private(set) var stopCount = 0
+
+    /// Recorded seeks (task 1.4's minimal member): target seconds +
+    /// tolerance per call, in call order — the spy record the task-5
+    /// policy suite asserts against.
+    private(set) var seeks: [(seconds: TimeInterval, tolerance: MediaSeekTolerance)] = []
+
     private(set) var isStopped = false
 
     init() {
         (events, continuation) = AsyncStream.makeStream(of: MediaPlaybackEvent.self)
+        (timeUpdates, timeUpdatesContinuation) = AsyncStream.makeStream(of: TimeInterval.self)
     }
 
     /// Drives one event into the stream (the test's hand on the double).
@@ -1792,11 +1810,20 @@ private final class ScriptedMediaPlayback: MediaPlayback {
         restartCount += 1
     }
 
+    /// The seek spy (task 1.4's minimal member): records the call — the
+    /// guard matches every other command; nothing is reflected into the
+    /// tick stream (the task-5 suite drives ticks explicitly).
+    func seek(to seconds: TimeInterval, tolerance: MediaSeekTolerance) {
+        guard !isStopped else { return }
+        seeks.append((seconds, tolerance))
+    }
+
     func stop() {
         guard !isStopped else { return }
         isStopped = true
         stopCount += 1
         continuation.finish()
+        timeUpdatesContinuation.finish()
     }
 
     func makeDisplayView() -> AnyObject {

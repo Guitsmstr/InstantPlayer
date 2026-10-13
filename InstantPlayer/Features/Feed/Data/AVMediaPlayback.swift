@@ -46,6 +46,14 @@ final class AVMediaPlayback: MediaPlayback {
     let events: AsyncStream<MediaPlaybackEvent>
     private let continuation: AsyncStream<MediaPlaybackEvent>.Continuation
 
+    /// Elapsed ticks (design §3): separate from `events`, finished by
+    /// `stop()` (brace 1 parity). Task-1 minimal shape (this story's task
+    /// 1.4: compile-only growth) — silent until task 2 bridges the 10 Hz
+    /// periodic observer into it and sets its `.bufferingNewest(1)`
+    /// buffering (design §3).
+    let timeUpdates: AsyncStream<TimeInterval>
+    private let timeUpdatesContinuation: AsyncStream<TimeInterval>.Continuation
+
     /// Bridges from AVFoundation threads onto the main actor (design
     /// §1.2) — cancelled by `stop()`.
     private var bridges: [Task<Void, Never>] = []
@@ -63,6 +71,7 @@ final class AVMediaPlayback: MediaPlayback {
         playerLayer = AVPlayerLayer(player: player)
         playerLayer.videoGravity = .resizeAspect
         (events, continuation) = AsyncStream.makeStream(of: MediaPlaybackEvent.self)
+        (timeUpdates, timeUpdatesContinuation) = AsyncStream.makeStream(of: TimeInterval.self)
         observeEvents()
     }
 
@@ -114,6 +123,24 @@ final class AVMediaPlayback: MediaPlayback {
 
     // MARK: MediaPlayback (frozen seam contract, design §2)
 
+    /// The media duration in seconds (design §3): the synchronous
+    /// `AVPlayerItem.duration` value — known once the awaited asset load of
+    /// `startPlayback` completed (design §0.2). A non-finite (invalid)
+    /// duration answers 0 so the view model's `duration <= 0` guard
+    /// rejects seek input (design §5's defensive row) instead of a `NaN`
+    /// slipping past comparisons into the seek path.
+    var duration: TimeInterval {
+        let seconds = playerItem.duration.seconds
+        return seconds.isFinite ? seconds : 0
+    }
+
+    /// Task-1 minimal shape (this story's task 1.4: compile-only growth —
+    /// no caller exists until the task-3 policy lands): the real mechanism —
+    /// the `SeekScheduler`'s ≤ 1-in-flight latest-wins dispatch, the
+    /// tolerance → `CMTime` mapping, the defensive re-bound — is task 2's
+    /// deliverable and replaces this body.
+    func seek(to _: TimeInterval, tolerance _: MediaSeekTolerance) {}
+
     func pause() {
         guard !isStopped else { return }
         // Synchronous bite (design §8(2)): rate 0 before this returns.
@@ -160,8 +187,11 @@ final class AVMediaPlayback: MediaPlayback {
         playerLayer.removeFromSuperlayer()
         playerLayer.player = nil
         // The stream finishes on stop() — belt (design §3 brace 1); the
-        // view model's identity guard is the braces' second line.
+        // view model's identity guard is the braces' second line. The tick
+        // stream finishes with it (design §3: both streams die with the
+        // session).
         continuation.finish()
+        timeUpdatesContinuation.finish()
     }
 
     func makeDisplayView() -> AnyObject {
