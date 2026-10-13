@@ -154,8 +154,8 @@ existing tests updated to compile in the same commit if signatures move) — inc
 `PlaybackControlBarModel` (`nonisolated struct`: `elapsed`, `duration`, `scrubFraction`,
 `isVisible`; no separate file appears in the design §1 inventory).
 
-- [ ] **3.1** Load `swift-security` + `swift-performance` before editing.
-- [ ] **3.2** Drag state machine per design §5 (S5–S8), pure and unit-testable:
+- [x] **3.1** Load `swift-security` + `swift-performance` before editing.
+- [x] **3.2** Drag state machine per design §5 (S5–S8), pure and unit-testable:
   `beginScrub(itemID:)` — guard first (3.4), record `wasPlayingBeforeDrag = !isPlaybackPaused`,
   `handle.pause()` **gesture-scoped** (`isPlaybackPaused` itself untouched — the user's intent is
   preserved), suspend the idle policy, enter scrubbing; `scrubChanged(itemID:fraction:)` — guard
@@ -165,24 +165,24 @@ existing tests updated to compile in the same commit if signatures move) — inc
   `handle.seek(to: target, .exact)` (S7) + S8 restore (`wasPlayingBeforeDrag` → `resume()`, else
   stay paused on the frozen frame at the new position), restart the idle countdown (S3(a)),
   `isScrubbing = false`.
-- [ ] **3.3** Commit seeks per design §5 (S2, S9–S11): `seekFromTrackClick(itemID:fraction:)` and
+- [x] **3.3** Commit seeks per design §5 (S2, S9–S11): `seekFromTrackClick(itemID:fraction:)` and
   `seekBackwardByKeyboard()` / `seekForwardByKeyboard()` map/clamp and issue `.exact`, leaving
   play/pause exactly as found (S10); keyboard steps compute from `displayedPosition ± 5 s` (the
   drift-proof arithmetic — two quick presses net exactly 10 s; design §2), auto-repeat = repeated
   steps (S9, paging parity).
-- [ ] **3.4** Guard matrix per design §5's table (S12) as one unit-tested decision surface — every
+- [x] **3.4** Guard matrix per design §5's table (S12) as one unit-tested decision surface — every
   row: settled current video → seek per S1/S2/S11; non-current page, paging gesture in flight, image
   page, neutral unavailable state (incl. sticky playback failure), keyboard seek during a scrub
   drag, `duration <= 0` session → **consumed no-op** (the spy records nothing; never beep — D28).
   No open feed passes through at route level (D28 unchanged). The view is never consulted.
-- [ ] **3.5** Clamping + end handover per design §5 (S13, S14): every target clamps to `[0,
+- [x] **3.5** Clamping + end handover per design §5 (S13, S14): every target clamps to `[0,
   duration]`; **`target == duration` after clamping is the end rule (exact, not epsilon)** →
   playing (or `wasPlayingBeforeDrag`) → `handle.restart()` (D26's seek-zero-and-play); paused →
   `handle.seek(to: 0, .exact)` and stay paused on the frozen frame at the beginning. The index is
   **never** touched (product R15 — no auto-advance by construction); the rule is shared by
   drag-release, track click, and key steps; a seek to 0 is an ordinary clamped seek. "Plays into the
   end" remains E2-S3 S11's unchanged `.reachedEnd` → `restart()` path.
-- [ ] **3.6** Bar visibility + idle policy per design §4 (S3, S4): `noteMouseMoved(itemID:)` on the
+- [x] **3.6** Bar visibility + idle policy per design §4 (S3, S4): `noteMouseMoved(itemID:)` on the
   settled current video page → `controlBarModel` non-nil with `isVisible = true` and a 3 s idle
   deadline armed; movement anywhere else shows nothing (S4, S12); keyboard seek **never** shows the
   bar (S3(b)); a paging gesture in flight → the model goes `nil` and any visible bar hides at once;
@@ -190,17 +190,17 @@ existing tests updated to compile in the same commit if signatures move) — inc
   a `CADisplayLink`, never a run-loop source — created only while a bar is visible, re-arms
   throttled to ≤ 4/s, owned and cancelled on every exit path (skill §4); a scrub drag suspends the
   idle policy entirely and the deadline restarts after release (S3(a)).
-- [ ] **3.7** Time-display state per design §3: consume `timeUpdates` into `displayedPosition` —
+- [x] **3.7** Time-display state per design §3: consume `timeUpdates` into `displayedPosition` —
   ticks **ignored during a scrub drag** (the drag target owns the display) and **suppressed for
   250 ms after any `.exact` seek** (no thumb bounce from a stale tick); `controlBarModel` is
   non-`nil` **only** for the settled current video's live player page (structural absence on image
   pages, unavailable items, non-current pages, mid-paging — S4, S12); `duration <= 0` sessions
   reject seek input. Hidden at rest the model still drives `opacity(0)` + `allowsHitTesting(false)`
   presentation semantics (the whole-page toggle stays intact).
-- [ ] **3.8** Nothing carried (S15): every fresh session (E2-S3 §3 lifecycle carries unchanged)
+- [x] **3.8** Nothing carried (S15): every fresh session (E2-S3 §3 lifecycle carries unchanged)
   resets the drag machine, `displayedPosition`, and the clock consumer — a seek position is stored
   nowhere (§9 keeps it so).
-- [ ] **3.9** Full gate (update existing `FeedViewModelTests` compile breaks in this same commit —
+- [x] **3.9** Full gate (update existing `FeedViewModelTests` compile breaks in this same commit —
   minimal fixes; the full policy suite is task 5). Fix, tick; commit:
   `feat(e3-s1): task 3 — scrub and seek policy in the feed view model`.
 
