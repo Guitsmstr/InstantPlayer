@@ -353,7 +353,7 @@ Follows the E2-S2/E2-S3 precedent: the standing architecture reference is update
 commit once the code it documents has landed (tasks 1–8). (The design could not write this file —
 its §13 records the permission boundary; this task-phase deliverable is exactly that list.)
 
-- [ ] **9.1** Update `docs/architecture.md` exactly per design §13: (1) **§3 source tree** —
+- [x] **9.1** Update `docs/architecture.md` exactly per design §13: (1) **§3 source tree** —
   re-annotate `Features/Feed/Domain/MediaPlayback.swift` (gains `duration`, `timeUpdates`,
   `seek(to:tolerance:)` + `MediaSeekTolerance`), `Features/Feed/Data/AVMediaPlayback.swift` (seek
   scheduler + clock bridge), `Features/Feed/Presentation/FeedViewModel.swift` (scrub/seek/idle
@@ -367,8 +367,8 @@ its §13 records the permission boundary; this task-phase deliverable is exactly
   again (the seek scheduler and clock bridge are conformance-internal state on the `@MainActor`
   conformance; the periodic observer marshals at the boundary like the existing event bridges); the
   `@MainActor`-seam pattern of D25 carries unchanged.
-- [ ] **9.2** Internal links must resolve (the gate checks them) — link only to existing files.
-- [ ] **9.3** Stage, then gate `./scripts/validate.sh --staged`; fix; tick; commit:
+- [x] **9.2** Internal links must resolve (the gate checks them) — link only to existing files.
+- [x] **9.3** Stage, then gate `./scripts/validate.sh --staged`; fix; tick; commit:
   `docs(e3-s1): task 9 — architecture reference updates`.
 
 ## Task 10 — ADR batch `[P]` · design §11
