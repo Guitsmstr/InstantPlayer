@@ -512,8 +512,9 @@ Three ADRs, cut along independent review axes — seek mechanism, chrome surface
 recorded in [docs/decisions.md](../../decisions.md) by the implementing tasks (proposed titles +
 kern; the coordinator appends them at converge):
 
-- **D30 — Scrub & seek mechanism: tolerant coalesced preview seeks vs zero-tolerance commit seeks,
-  scheduler in the conformance.** One `seek(to:tolerance:)` member on the `MediaPlayback` handle
+- **D30 — Scrub & seek mechanism: coalesced preview seeks vs immediate commit seeks — zero-tolerance
+  landings, scheduler in the conformance** (renamed at converge — zero-tolerance landings). One
+  `seek(to:tolerance:)` member on the `MediaPlayback` handle
   (`MediaSeekTolerance` `.preview`/`.exact`); the Data conformance owns a latest-wins seek scheduler
   (≤ 1 seek in flight, preview targets merge, `.exact` supersedes and dispatches immediately); the
   view model owns target arithmetic (fraction→seconds mapping, ±5 s from its own `displayedPosition`,

@@ -130,8 +130,9 @@ Deliverable (code): `InstantPlayer/Features/Feed/Data/SeekScheduler.swift` (new)
   pending target is issued; `.exact` supersedes pending and dispatches immediately; pending state is
   dropped on stop (design §8(5)'s storm bound).
 - [x] **2.3** `seek(to:tolerance:)` per design §2 on the `@MainActor` conformance: `.preview` → a
-  maximum-tolerance seek (`.positiveInfinity` both sides) routed through `SeekScheduler` (S1, S5,
-  S6); `.exact` → `.zero`/`.zero` issued immediately, abandoning and superseding any in-flight or
+  zero-tolerance seek (`.zero`/`.zero` — the frame under the scrubber; the split is dispatch policy)
+  routed through `SeekScheduler` (S1, S5, S6); `.exact` → `.zero`/`.zero` issued immediately,
+  abandoning and superseding any in-flight or
   pending seek (AVPlayer's self-superseding semantics — design §0(1); S7, S11, S2/S9 commits);
   synchronous dispatch in the same main-actor turn; seconds defensively re-bounded when converted to
   `CMTime`; **rate never touched** (S10). Seek completion state stays inside the conformance — no
@@ -388,8 +389,9 @@ Deliverable (docs): `docs/decisions.md` — append the three ADRs of design §11
   with context, decision, alternatives, consequences. **Titles and one-line decisions exactly per
   design §11** (only the leading number differs from the plan's stale labels — recorded in task
   11.7 for coordinator ratification):
-  **D32 — Scrub & seek mechanism: tolerant coalesced preview seeks vs zero-tolerance commit seeks,
-  scheduler in the conformance** (→ S1, S2, S5–S8, S11, S13, S14, S17) · **D33 — Demand-driven
+  **D32 — Scrub & seek mechanism: coalesced preview seeks vs immediate commit seeks — zero-tolerance
+  landings, scheduler in the conformance** (renamed at converge — zero-tolerance landings; → S1, S2,
+  S5–S8, S11, S13, S14, S17) · **D33 — Demand-driven
   transport chrome: overlay control bar with AppKit tracking-area mouse-move visibility and
   view-model idle policy** (→ S3, S4, S11, and the E2-S3 S8 amendment) · **D34 — Keyboard seek on
   the feed-key router: ←/→ = ±5 s with paging's repeat parity** (→ S2, S9, S10).
