@@ -240,31 +240,31 @@ Deliverable (code): `InstantPlayerTests/` — `FeedViewModelTests` extended with
 rows (injected seam doubles: spy `MediaPlayerService` + scripted handle — the E2-S3 §10.1 pattern;
 no UI, no window, no AVFoundation).
 
-- [ ] **5.1** Load `swift-security` + `swift-performance` before editing.
-- [ ] **5.2** Drag machine (S5–S8): begin records `wasPlayingBeforeDrag` and calls `pause()`
+- [x] **5.1** Load `swift-security` + `swift-performance` before editing.
+- [x] **5.2** Drag machine (S5–S8): begin records `wasPlayingBeforeDrag` and calls `pause()`
   **without** flipping `isPlaybackPaused`; change issues `.preview` to the mapped target and moves
   `displayedPosition`; end issues `.exact` to the final target; was-playing → `resume()`, was-paused
   → stays paused; the idle countdown is suspended during the drag and re-armed after (S3(a)).
-- [ ] **5.3** Tolerant/precision split (S6, S7): every `scrubChanged` call is `.preview`; the
+- [x] **5.3** Tolerant/precision split (S6, S7): every `scrubChanged` call is `.preview`; the
   release, the track click, and the key steps are `.exact` — asserted at the spy handle.
-- [ ] **5.4** Key steps (S2, S9, S10): ±5 s from `displayedPosition` (two quick presses net 10 s —
+- [x] **5.4** Key steps (S2, S9, S10): ±5 s from `displayedPosition` (two quick presses net 10 s —
   no drift); auto-repeat = repeated steps; rate untouched in both play states.
-- [ ] **5.5** Track click (S11): `.exact` to the mapped target; **never** `pause()`/`resume()`;
+- [x] **5.5** Track click (S11): `.exact` to the mapped target; **never** `pause()`/`resume()`;
   the play/pause state observable-unchanged.
-- [ ] **5.6** Guard matrix (S12): the design §5 table as tests — non-current, mid-gesture, image,
+- [x] **5.6** Guard matrix (S12): the design §5 table as tests — non-current, mid-gesture, image,
   unavailable, mid-drag keyboard, `duration <= 0` all consumed no-ops (spy records nothing).
-- [ ] **5.7** Clamping & end handover (S13, S14): out-of-range targets clamp; `target == duration`
+- [x] **5.7** Clamping & end handover (S13, S14): out-of-range targets clamp; `target == duration`
   → playing (or `wasPlayingBeforeDrag`) → `restart()`, paused → `seek(to: 0, .exact)` + stays
   paused; the index never changes; click/step/drag-release all share the rule.
-- [ ] **5.8** Bar visibility policy (S3, S4): mouse activity on the current video page shows + arms
+- [x] **5.8** Bar visibility policy (S3, S4): mouse activity on the current video page shows + arms
   3 s; idle hides (the `Task.sleep` scheduler driven with an injected `now`); movement on neighbor
   and image pages shows nothing; keyboard seek never shows (S3(b)); paging in flight drops the model
   to `nil` at once; the hidden model keeps the toggle surface intact.
-- [ ] **5.9** Time display (§3): ticks update `displayedPosition`; ignored during drag; suppressed
+- [x] **5.9** Time display (§3): ticks update `displayedPosition`; ignored during drag; suppressed
   250 ms after `.exact`; stale ticks never bounce the thumb.
-- [ ] **5.10** Nothing carried (S15): current-item change → new session → drag/position state reset
+- [x] **5.10** Nothing carried (S15): current-item change → new session → drag/position state reset
   (the E2-S3 lifecycle tests extend).
-- [ ] **5.11** Full gate — green. Fix, tick; commit:
+- [x] **5.11** Full gate — green. Fix, tick; commit:
   `test(e3-s1): task 5 — scrub and seek policy tests`.
 
 ## Task 6 — Bar view + mouse-move tracking area `[P]` · design §4, §7
