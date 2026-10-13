@@ -4,7 +4,8 @@
 //
 //  App-owned feed-key routing decision (E2-S2 round 4 — evidence §8 —
 //  S5; coordinator-ratified amendment to design §5.3's delivery
-//  mechanism, D22; extended into a feed-key router in E2-S3 — design §6).
+//  mechanism, D22; extended into a feed-key router in E2-S3 — design §6;
+//  E3-S1, design §6 — S2, S9: the keyboard seek rows).
 //
 
 import AppKit
@@ -33,6 +34,15 @@ enum FeedKeyCommand: Equatable {
     /// consume and no-op quietly, design §6).
     case togglePlayback
 
+    /// Seek −5 s (E3-S1 S2, design §6) — always consumed with an open
+    /// feed; the view model's guard matrix decides (ineligible states
+    /// consume and no-op quietly, never beep — D28). Auto-repeat =
+    /// repeated steps (S9).
+    case seekBackward
+
+    /// Seek +5 s (E3-S1 S2, design §6) — `seekBackward`'s mirror.
+    case seekForward
+
     /// Consume the event and do nothing (E2-S3 design §6 — space
     /// auto-repeat: a held space must not flap play/pause).
     case ignore
@@ -55,7 +65,15 @@ enum FeedKeyCommand: Equatable {
     ///   not a command modifier — ⇧↓/⇧↑ page and ⇧space toggles, like
     ///   the unmodified keys (v1 has no text input; revisit with E3
     ///   chrome if one appears).
-    /// - Any other key (including ←/→, 123/124) passes through.
+    /// - Any other key passes through.
+    /// - E3-S1 (design §6 — S2, S9): the plain ←/→ keys (123/124) are the
+    ///   keyboard seek rows — with a feed open they are **always
+    ///   consumed** and routed to the guard matrix (which no-ops quietly
+    ///   on ineligible states; passing through would re-expose them to
+    ///   the system's unhandled-key path, the D28 beep lesson); auto-
+    ///   repeat = repeated steps (S9, paging's parity); ⇧ alone does not
+    ///   modify. A deliberate contract change: 123/124 previously passed
+    ///   through (the recorded consequence, design §10.1).
     static func route(
         keyCode: UInt16,
         modifiers: NSEvent.ModifierFlags,
@@ -72,14 +90,21 @@ enum FeedKeyCommand: Equatable {
             return .pageForward
         case Self.upArrowKeyCode:
             return .pageBackward
+        case Self.leftArrowKeyCode:
+            return .seekBackward
+        case Self.rightArrowKeyCode:
+            return .seekForward
         default:
             return .passThrough
         }
     }
 
     /// Hardware key codes (`NSEvent.keyCode`): space = 49, down = 125,
-    /// up = 126 (left = 123 / right = 124 are deliberately unrouted).
+    /// up = 126, left = 123, right = 124 — the seek rows landed with
+    /// E3-S1 (design §6); raw key codes stay deliberate and test-pinned.
     private static let spaceKeyCode: UInt16 = 49
     private static let downArrowKeyCode: UInt16 = 125
     private static let upArrowKeyCode: UInt16 = 126
+    private static let leftArrowKeyCode: UInt16 = 123
+    private static let rightArrowKeyCode: UInt16 = 124
 }

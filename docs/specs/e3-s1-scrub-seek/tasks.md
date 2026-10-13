@@ -326,8 +326,8 @@ Deliverable (code): `InstantPlayer/Features/Feed/Presentation/FeedItemView.swift
 Deliverable (code): `InstantPlayer/App/FeedKeyCommand.swift`, `InstantPlayer/App/AppDelegate.swift`
 (monitor switch), `InstantPlayerTests/` — `FeedKeyCommandTests` (updated).
 
-- [ ] **8.1** Load `swift-security` + `swift-performance` before editing.
-- [ ] **8.2** Route table per design §6 — the frozen table gains exactly two cases and two rows:
+- [x] **8.1** Load `swift-security` + `swift-performance` before editing.
+- [x] **8.2** Route table per design §6 — the frozen table gains exactly two cases and two rows:
   `←` (keyCode 123) → `.seekBackward`, `→` (124) → `.seekForward`; with an open feed both are
   **always consumed** and routed to the guard matrix (which no-ops quietly on ineligible states —
   S12; never beep — D28), because passing through would re-expose them to the unhandled-key path;
@@ -336,14 +336,14 @@ Deliverable (code): `InstantPlayer/App/FeedKeyCommand.swift`, `InstantPlayer/App
   frozen and stay green. **Recorded contract change:** 123/124 previously passed through — the
   frozen table's `nonRoutedArrowsPassThrough` test is **replaced** by the seek rows (design §6,
   §10.1).
-- [ ] **8.3** `AppDelegate` monitor switch gains the two cases → the view model's
+- [x] **8.3** `AppDelegate` monitor switch gains the two cases → the view model's
   `seekBackwardByKeyboard()` / `seekForwardByKeyboard()` (task 3's unchanged `@MainActor` methods;
   the guard matrix decides, so ineligible states consume and no-op quietly). Existing cases and the
   `hasOpenFeed` derivation unchanged.
-- [ ] **8.4** `FeedKeyCommandTests` per design §10.1: 123 → `.seekBackward`, 124 → `.seekForward`
+- [x] **8.4** `FeedKeyCommandTests` per design §10.1: 123 → `.seekBackward`, 124 → `.seekForward`
   with auto-repeat parity (`arrowAutoRepeatStillPages`' sibling for seeks); the replaced
   `nonRoutedArrowsPassThrough` row; modifier/welcome/space/paging rows unchanged and green.
-- [ ] **8.5** Full gate. Fix, tick; commit:
+- [x] **8.5** Full gate. Fix, tick; commit:
   `feat(e3-s1): task 8 — keyboard seek rows on the feed key router`.
 
 ## Task 9 — Architecture reference updates `[P]` · design §13
