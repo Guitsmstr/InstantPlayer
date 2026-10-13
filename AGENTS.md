@@ -17,7 +17,7 @@ Instant video player for **macOS** (SwiftUI). Stack: **Swift + SwiftUI, Xcode 26
 ## Commands
 
 - Validate everything: `./scripts/validate.sh` (add `--staged` to skip build-heavy steps on docs-only commits).
-- Run the app (stakeholder functional review): `./scripts/app.sh run` · `stop` · `status`.
+- Run the app (stakeholder functional review): `./scripts/app.sh run` (builds, refreshes the `~/Applications` copy, relaunches the fresh build — re-run before every retest) · `stop` · `status`.
 - No Node toolchain: no package manager. Lint/format via Homebrew `swiftlint` / `swiftformat`; builds via `xcodebuild` (invoked through the gate, not ad hoc).
 
 ## Trigger table (read on demand, only when relevant)
