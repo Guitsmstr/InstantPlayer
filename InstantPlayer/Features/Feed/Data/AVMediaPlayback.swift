@@ -80,6 +80,12 @@ final class AVMediaPlayback: MediaPlayback {
     /// `stop()`.
     private var timeObserver: Any?
 
+    /// The clock bridge's own serial queue (design §0.2/§3 — the review
+    /// fix): the 10 Hz tick source runs off-main, never on the main
+    /// queue; one queue per session, serial by contract, torn down with
+    /// the session.
+    private let timeObserverQueue = DispatchQueue(label: "com.guits.InstantPlayer.time-observer")
+
     /// Bridges from AVFoundation threads onto the main actor (design
     /// §1.2) — cancelled by `stop()`.
     private var bridges: [Task<Void, Never>] = []
@@ -154,16 +160,18 @@ final class AVMediaPlayback: MediaPlayback {
     // MARK: Clock bridge (design §3)
 
     /// The periodic clock bridge (task 2.5): a 100 ms (10 Hz) periodic
-    /// observer on AVFoundation's queue (`queue: nil`) — a paused session
-    /// produces no ticks, so there is no timer to gate (design §0.2). Each
-    /// callback marshals to the main actor at this boundary (D25's brace
-    /// pattern, design §1.2) before touching session state; the tick
-    /// stream's `.bufferingNewest(1)` buffering means a stalled main actor
-    /// drops stale ticks instead of replaying a backlog (design §3).
+    /// observer on a dedicated serial queue — off the main thread (design
+    /// §0.2, §3: the tick source is off-main, marshaled to the main actor
+    /// at this boundary); a paused session produces no ticks, so there is
+    /// no timer to gate (design §0.2). Each callback marshals to the main
+    /// actor (D25's brace pattern, design §1.2) before touching session
+    /// state; the tick stream's `.bufferingNewest(1)` buffering means a
+    /// stalled main actor drops stale ticks instead of replaying a
+    /// backlog (design §3).
     private func observeClock() {
         timeObserver = player.addPeriodicTimeObserver(
             forInterval: CMTime(value: 1, timescale: 10),
-            queue: nil,
+            queue: timeObserverQueue,
             using: { [weak self] time in
                 Task { @MainActor [weak self] in
                     self?.emitTick(time)
