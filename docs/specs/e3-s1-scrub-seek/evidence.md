@@ -5,10 +5,10 @@ evidence (functional review, validator PASS, closure) is **not** recorded here. 
 [docs/development.md](../../development.md) §3; conventions per the [SDD
 README](../README.md).
 
-## 1 · Full gate — machine-readable record (task 11.3)
+## 1 · Full gate — machine-readable record (task 11.3; refreshed after the review fixes)
 
 `./scripts/validate.sh --json <session-temp>/e3-s1-gate.json` — the JSON quoted **verbatim**
-(the file itself is never committed):
+(the file itself is never committed); this is the fresh full-gate run on the post-review code:
 
 ```json
 {
@@ -41,30 +41,32 @@ not exercise scrub/seek (no media is open in the launch tests); behavior is veri
 suites (tasks 4–5) plus stakeholder functional review. Within the 11.3 full gate,
 `testLaunchPerformance` and the launch tests ran green unchanged.
 
-## 3 · Performance evidence from tooling (task 11.5a; design §8(1)–§8(2), S17)
+## 3 · Performance evidence from tooling (task 11.5a; design §8(1)–§8(2), S17; refreshed after the review fixes)
 
 The design §8(2) landing-latency XCTest `measure` (run-loop-pumped, nonisolated — the D25
 pattern) recorded from its tooling output file, never from memory. Budgets: **≤ 300 ms p95
 typical (≤ 1080p clips), ≤ 500 ms p95 atypical heavy media**; drag-preview issuance is
 synchronous in the same main-actor turn (design §8(1)'s ≤ 16 ms bound — an O(1) dispatch, not a
 timed claim). Fixture: 1280×720, 60 frames @ 30 fps (the typical ≤ 1080p case). Measured
-landing (issue → landed frame within one frame duration), latest full-gate run:
+landing (issue → landed frame within one frame duration), fresh full-gate run on the
+post-review code:
 
 ```
 e3-s1 frame-exact landing budget, measured from tooling
-warm-up: 0.3 ms
-pass 1 (target 0.5s): 0.0 ms
-pass 2 (target 1.0s): 6.1 ms
-pass 3 (target 1.5s): 6.3 ms
-measure iteration (target 0.25s): 0.1 ms
-measure iteration (target 0.5s): 6.1 ms
-measure iteration (target 0.75s): 6.1 ms
-measure iteration (target 1.0s): 0.1 ms
-measure iteration (target 1.25s): 6.2 ms
-measure iteration (target 1.5s): 6.1 ms
+warm-up: 0.1 ms
+pass 1 (target 0.5s): 0.1 ms
+pass 2 (target 1.0s): 5.9 ms
+pass 3 (target 1.5s): 5.4 ms
+measure iteration (target 0.25s): 6.4 ms
+measure iteration (target 0.5s): 0.1 ms
+measure iteration (target 0.75s): 6.4 ms
+measure iteration (target 1.0s): 6.4 ms
+measure iteration (target 1.25s): 0.1 ms
+measure iteration (target 1.5s): 6.4 ms
 ```
 
-Every recorded landing is ≥ **1.9 %** of the 300 ms typical budget; the atypical 500 ms budget is
+Raw numbers against the budget: the largest recorded landing is **6.4 ms** against the 300 ms
+typical budget (roughly 2 % of it — no landing comes near it), and the atypical 500 ms budget is
 functional-review/Instruments territory (long-GOP/heavy media — design §2's accepted honesty
 limit), not claimed from this fixture. The design §8(1) drag-preview frame bound (≤ 150 ms p95)
 and the cadence ceiling (≤ 12 ticks/s) are unit-asserted: `AVMediaPlaybackSeekTests.
@@ -180,13 +182,25 @@ evidence is supporting material, never the approval:
    internal `seekDispatchCount` counter (`AVMediaPlayback`, added in task 4 with the suites) pins
    the §8(5) storm bound and the burst-coalescing rows; the test double's `emitTick` helper drives
    the clock rows (task 5). Test-only surface; production contracts untouched.
-3. **The design §4 `acceptsMouseMovedEvents` fallback was NOT taken.** The plain tracking-area
-   path is what shipped (task 6); no ratified-deviation record is needed — noted here so the
-   fallback's absence is a deliberate, visible decision, with functional review (§7) as the
-   arbiter if delivery is gated on the window flag.
-4. **Interim-commit shape (no final-state deviation):** task 1 grew `AVMediaPlayback` with a
-   documented compile-only `seek` body; task 2 replaced it with the scheduler-routed mechanism.
-   Visible only in the interim commit (`3fce528`), never in the story's final state.
+3. **The design §4 `acceptsMouseMovedEvents` fallback is TAKEN (review-ratified deviation).**
+   Review found the gap: AppKit gates `mouseMoved` delivery on `NSWindow.acceptsMouseMovedEvents`
+   (default off), so the tracking area could exist while the window never delivers — the bar
+   would never show. `PlayerSurfaceView` now enables the flag for **its own window only**
+   (idempotent, asserted on attach and on every update — task 6's file, review commit
+   `3a6bf2d`), exactly the design §4 recorded fallback ("the surface enables it for its own
+   window, one AppKit line"). One AppKit line, scoped; functional review (§7) confirms delivery.
+4. **Clock queue correction (review fix, design §0.2/§3):** the periodic observer originally
+   passed `queue: nil` (the main queue) and then hopped to the main actor — the design specifies
+   an off-main source with marshaling at the boundary. The observer now runs on a dedicated
+   serial queue (`com.guits.InstantPlayer.time-observer`, one per session, review commit
+   `28ec455`); the ≤ 12/s cadence row stayed green throughout.
+5. **Review-loop fixes (this loop's commits, each with the full gate green):** hidden-bar ticks
+   no longer rebuild the bar model — zero feed invalidation while hidden (design §3/§8(3),
+   `1067119`, regression test `hiddenTicksCauseNoBarModelChangeAndVisibilityRebuilds`);
+   scrub-state consistency on every exit path — a paging gesture mid-drag and a failed-guard
+   release can never wedge `isScrubbing` (S12 hygiene, `f8ed667`, two regression tests); the end
+   handover resets the displayed position to 0 in **both** branches (S14 asymmetry, `4d90f9a`,
+   playing-path assertion added).
 
 No other deviation from the approved design exists: signatures, budgets, fixtures, and file
 inventory match the design §1–§13 as approved.
