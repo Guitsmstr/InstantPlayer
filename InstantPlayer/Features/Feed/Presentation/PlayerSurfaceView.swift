@@ -3,7 +3,8 @@
 //  InstantPlayer
 //
 //  Feed Presentation — the display-ready-view wrap (E2-S3, design §1.1,
-//  §4 — S8; D27).
+//  §4 — S8; D27) grown the mouse-move tracking area (E3-S1, design §4 —
+//  S3).
 //
 
 import AppKit
@@ -16,25 +17,91 @@ import SwiftUI
 /// Presentation: the layer-hosting view is built and configured in Feed
 /// Data (`MediaPlayback.makeDisplayView()`), and this wrap performs no
 /// media operation of any kind. `makeNSView` vends the view once per
-/// session and `updateNSView` is a no-op — the handle is immutable per
-/// session, so `body` renders a pre-wrapped surface, never a per-frame
-/// rebuild (design §8(5), RNF-02).
+/// session and `updateNSView` refreshes only the coordinator-held
+/// mouse-move plumbing — the wrap itself stays once-per-session, so
+/// `body` renders a pre-wrapped surface, never a per-frame rebuild
+/// (design §8(5), RNF-02).
+///
+/// E3-S1 (design §4): the wrap installs an `NSTrackingArea` on the
+/// surface it already vends — AppKit-only plumbing on the Presentation
+/// side; the Data display view stays interaction-free (D27). The area
+/// (`.mouseMoved`, `.activeInKeyWindow`, `.inVisibleRect`) covers the
+/// whole surface (full-bleed; the letterbox is inside it) and stays
+/// correct across resize and native fullscreen (`.inVisibleRect`); each
+/// `mouseMoved` reaches the view model through the coordinator-held
+/// closure as `noteMouseMoved(itemID:)` — the deterministic 1:1
+/// mechanism, no focus dependence (E2-S2 evidence §8's lesson).
 struct PlayerSurfaceView: NSViewRepresentable {
     /// The live playback-session handle — its display view is vended
     /// exactly once, in `makeNSView`.
     let playback: any MediaPlayback
 
-    func makeNSView(context _: Context) -> NSView {
+    /// The item id this surface's page carries — every `mouseMoved`
+    /// reports it. Unwired (`nil`) until the feed drills the real value
+    /// (task 7's wiring); unwired movement reports nothing.
+    var itemID: MediaItem.ID?
+
+    /// The mouse-moved sink (design §4) — the coordinator-held closure.
+    /// Unwired (a no-op) until task 7 drills the view model's
+    /// `noteMouseMoved(itemID:)`.
+    var onMouseMoved: (MediaItem.ID) -> Void = { _ in }
+
+    func makeNSView(context: Context) -> NSView {
         // The seam's contract (E2-S3 design §2, §4): a display-ready
         // platform view — the Data conformance's layer-hosting `NSView`
         // (`AVPlayerLayer`, `.resizeAspect`). The conditional cast is the
         // honest bridge over the opaque `AnyObject`; the fallback empty
         // view keeps the wrap total without ever processing media.
-        playback.makeDisplayView() as? NSView ?? NSView()
+        let view = playback.makeDisplayView() as? NSView ?? NSView()
+        // The tracking area (design §4): installed once, on the vended
+        // surface — `.inVisibleRect` recomputes the rect from the view's
+        // visible rect on every tracking update, so resize and native
+        // fullscreen need no geometry code here.
+        view.addTrackingArea(
+            NSTrackingArea(
+                rect: .zero,
+                options: [.mouseMoved, .activeInKeyWindow, .inVisibleRect],
+                owner: context.coordinator,
+                userInfo: nil
+            )
+        )
+        return view
     }
 
-    func updateNSView(_: NSView, context _: Context) {
-        // No-op by contract (E2-S3 design §4): the handle is immutable
-        // per session — nothing to update, ever.
+    func updateNSView(_: NSView, context: Context) {
+        // The coordinator-held plumbing is the only mutable part (design
+        // §4): refreshed on every update so `mouseMoved` always reaches
+        // the current page's id and sink — the vended view itself is
+        // never touched (once per session, E2-S3 design §4).
+        context.coordinator.itemID = itemID
+        context.coordinator.onMouseMoved = onMouseMoved
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(itemID: itemID, onMouseMoved: onMouseMoved)
+    }
+
+    /// The tracking area's owner (design §4): forwards each `mouseMoved`
+    /// to the sink with the page's item id. Main-actor confined — AppKit
+    /// delivers on the main thread; the sink is the view model's
+    /// `noteMouseMoved(itemID:)`.
+    @MainActor
+    final class Coordinator: NSObject {
+        var itemID: MediaItem.ID?
+        var onMouseMoved: (MediaItem.ID) -> Void
+
+        init(itemID: MediaItem.ID?, onMouseMoved: @escaping (MediaItem.ID) -> Void) {
+            self.itemID = itemID
+            self.onMouseMoved = onMouseMoved
+        }
+
+        /// `@objc` on purpose: the tracking area messages its owner
+        /// through the Objective-C runtime, and an `NSObject` (not an
+        /// `NSResponder`) must expose the selector for the dispatch to
+        /// find it. AppKit delivers on the main thread.
+        @objc func mouseMoved(with _: NSEvent) {
+            guard let itemID else { return }
+            onMouseMoved(itemID)
+        }
     }
 }

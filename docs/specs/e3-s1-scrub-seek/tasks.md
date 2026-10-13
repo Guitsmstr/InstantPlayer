@@ -273,9 +273,9 @@ Deliverable (code): `InstantPlayer/Features/Feed/Presentation/PlaybackControlBar
 `InstantPlayer/Features/Feed/Presentation/PlayerSurfaceView.swift` (tracking area + coordinator-
 held callback).
 
-- [ ] **6.1** Load `swift-security` + `swift-performance` before editing (SwiftUI views + gesture
+- [x] **6.1** Load `swift-security` + `swift-performance` before editing (SwiftUI views + gesture
   geometry — skill §2 applies directly).
-- [ ] **6.2** `PlaybackControlBarView` per design §4 — a dumb binder over `PlaybackControlBarModel`
+- [x] **6.2** `PlaybackControlBarView` per design §4 — a dumb binder over `PlaybackControlBarModel`
   (D8: no policy in views): progress track (thin line, full width), scrubber thumb riding on it,
   elapsed label (leading), duration label (trailing) — **exactly the four named elements** (spec
   non-goals exclude everything else). Gesture geometry is reported as **fractions** (`0...1` along
@@ -286,7 +286,7 @@ held callback).
   scrub never starts a paging gesture; drags track past the strip's bounds once started (standard
   SwiftUI semantics). `mm:ss` formatting is a tiny pure helper evaluated only in the two label views
   (skill §2).
-- [ ] **6.3** `PlayerSurfaceView` per design §4 — AppKit-only plumbing on the Presentation side (no
+- [x] **6.3** `PlayerSurfaceView` per design §4 — AppKit-only plumbing on the Presentation side (no
   AVFoundation/AVKit import in any Presentation file; the Data display view stays interaction-free
   — D27): an `NSTrackingArea` (`.mouseMoved`, `.activeInKeyWindow`, `.inVisibleRect`) on the surface
   the wrap already vends, correct across resize and native fullscreen (`.inVisibleRect` /
@@ -295,7 +295,7 @@ held callback).
   `noteMouseMoved(itemID:)`. If functional review shows `mouseMoved` gated on
   `NSWindow.acceptsMouseMovedEvents`, the surface enables it for its own window (one AppKit line) —
   a **ratified deviation** recorded in task 11 if taken (design §4's recorded fallback).
-- [ ] **6.4** Full gate. Fix, tick; commit:
+- [x] **6.4** Full gate. Fix, tick; commit:
   `feat(e3-s1): task 6 — control bar view and mouse-move tracking area`.
 
 ## Task 7 — Overlay wiring: `FeedItemView` + `FeedView` `[P]` · design §4, §7
