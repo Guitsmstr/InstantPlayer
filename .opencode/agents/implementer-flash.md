@@ -1,7 +1,6 @@
 ---
 description: Flash implementer — mechanical, well-scoped tasks assigned by the SDD coordinator
 mode: subagent
-model: zai-coding-plan/glm-5.3-flash
 steps: 60
 permissions:
   - action: edit

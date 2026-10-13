@@ -1,7 +1,6 @@
 ---
 description: Adversarial reviewer — validates finished work against spec and pillar checklists
 mode: subagent
-model: zai-coding-plan/glm-5.3-flash
 steps: 30
 permissions:
   - action: edit

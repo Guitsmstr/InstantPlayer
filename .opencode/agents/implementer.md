@@ -1,7 +1,6 @@
 ---
 description: Executes approved tasks.md against the spec — one continuous context per story
 mode: subagent
-model: zai-coding-plan/glm-5.3-flash
 steps: 120
 permissions:
   - action: edit

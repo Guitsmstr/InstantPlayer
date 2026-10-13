@@ -1,20 +1,21 @@
 {
-  // Harness model tiering (adapted from an earlier project; D2, 2026-10-09 — tiering per
-  // stakeholder requests; spec-author re-pinned to xiaomi-token-plan-sgp/mimo-v2.6-pro):
-  //   most   = xiaomi-token-plan-sgp/mimo-v2.6-pro     (spec-author — product thinking)
-  //   medium = xiaomi-token-plan-sgp/mimo-v2.6-flash (validator)
-  //            implementer runs zai-coding-plan/glm-5.3-flash (frontmatter)
-  //            implementer-flash runs opencode-go/deepseek-v4.1-flash
-  //   least  = opencode-go/deepseek-v4.1-flash       (explore, title, summary)
+  // Harness model tiering — single source of truth (D29, 2026-10-12; supersedes the
+  // earlier split pinning): agent frontmatter carries no `model` field — pin only
+  // here. To retier any agent, edit this block only; a frontmatter `model:` would
+  // silently win over it (the drift documented and fixed in docs/model-pinning-drift.md).
+  //   spec-author           = xiaomi-token-plan-sgp/mimo-v2.6-pro   ("most" — product thinking)
+  //   implementer           = zai-coding-plan/glm-5.3-flash
+  //   implementer-flash     = opencode-go/deepseek-v4.1-flash       (mechanical tasks)
+  //   validator             = opencode-go/deepseek-v4.1-flash       (adversarial review)
+  //   explore/title/summary = opencode-go/deepseek-v4.1-flash       (cheap utility tier)
   // `sdd` is intentionally unpinned: it inherits the session model (/models) —
   // pick your best model for coordinator sessions.
-  // Where an agent file's frontmatter pins a model, the frontmatter wins.
   "$schema": "https://opencode.ai/config.json",
   "agents": {
     "spec-author": { "model": "xiaomi-token-plan-sgp/mimo-v2.6-pro" },
-    "implementer": { "model": "xiaomi-token-plan-sgp/mimo-v2.6-flash" },
+    "implementer": { "model": "zai-coding-plan/glm-5.3-flash" },
     "implementer-flash": { "model": "opencode-go/deepseek-v4.1-flash" },
-    "validator": { "model": "xiaomi-token-plan-sgp/mimo-v2.6-flash" },
+    "validator": { "model": "opencode-go/deepseek-v4.1-flash" },
     "explore": { "model": "opencode-go/deepseek-v4.1-flash" },
     "title": { "model": "opencode-go/deepseek-v4.1-flash" },
     "summary": { "model": "opencode-go/deepseek-v4.1-flash" }
