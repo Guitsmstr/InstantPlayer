@@ -199,8 +199,10 @@ evidence is supporting material, never the approval:
    `1067119`, regression test `hiddenTicksCauseNoBarModelChangeAndVisibilityRebuilds`);
    scrub-state consistency on every exit path — a paging gesture mid-drag and a failed-guard
    release can never wedge `isScrubbing` (S12 hygiene, `f8ed667`, two regression tests); the end
-   handover resets the displayed position to 0 in **both** branches (S14 asymmetry, `4d90f9a`,
-   playing-path assertion added).
+   handover resets the displayed position to 0 in **both** branches (S14 asymmetry, `4d90f9a`),
+   and the playing-path reset is now pinned: `endHandoverFromClickAndKeyStepsRestartsPlaying`
+   drives the displayed position non-zero (a tick, then the ordinary `0.98` seek) before each
+   handover and asserts `0` after it — the test fails without the reset (review loop 2).
 
 No other deviation from the approved design exists: signatures, budgets, fixtures, and file
 inventory match the design §1–§13 as approved.

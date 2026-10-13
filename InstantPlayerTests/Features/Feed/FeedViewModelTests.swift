@@ -1968,18 +1968,31 @@ struct FeedViewModelTests {
         )
         let item = collection.items[0]
 
+        // Drive the position off zero first (a tick records no seek): the
+        // click-path assertion below only pins the reset if it starts non-zero.
+        handle.emitTick(40)
+        let primed = await Self.waitFor(
+            { viewModel.displayedPosition == 40 },
+            "the clock consumer must be live"
+        )
+        guard primed else { return }
+
         viewModel.seekFromTrackClick(itemID: item.id, fraction: 1.0)
         #expect(handle.restartCount == 1, "the click at the end restarts the same video (S14, D26)")
         #expect(handle.seeks.isEmpty, "the handover is not a seek (D26's restart)")
         #expect(
             viewModel.displayedPosition == 0,
-            "the labels/thumb report the restarted beginning in both branches (S14 — the review fix)"
+            "the click path resets a non-zero displayed position to the restarted beginning (S14 — the review fix)"
         )
         #expect(viewModel.currentItemID == item.id, "the index is never touched (R15)")
 
         viewModel.seekFromTrackClick(itemID: item.id, fraction: 0.98)
         viewModel.seekForwardByKeyboard() // 98 + 5 clamps to the duration
         #expect(handle.restartCount == 2, "the key step at the end shares the rule (S14)")
+        #expect(
+            viewModel.displayedPosition == 0,
+            "the key-step path resets a non-zero displayed position too (S14 — the review fix)"
+        )
         #expect(
             Self.seekSeconds(handle) == [98] && Self.seekTolerances(handle) == [.exact],
             "only the ordinary seek was issued"
