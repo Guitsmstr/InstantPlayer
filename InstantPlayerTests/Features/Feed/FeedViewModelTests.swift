@@ -1971,6 +1971,10 @@ struct FeedViewModelTests {
         viewModel.seekFromTrackClick(itemID: item.id, fraction: 1.0)
         #expect(handle.restartCount == 1, "the click at the end restarts the same video (S14, D26)")
         #expect(handle.seeks.isEmpty, "the handover is not a seek (D26's restart)")
+        #expect(
+            viewModel.displayedPosition == 0,
+            "the labels/thumb report the restarted beginning in both branches (S14 — the review fix)"
+        )
         #expect(viewModel.currentItemID == item.id, "the index is never touched (R15)")
 
         viewModel.seekFromTrackClick(itemID: item.id, fraction: 0.98)

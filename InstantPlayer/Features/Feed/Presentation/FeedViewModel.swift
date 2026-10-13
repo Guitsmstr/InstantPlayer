@@ -571,13 +571,15 @@ final class FeedViewModel {
     /// rules — playing (or `wasPlayingBeforeDrag` on a release) →
     /// `handle.restart()` (seek-zero-and-play); paused →
     /// `handle.seek(to: 0, .exact)` and stay paused on the frozen frame
-    /// at the beginning. The index is never touched (product R15 — no
-    /// auto-advance by construction).
+    /// at the beginning. **Both branches reset the displayed position to
+    /// 0** — the labels/thumb report the restarted beginning immediately,
+    /// not the stale end position until the next tick. The index is never
+    /// touched (product R15 — no auto-advance by construction).
     private func endHandover(resumeAfter: Bool, handle: any MediaPlayback) {
+        displayedPosition = 0
         if resumeAfter {
             handle.restart()
         } else {
-            displayedPosition = 0
             handle.seek(to: 0, tolerance: .exact)
             exactSeekSuppressUntil = now() + Self.exactSeekTickSuppression
         }
