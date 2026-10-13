@@ -32,7 +32,8 @@ implementation, each task's boxes in its own commit (bookkeeping — not a secon
 6. **Contracts are frozen:** the design §2 seam additions — `enum MediaSeekTolerance: Sendable {
    case preview, exact }`, `var duration: TimeInterval { get }`, `var timeUpdates: AsyncStream<
    TimeInterval> { get }`, `func seek(to seconds: TimeInterval, tolerance: MediaSeekTolerance)` —
-   and their semantics (`.preview` tolerant + coalesced, `.exact` zero-tolerance + immediate,
+   and their semantics (`.preview` coalesced, `.exact` immediate/superseding — both zero-tolerance
+   landings,
    synchronous dispatch, never changes rate); `MediaPlaybackEvent` **untouched** (rare events keep
    their never-dropped semantics); the design §5 entry points (`beginScrub`/`scrubChanged`/
    `scrubEnded`, `seekFromTrackClick`, `seekBackwardByKeyboard`/`seekForwardByKeyboard`,
@@ -224,9 +225,10 @@ existing one-frame + short multi-frame MP4 fixtures), the §8(2) performance cas
   stop.
 - [x] **4.4** Conformance rows per design §10.2 (the real `AVMediaPlayback`): `seek(.exact)` lands
   `currentTime` **within one frame duration** of the target (the §2 frame-exact contract pinned);
-  `seek(.preview)` lands approximate and fast; a burst of N preview seeks dispatches **far fewer**
-  actual seeks (internal dispatch counter via `@testable`) and the final target lands (S6 storm
-  bound + S7 authority); `.exact` during a preview storm lands immediately; `duration` correct;
+  `seek(.preview)` lands the frame under the scrubber, fast; a burst of N preview seeks dispatches
+  **far fewer** actual seeks (internal dispatch counter via `@testable`) and the final target
+  lands (S6 storm bound + S7 authority); `.exact` during a preview storm lands immediately;
+  `duration` correct;
   `timeUpdates` ticks at **≤ 12/s** while playing and produces nothing while paused (§3);
   `stop()` finishes **both** streams and removes the observer; a superseded session drops pending
   seeks (E2-S3 §10.2 patterns carry).
@@ -248,7 +250,7 @@ no UI, no window, no AVFoundation).
   **without** flipping `isPlaybackPaused`; change issues `.preview` to the mapped target and moves
   `displayedPosition`; end issues `.exact` to the final target; was-playing → `resume()`, was-paused
   → stays paused; the idle countdown is suspended during the drag and re-armed after (S3(a)).
-- [x] **5.3** Tolerant/precision split (S6, S7): every `scrubChanged` call is `.preview`; the
+- [x] **5.3** Dispatch-policy split (S6, S7): every `scrubChanged` call is `.preview`; the
   release, the track click, and the key steps are `.exact` — asserted at the spy handle.
 - [x] **5.4** Key steps (S2, S9, S10): ±5 s from `displayedPosition` (two quick presses net 10 s —
   no drift); auto-repeat = repeated steps; rate untouched in both play states.

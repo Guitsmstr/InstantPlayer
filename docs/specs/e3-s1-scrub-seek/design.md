@@ -30,7 +30,7 @@ S-/product-R numbers.
 | S3 bar lifecycle & contents | §4 (visibility policy, idle timer) | S12 guard matrix | §5 (the matrix table) |
 | S4 images: no bar, no seek | §4 (model is `nil`), §5 (guard) | S13 clamping | §5 (mapping + clamp) |
 | S5 drag pauses + live frame | §5 (drag machine), §2 (preview seeks) | S14 end handover | §5 (end rule → D26 loop) |
-| S6 tolerant preview | §2 (`.preview`, coalesced) | S15 nothing carried | §7 (fresh session carries none) |
+| S6 zero-tolerance preview | §2 (`.preview`, coalesced) | S15 nothing carried | §7 (fresh session carries none) |
 | S7 frame-exact release | §2 (`.exact`), §8 budget 2 | S16 read-only | §9 (Security, RNF-04) |
 | S8 state restoration | §5 (`wasPlayingBeforeDrag`) | S17 responsiveness | §8 (Performance, RNF-02) |
 | S9 hold-to-repeat | §6 (repeat parity) | | |
@@ -120,9 +120,10 @@ func seek(to seconds: TimeInterval, tolerance: MediaSeekTolerance)  // synchrono
 
 Contract on `seek` (the S6/S7 split made structural):
 
-- **`.preview` — the drag's live preview (S1, S5, S6): tolerant and coalesced.** The conformance
-  issues a maximum-tolerance seek (`.positiveInfinity` both sides — fastest serve, approximate
-  landing — exactly what S6's "approximate position while the drag lasts" asks for). Dispatch is
+- **`.preview` — the drag's live preview (S1, S5, S6): zero-tolerance and coalesced.** The
+  conformance issues a **zero-tolerance** seek (`.zero`/`.zero` — the displayed frame is the frame
+  whose presentation interval contains the requested point; the `.preview`/`.exact` split is
+  dispatch policy, not landing slack). Dispatch is
   **latest-wins and bounded**: at most one seek is in flight; while one is in flight, newer preview
   targets *replace* the pending one (never queued); when the in-flight seek completes, exactly one
   seek to the newest pending target is issued. A fast drag therefore cannot build a seek storm — the
@@ -274,8 +275,8 @@ doubles as input validation (no unbounded geometry ever reaches the player).
    intent is preserved for S8); suspend the idle policy; enter scrubbing.
 2. `scrubChanged(itemID:fraction:)` — guard `isScrubbing`; `target = clamp(fraction × duration)`;
    `displayedPosition = target` (labels and thumb track the pointer exactly — S5);
-   `handle.seek(to: target, .preview)` (S6 — tolerant, coalesced; the frame follows at the §8(1)
-   cadence and may lag the pointer within the S6 budget).
+   `handle.seek(to: target, .preview)` (S6 — zero-tolerance, coalesced; the frame follows the point
+   under the scrubber at the §8(1) cadence).
 3. `scrubEnded(itemID:fraction:)` — guard `isScrubbing`; `target = clamp(...)`;
    if `target == duration` → **end handover** (S14 — supersedes the plain restore, see below);
    else `handle.seek(to: target, .exact)` (S7) and restore per S8: `wasPlayingBeforeDrag` →
@@ -370,11 +371,12 @@ story budgets (the E2-S1–E2-S3 measured-evidence precedent):
 
 1. **Drag preview fluidity (S6, S17):** pointer movement → preview seek *issued* in the same
    main-actor turn (O(1) work; ≤ 16 ms — one display frame); dispatch bounded to ≤ 1 seek in flight
-   (§2), steady-state preview rate bounded by tolerant-seek completion (typically 10–30/s); issued
+   (§2), steady-state preview rate bounded by zero-tolerance seek completion (measured ≈2–7 ms per
+   seek, so the rate is pointer-limited); issued
    → **preview frame on screen ≤ 150 ms p95** for typical media (≤ 1080p clips) — the visible
    staleness bound of a fast drag. The labels/thumb track the pointer with zero lag by construction
-   (§5). Heavy/long-GOP media can exceed the frame bound — accepted, it is exactly what S6's
-   "approximate while the drag lasts" tolerates.
+   (§5). Heavy/long-GOP media can exceed the frame bound — accepted: the preview still lands the
+   frame under the scrubber (S6), the coalescing just paces the updates.
 2. **Frame-exact landing and key steps (S7, S2):** release/keypress/click → `.exact` issued
    immediately (≤ 16 ms); issued → landed frame **≤ 300 ms p95 typical (≤ 500 ms atypical heavy
    media)**. The number is the zero-tolerance decode cost (§2 honesty limits); S8's resume applies
@@ -466,7 +468,7 @@ scripted handle) — no UI, no window, no AVFoundation:
 | Case (requirements) | Expected |
 |---|---|
 | Drag machine (S5–S8) | begin records `wasPlayingBeforeDrag` + calls `pause()` without flipping `isPlaybackPaused`; change issues `.preview` to the mapped target and moves `displayedPosition`; end issues `.exact` to the final target; was-playing → `resume()`, was-paused → stays paused; idle countdown suspended during, re-armed after (S3(a)) |
-| Tolerant/precision split (S6, S7) | every `scrubChanged` call is `.preview`; the release, track click, and key steps are `.exact` — asserted at the spy handle |
+| Dispatch-policy split (S6, S7) | every `scrubChanged` call is `.preview`; the release, track click, and key steps are `.exact` — asserted at the spy handle (both land zero-tolerance) |
 | Key steps (S2, S9, S10) | ±5 s from `displayedPosition` (two quick presses net 10 s — no drift); auto-repeat = repeated steps; rate untouched in both states |
 | Track click (S11) | `.exact` to the mapped target; never `pause()`/`resume()`; the play/pause state observable-unchanged |
 | Guard matrix (S12) | the §5 table as tests — non-current, mid-gesture, image, unavailable, mid-drag keyboard, `duration <= 0` all consumed no-ops (spy records nothing) |
@@ -485,7 +487,7 @@ stay green.
 
 Fixtures per E2-S3 §10.2's pattern (`MediaFixture` one-frame + short multi-frame MP4, throwaway temp
 folders): `seek(.exact)` lands `currentTime` within one frame duration of the target (the §2
-frame-exact contract pinned); `seek(.preview)` lands approximate and fast; a burst of N preview
+frame-exact contract pinned); `seek(.preview)` lands the frame under the scrubber, fast; a burst of N preview
 seeks dispatches far fewer actual seeks (internal dispatch counter via `@testable`) and the final
 target lands (S6's storm bound + S7's authority); `.exact` during a preview storm lands immediately;
 `duration` correct; `timeUpdates` ticks at ≤ 12/s while playing and produces nothing while paused
@@ -616,7 +618,8 @@ kern; the coordinator appends them at converge):
   story's four elements are the whole contract — spec non-goals). The keyboard table has room for
   more rows (D28's frozen-contract pattern). Double-click remains meaningless (spec non-goal).
 - **Accepted sharp edges, recorded honestly:** the preview frame can trail the scrubber by up to the
-  §8(1) bound while the labels track the pointer exactly (S6's tolerance is the contract); strip
+  §8(1) bound while the labels track the pointer exactly (S6's zero-tolerance landing is the
+  contract); strip
   clicks outside the track are silent consumed no-ops (S11's carve-out is the whole strip, the
   spec's track-click is the track alone); a drag originating on the strip scrubs even when the
   pointer moves vertically (the strip owns its drags — §4); the bar shows on mouse *movement*, so
