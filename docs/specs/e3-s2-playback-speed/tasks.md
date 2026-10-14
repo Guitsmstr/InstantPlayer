@@ -409,7 +409,7 @@ boundary and reports it to the coordinator; this task-phase deliverable is exact
 
 Deliverable (docs): `docs/decisions.md` — append the three ADRs of design §11.
 
-- [ ] **9.1** Append three ADRs **continuing the numbering from the log's current end** (the house
+- [x] **9.1** Append three ADRs **continuing the numbering from the log's current end** (the house
   rule — AGENTS.md rule 6; the e3-s1 task-10 precedent). The design §11 plans D36–D38 and at
   authoring the log ends at **D35**, so the next free numbers are **D36, D37, D38**; if the log moves
   before this task runs, use the next free numbers and record the shift in task 10's deviations list
@@ -422,7 +422,7 @@ Deliverable (docs): `docs/decisions.md` — append the three ADRs of design §11
   `Menu` preset picker + ≠1× monospaced badge on the overlay bar strip (bar contents: four → six
   elements)** (→ S1, S3, S4) · **D38 — Keyboard speed rows on the feed-key router: `[`/`]` (33/30) =
   one-preset steps with paging's repeat parity and ladder-end clamps** (→ S5–S7, S16).
-- [ ] **9.2** Pull each entry's alternatives from the matching design §12 rows — D36: continuous
+- [x] **9.2** Pull each entry's alternatives from the matching design §12 rows — D36: continuous
   slider/custom values/finer steps, per-video speed memory, bare `Float` rate on the seam, stepping
   policy on the enum, `player.play()` for resume/restart, `playImmediately(atRate:)` for every rate
   change, the handle-only rate-before-play shape, a new `MediaPlaybackRate` seam/handle, the pitch
@@ -431,13 +431,13 @@ Deliverable (docs): `docs/decisions.md` — append the three ADRs of design §11
   always visible, speed menu on the tap surface, persisting the speed;
   D38: `.stepSpeed(Int)` as one payload route case, repeat-ignored `[`/`]` like space, passing the
   keys through on ineligible states, speed keys showing the bar as feedback.
-- [ ] **9.3** Status `accepted`. Each entry cites its implementing task commits (tasks 1–6) in its
+- [x] **9.3** Status `accepted`. Each entry cites its implementing task commits (tasks 1–6) in its
   consequences. D36 carries the approved F2/F3 readings and the §3 honesty limit (a selection landing
   in the one-executor-hop window of a starting session can leave that hop of audio at the previous
   selection — frames never show the wrong rate); D37 carries the approved F1 reading (keyboard steps
   never show the bar) and the open-menu/idle sharp edge with its recorded fallback (§4); D38 carries
   the frozen-table contract change (33/30 no longer pass through).
-- [ ] **9.4** Stage, then gate `./scripts/validate.sh --staged` (docs-only mode: ADR format +
+- [x] **9.4** Stage, then gate `./scripts/validate.sh --staged` (docs-only mode: ADR format +
   internal links); fix; tick; commit:
   `docs(e3-s2): task 9 — ADRs D36–D38 — rate seam, speed surface, and keyboard speed rows`.
 
