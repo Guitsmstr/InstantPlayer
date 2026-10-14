@@ -140,30 +140,30 @@ Deliverable (code): `InstantPlayer/Features/MediaList/Presentation/MediaListView
 **Covers:** S1, S2, S3–S5 (toggle + switch surfaces), S6–S10 (gesture forwarding into the machine),
 S12–S13 (activation intent), S16, S17.
 
-- [ ] **3.1** Load `swift-security` + `swift-performance` before editing (SwiftUI view cost + the
+- [x] **3.1** Load `swift-security` + `swift-performance` before editing (SwiftUI view cost + the
   long-list surface — skill §2 directly).
-- [ ] **3.2** `MediaListViewModel` (`@MainActor @Observable`) per design §3.2/§6.1: holds the one
+- [x] **3.2** `MediaListViewModel` (`@MainActor @Observable`) per design §3.2/§6.1: holds the one
   `MediaListSelection` value; `togglePresentation()` flips presentation only (S5/S18 are structural —
   selection untouched); `apply(collection:)` runs `reset()` **only when a new snapshot value
   arrives** (§3.2's single reset point); gesture-forwarding methods delegate to the machine; the
   activation intent is an injected callback (`activate(itemID:)`) — the model never references
   `FeedViewModel` (D7; §4's cross-feature mediation).
-- [ ] **3.3** Highlight per design §3.3 (S17): a derived, read-only projection of the feed's
+- [x] **3.3** Highlight per design §3.3 (S17): a derived, read-only projection of the feed's
   `currentItemID` onto the rows — a rendering input the machine has no API to accept; on
   presentation `MediaListView` programs `scrollPosition(id:)` to that row as a **direct jump, no
   animation** (§7(1)). Flag the §12(4) scroll-position risk for the coordinator's first functional
   spike; if macOS 26 misbehaves, escalate early — §12(4)'s fallbacks are an ADR, never a silent swap.
-- [ ] **3.4** Surface per design §2 (S1, S2, S15): `ScrollView` + `LazyVStack` (§0 fact 1 — the
+- [x] **3.4** Surface per design §2 (S1, S2, S15): `ScrollView` + `LazyVStack` (§0 fact 1 — the
   chosen alternative, §11), rows = `collection.items` in array order showing `item.name`, identity
   `MediaItem.ID`, rows immutable per snapshot; `MediaListRowView` = one `Text(name)` + selection /
   highlight styling + two O(1) membership checks (≤ 1 ms `body`, §7(2)). No sorting, headers,
   grouping, thumbnails, metadata columns, or per-row controls (non-goals).
-- [ ] **3.5** `ViewToggleControl` per design §5.2 (S4, S16): one button bound to
+- [x] **3.5** `ViewToggleControl` per design §5.2 (S4, S16): one button bound to
   `togglePresentation()`, label flipping "List"/"Feed" with the corresponding system icon (constant
   copy), in the list's minimal top bar (always visible) and over the feed riding the demand-driven
   overlay strip — placed **without editing `Features/Feed/**`** (standing rule 8; a Feed edit = stop
   and report). Nothing renders in the welcome state (S16).
-- [ ] **3.6** **Done:** full gate green — the app compiles with the MediaList feature present and
+- [x] **3.6** **Done:** full gate green — the app compiles with the MediaList feature present and
   the welcome/feed surfaces byte-for-byte unchanged. Commit:
   `feat(e5-s1): task 3 — MediaList presentation layer`.
 
