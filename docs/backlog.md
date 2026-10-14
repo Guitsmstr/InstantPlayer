@@ -39,8 +39,10 @@ All E2–E5 feature stories implement on the architecture per [docs/architecture
 
 - [x] **E3-S1 · Scrub & seek** (move playback to the indicated point in the current video) · `done`
   - Requirements: R13 (playback)
-- [ ] **E3-S2 · Playback speed** (apply the selected speed to the current video) · `in progress`
+- [x] **E3-S2 · Playback speed** (apply the selected speed to the current video) · `done`
   - Requirements: R14 (playback)
+  - Delivered per [docs/specs/e3-s2-playback-speed/](specs/e3-s2-playback-speed/spec.md) (S1–S18): five-preset ladder (0.25×–2×) on the control bar plus `[`/`]` stepping with hold-to-repeat, ≠1× badge, session-wide carry (relaunch at 1×), start-at-speed, seek/loop preservation (ADRs D36–D38). Functional review: 11/11 items passed (2026-10-14); two review notes deferred (see Follow-ups).
+  - Residual (ratified 2026-10-14): the pre-existing E2-S2 display-budget test (≤300 ms p95) is host-speed sensitive and can flake under parallel-runner load; E3-S2's interference was reduced (`dd1ffe0`) and a green-run converge protocol was ratified (story evidence §8.1).
 - [ ] **E3-S3 · Volume & mute** (app-level keyboard volume, mute toggle, state restored on relaunch) · `draft`
   - Requirements: R18–R20 (volume)
 
@@ -63,3 +65,8 @@ All E2–E5 feature stories implement on the architecture per [docs/architecture
   - Requirements: R30–R33 (list view & operations)
 
 Coverage (E2–E5): the ten ranges place R1–R15 and R17–R40 exactly once each (E2-S1: 9, E2-S2: 8, E2-S3: 4, E3: 5, E4: 6, E5: 7); all nine capability groups map onto story-sized work. R16 is deliberately not assigned to a single story — it is the cross-cutting responsiveness requirement (no stalls across browsing, transport, ordering, and view switches) spanning every UI story, and each story's own design carries its share of the responsiveness budget.
+
+## Follow-ups (unscheduled)
+
+- **Control-bar UI polish** — stakeholder notes from the E3-S2 functional review (2026-10-14): redesign the progress bar, and revisit the speed-menu button labeling (the constant "Speed" label with the speed names re-displayed in the menu reads redundant). Fold into the control-bar redesign once the specs are finished.
+- **E2-S2 display-budget hardening** — re-record or harden the 24 MP display-budget p95 test (≤300 ms) on a thermally neutral machine; the test is host-speed/load sensitive and can flake under parallel-runner load (E3-S2 evidence §8.1; E3-S2's interference reduced in `dd1ffe0`).
