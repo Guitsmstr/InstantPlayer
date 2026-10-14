@@ -251,16 +251,16 @@ Deliverable (code): `InstantPlayer/App/AppDependencies.swift` (factory),
 Deliverable (tests): `InstantPlayerTests/Features/MediaList/MediaListPerformanceTests.swift` (new —
 XCTest `measure`, the E3-S2 §8 deliberate-exception pattern). **Covers:** S15.
 
-- [ ] **7.1** Load `swift-security` + `swift-performance` (performance is the whole task).
-- [ ] **7.2** Per design §7(7): a unit performance test through the selection machine + row
+- [x] **7.1** Load `swift-security` + `swift-performance` (performance is the whole task).
+- [x] **7.2** Per design §7(7): a unit performance test through the selection machine + row
   projection over generated fixture collections of **10 000 synthetic `MediaItem`s** in an XCTest
   `measure` block — covering the §7(1) switch path (state flip + row projection), the §7(3)
   selection-change path (single/⌘-click O(1) ops, ⇧ range ops), and the arrow-repeat step path
   (idempotent boundary clamps, no backlog).
-- [ ] **7.3** Budgets asserted/reported per design §7: switch ≤ 100 ms p95 to 10k items (≤ 300 ms at
+- [x] **7.3** Budgets asserted/reported per design §7: switch ≤ 100 ms p95 to 10k items (≤ 300 ms at
   50k — degenerate extreme reviewed), selection ≤ 16 ms in one main-actor turn, per-row `body`
   ≤ 1 ms at 60 fps. Measured numbers are recorded in task 11 **from tooling, never from memory**.
-- [ ] **7.4** **Done:** full gate green with the `measure` output captured for evidence. Commit:
+- [x] **7.4** **Done:** full gate green with the `measure` output captured for evidence. Commit:
   `test(e5-s1): task 7 — 10k-item budget measure`.
 
 ## Task 8 — Architecture reference updates `[P]` · design §12(1)
