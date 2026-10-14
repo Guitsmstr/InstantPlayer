@@ -311,6 +311,20 @@ evidence is supporting material, never the approval:
    two-consecutive-green-gates convergence protocol. No production code, no preview code, no
    gate configuration, and no budget semantics were touched.
 
+### 8.1 · Residual-flake ratification — green-run protocol (2026-10-14)
+
+The coordinator/stakeholder decided (2026-10-14) how the residual preview-budget flake of §8
+item 8 is resolved: **proceed on a verified green full-gate run.** The authorized protocol:
+converge/merge happens only on a **verified green full `./scripts/validate.sh` run**; if the
+known flake (`MediaPreviewPerformanceTests.testDisplayBudgetThroughPreviewSeam`, E2-S2's
+untouched p95 budget) fails a run, the run is **retried** — a flake failure is not a product
+defect. The residual is a **pre-existing E2-S2 test/host-speed issue, not an E3-S2 defect**: the
+E3-S2 preview files are unchanged vs `main` (empty diff, §8 item 3) and this story's added
+interference was reduced to the pre-story level in `dd1ffe0` (§8 item 8). **Follow-up (backlog,
+E2-S2 owner):** harden/re-record the display budget — on a thermally neutral machine and/or with
+reduced gate parallelism — so the ≤ 300 ms p95 (N = 20, one allowed exceedance) is deterministic
+again on this host; the ratified budget semantics themselves are unchanged.
+
 No other deviation from the approved design exists: signatures, budgets, the bar form, the route
 table, and the file inventory match the design §1–§13 as approved.
 
