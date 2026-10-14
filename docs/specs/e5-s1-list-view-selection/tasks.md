@@ -96,8 +96,8 @@ E5-S2 seam — and create the empty Data layer with its placement note. Delivera
 `InstantPlayer/Features/MediaList/Data/Data.md` (new, placement note only — no conformance this
 story). **Covers:** S6–S11, S18 (machine semantics), S14 (a pure in-memory value writes nothing).
 
-- [ ] **1.1** Load `swift-security` + `swift-performance` before editing.
-- [ ] **1.2** `MediaListSelection` exactly per design §3: `nonisolated struct` with
+- [x] **1.1** Load `swift-security` + `swift-performance` before editing.
+- [x] **1.2** `MediaListSelection` exactly per design §3: `nonisolated struct` with
   `private(set) var selectedIDs: Set<MediaItem.ID>`, `anchorID`/`leadID: MediaItem.ID?`, and the
   seven mutating ops (`select`, `toggle`, `extend(to:over:)`, `move(_:over:)`, `extend(_:over:)`,
   `clear`, `reset`) over `[MediaItem.ID]` rows. §3.1 semantics exactly: single click sets
@@ -108,9 +108,9 @@ story). **Covers:** S6–S11, S18 (machine semantics), S14 (a pure in-memory val
   boundary repeats (S9); `clear()` drops rows and anchor/lead (S10); `reset()` empties everything
   (S18). Membership O(1) via `Set`; range ops O(range). Pure value — no SwiftUI, no AppKit; the
   file joins the target through synchronized groups (D21) — **no pbxproj edit**.
-- [ ] **1.3** `Data/Data.md` per design §1.1: the placement note — MediaList Data is deliberately
+- [x] **1.3** `Data/Data.md` per design §1.1: the placement note — MediaList Data is deliberately
   empty this story (the list performs no I/O); E5-S2's operations seam conformances land here.
-- [ ] **1.4** **Done:** full gate `./scripts/validate.sh` green — the new type compiles into the app
+- [x] **1.4** **Done:** full gate `./scripts/validate.sh` green — the new type compiles into the app
   target (that proves target membership) and the note is committed. Commit:
   `feat(e5-s1): task 1 — MediaList selection machine`.
 
