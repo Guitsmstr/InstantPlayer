@@ -143,36 +143,36 @@ compile fixes. `MediaPlaybackEvent.swift` is **untouched** (design §1).
 Deliverable (code): `InstantPlayer/Features/Feed/Data/AVMediaPlayback.swift` (extended),
 `InstantPlayer/Features/Feed/Data/AVMediaPlayerService.swift` (extended).
 
-- [ ] **2.1** Load `swift-security` + `swift-performance` before editing (rate writes on user-media
+- [x] **2.1** Load `swift-security` + `swift-performance` before editing (rate writes on user-media
   playback + the AVFoundation audio path — both pillars directly in play).
-- [ ] **2.2** Per-session state per design §2: `private var selectedSpeed: MediaPlaybackSpeed` on the
+- [x] **2.2** Per-session state per design §2: `private var selectedSpeed: MediaPlaybackSpeed` on the
   `@MainActor` conformance, seeded from `startPlayback(for:at:)` and updated only by
   `setPlaybackSpeed`. It dies with the session (a fresh session is seeded again — design §3).
-- [ ] **2.3** Start (S12, S15) per design §2/§3: `AVMediaPlayerService.startPlayback` creates the
+- [x] **2.3** Start (S12, S15) per design §2/§3: `AVMediaPlayerService.startPlayback` creates the
   item, pins `playerItem.audioTimePitchAlgorithm = .spectral` at item creation **before any audio
   renders** (the explicit pin — never the OS default; voices and music keep their pitch at 0.25× and
   2× alike), builds the session with the seeded speed, and calls `player.playImmediately(atRate:
   speed.rawValue)` — replacing today's `playImmediately(atRate: 1)` as the session's first and only
   start call. The rate is part of "ready to play": no 1× beat exists to observe (S12).
-- [ ] **2.4** `setPlaybackSpeed(s)` per design §2 (S10, S11): `selectedSpeed = s`; if `player.rate
+- [x] **2.4** `setPlaybackSpeed(s)` per design §2 (S10, S11): `selectedSpeed = s`; if `player.rate
   != 0` (playing) also `player.rate = s.rawValue` — one O(1) position-preserving write; if
   `player.rate == 0` (paused — the conformance reads the player's own state; no view-model pause flag
   crosses the seam) the write is skipped and the frozen frame stands. `player.rate != 0` ⇔ playing
   is exact here: the ladder's slowest preset is 0.25 (design §0 fact 1).
-- [ ] **2.5** `resume()` and `restart()` per design §2 (S11, S12, S14): both become "play at
+- [x] **2.5** `resume()` and `restart()` per design §2 (S11, S12, S14): both become "play at
   `selectedSpeed`" — `player.rate = selectedSpeed.rawValue` (for `restart()`: `player.seek(to:
   .zero)` first, then the rate write — design §0 fact 1's seek-then-rate ordering). **`player.play()`
   is never called again** (it is a rate-1.0 write — design §0 fact 1 — and would break S12/S14
   structurally).
-- [ ] **2.6** `pause()` and `seek(to:tolerance:)` are **untouched** — pause stays the rate-0 write
+- [x] **2.6** `pause()` and `seek(to:tolerance:)` are **untouched** — pause stays the rate-0 write
   (the paused case), and the seek path never touches rate (S13: a seek never changes the *selected*
   speed; a playing video keeps its pace across a seek).
-- [ ] **2.7** Security per design §9 (S17, RNF-04): reads only inside the D19 session — no
+- [x] **2.7** Security per design §9 (S17, RNF-04): reads only inside the D19 session — no
   `start/stopAccessingSecurityScopedResource`, no session re-derivation; playback/rate APIs only —
   **no** `AVAssetExportSession`, **no** `AVAssetReader`/`AVAssetWriter`, no `write(to:)`, no sidecar,
   no disk cache, **no `UserDefaults`** (S9: no speed preference anywhere); no logging of paths or
   names (D20).
-- [ ] **2.8** Full gate. Fix, tick; commit:
+- [x] **2.8** Full gate. Fix, tick; commit:
   `feat(e3-s2): task 2 — playback-rate mapping in the AVFoundation conformance`.
 
 ## Task 3 — Speed policy in `FeedViewModel` · design §3, §5, §4 (policy), §7
