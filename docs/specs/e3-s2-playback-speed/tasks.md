@@ -446,23 +446,23 @@ Deliverable (docs): `docs/decisions.md` — append the three ADRs of design §11
 Deliverable (docs): `docs/specs/e3-s2-playback-speed/evidence.md` (new) + acceptance-criteria ticks
 in this file.
 
-- [ ] **10.1** Load `swift-security` + `swift-performance` (the walk covers the pillar rows).
-- [ ] **10.2** Traceability walk: **S1–S18 row by row** — for each row name the shipped artifact
+- [x] **10.1** Load `swift-security` + `swift-performance` (the walk covers the pillar rows).
+- [x] **10.2** Traceability walk: **S1–S18 row by row** — for each row name the shipped artifact
   (file, test, or ADR) that satisfies it, with its design section — and then the **product R-map**
   of the spec's acceptance table (product R14 → story outcome → verified by; product R16 via S18 and
   product R17 via S17 as the cross-cutting/inherited notes, never claimed). Record both tables in
   evidence.md.
-- [ ] **10.3** Run the full gate with machine-readable evidence:
+- [x] **10.3** Run the full gate with machine-readable evidence:
   `./scripts/validate.sh --json <tmp>/gate.json` (`<tmp>` = session temp dir outside the repo; the
   JSON is never committed). Quote it **verbatim** into evidence.md — `result` plus every step name
   and status — and confirm the SwiftLint and SwiftFormat steps read `pass`.
-- [ ] **10.4** **UI-test mandate (spec Story context; R14 of E1-S2):** record the decision — flows
+- [x] **10.4** **UI-test mandate (spec Story context; R14 of E1-S2):** record the decision — flows
   are **not** affected, the converge run keeps the **default gate scope with no `--uitests`
   obligation** ([docs/development.md](../../development.md) §3) — together with the spec's honest
   caveat (even a `--uitests` run could not exercise speed selection: no media is open in the launch
   tests) and the fact that `testLaunchPerformance` and the launch tests run green unchanged within
   the full gate of 10.3.
-- [ ] **10.5** Record from tooling, never from memory: (a) the design §8 performance measurements —
+- [x] **10.5** Record from tooling, never from memory: (a) the design §8 performance measurements —
   task 4.5's `measure` numbers against the §8(1) rate-change budgets (issue ≤ 16 ms in-turn; pace
   change ≤ 100 ms p95) and the §8(3) step-path bounds, with §8(2)'s zero-added-start-wait verified by
   the existing start-latency measure not regressing; (b) the **D21 audit** (design §1.1, §9, §13) —
@@ -471,7 +471,7 @@ in this file.
   four read-only keys **unchanged**; (c) the design §9.1 sandbox/media-read review table walked row
   by row (no export/reader/writer, no sidecars, no `UserDefaults`, **no speed preference anywhere** —
   S9, S17).
-- [ ] **10.6** Functional-review checklist: carry the spec's AC list verbatim into evidence.md (the
+- [x] **10.6** Functional-review checklist: carry the spec's AC list verbatim into evidence.md (the
   design §10.3 list — selecting each preset from the bar's speed menu and seeing it applied
   immediately on a playing video; selecting while paused and seeing it applied on resume; the badge
   appearing whenever the speed differs from 1× and vanishing at 1×; `[`/`]` stepping through the
@@ -485,17 +485,17 @@ in this file.
   checklist the stakeholder exercises in `./scripts/app.sh run` — functional evidence is recorded as
   what was exercised and observed in the running app (screenshot paths may be recorded, never read
   back into context); agent-recorded evidence is supporting material, never the approval.
-- [ ] **10.7** Deviations honest: list every deviation from the approved design (files, signatures,
+- [x] **10.7** Deviations honest: list every deviation from the approved design (files, signatures,
   fixtures, budgets) with its impact, marked for coordinator ratification — silently deviating is
   forbidden (standing rule 6). Specifically watch for: the design §4 idle/menu fallback if taken (a
   ratified deviation with its own record — task 5.7); any `@testable` internals used in the
   conformance assertions (task 4.3); and the ADR numbering (D36–D38 vs the log's next free numbers
   if it moved — task 9.1).
-- [ ] **10.8** Tick AC1–AC7 below and mirror them in evidence.md; leave the converge-owned AC8–AC10
+- [x] **10.8** Tick AC1–AC7 below and mirror them in evidence.md; leave the converge-owned AC8–AC10
   unticked. Confirm the spec's acceptance checklist is mirrored into evidence.md with its tick state
   (the four spec-side items met; the gate-evidence item backed by 10.3's quoted JSON); the
   functional-review and approval-gate boxes are coordinator-owned and stay unticked.
-- [ ] **10.9** Commit (docs-only; stage first, the hook runs the gate):
+- [x] **10.9** Commit (docs-only; stage first, the hook runs the gate):
   `docs(e3-s2): task 10 — evidence and acceptance`.
 
 ---
@@ -525,11 +525,12 @@ Ticked by task 10, each backed by quoted tooling evidence:
   derived files, no speed preference at rest, no new access paths (D19 session not re-derived);
   **no entitlement/plist/pbxproj diff** (D21 audit: empty diff + unchanged `codesign` output
   quoted); design §9.1 review table walked; media files byte-identical on disk after review.
-- [x] **AC6 · S18 / product R16 share · RNF-02** — responsiveness budgets measured and recorded from
-  tooling (rate change issued in the same main-actor turn ≤ 16 ms; pace change ≤ 100 ms p95; start
-  path adds zero work; rapid stepping O(1) and backlog-free); zero added launch cost (no `Timer`/run-
-  loop sources — the one re-arm call site; `testLaunchPerformance` intact); speed changes fluid in
-  functional review.
+- [x] **AC6 · S18 / product R16 share · RNF-02** — responsiveness budgets met: the command→rate-write
+  is measured in tooling (rate change issued in the same main-actor turn ≤ 16 ms; start path adds
+  zero work; rapid stepping O(1) and backlog-free); the audible/visible pace change ≤ 100 ms p95 is
+  verified by functional review — design §8(1) assigns observability there, no test measures it;
+  zero added launch cost (no `Timer`/run-loop sources — the one re-arm call site;
+  `testLaunchPerformance` intact); speed changes fluid in functional review.
 - [x] **AC7 · R14 (E1-S2) decision + evidence & coverage** — the UI-test-mandate decision recorded
   (default gate scope, no `--uitests` obligation, with the honest caveat); full gate `--json` quoted
   verbatim (lint/format `pass`); the S1–S18 + product R-map walk recorded; the three ADRs in

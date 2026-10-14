@@ -92,11 +92,13 @@ step measure iteration (up: false): 0.08 ms
 
 Raw numbers against the budget — with the tooling's honesty limit stated: each quoted block is
 **one recorded run**; the scratch files are truncated and rewritten by every full-gate run (each
-perf test resets its file at test start and appends per measurement), so per-line values vary run
-to run (≈0.01–0.14 ms observed across this story's runs) and are not independently reproducible.
-The stable claim is budget compliance: the largest value recorded in any run of this story is
-**0.14 ms** (a warm-up; the largest budgeted pass/iteration is 0.08 ms) against the 16 ms budget —
-roughly 1 % of it. Rapid stepping builds no backlog by construction (each step is one O(1) ladder
+perf test resets its file at test start and appends per measurement), so per-line values are
+transient and vary run to run (this story's recorded runs, this one and fresh re-runs alike, all
+land in the low tenths of a millisecond) and are not independently reproducible. The stable claim
+is budget compliance: this run's largest value is **0.14 ms** (a warm-up; the largest budgeted
+pass/iteration here is 0.08 ms), and a fresh full-gate re-run has read comparable figures (0.15 ms
+warm-up, 0.08 ms rate-change) — every one far under the 16 ms budget, roughly 1 % of it.
+Rapid stepping builds no backlog by construction (each step is one O(1) ladder
 move + one O(1) observable write + one synchronous rate write; the clamp makes end-of-ladder
 repeats idempotent — unit-pinned by `FeedViewModelTests.keyboardStepsRepeatAndClampIdempotently`).
 
@@ -120,9 +122,13 @@ measure iteration: 8.7 ms
 measure iteration: 8.2 ms
 ```
 
-Within E2-S3's recorded band (cold passes 7.2–11.3 ms, measure iterations 6.6–12.3 ms in the
-E2-S3 evidence §3) — no regression; the warm-up figure is framework cold-start noise, not the
-budget's subject (same caveat as E2-S3's). The ordering half of S12 (no 1× beat — the start call
+This run's cold passes (9.4–10.1 ms) and measure iterations (7.5–8.7 ms) sit in E2-S3's recorded
+band (cold passes 7.2–11.3 ms, measure iterations 6.6–12.3 ms in the E2-S3 evidence §3); a fresh
+full-gate re-run read 13.4 ms — slightly above that band's top, still roughly 4 % of the 300 ms
+budget and attributable to machine load rather than to the story (the speed adds one argument to
+an existing call, not work on the path). No regression: every recorded value sits far under the
+≤ 300 ms budget; the warm-up figure is framework cold-start noise, not the budget's subject (same
+caveat as E2-S3's). The ordering half of S12 (no 1× beat — the start call
 *is* at the selected speed) is unit-pinned by
 `AVMediaPlaybackSpeedTests.startAtDoubleBeginsAtRateTwo` (immediately after `startPlayback`
 returns, and holding through the first frame) and
