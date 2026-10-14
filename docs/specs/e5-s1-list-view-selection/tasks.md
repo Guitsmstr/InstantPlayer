@@ -121,14 +121,14 @@ no mouse hardware. Deliverable (tests):
 `InstantPlayerTests/Features/MediaList/MediaListSelectionTests.swift` (new). **Covers:** S6–S11,
 S18.
 
-- [ ] **2.1** Load `swift-security` + `swift-performance` before editing.
-- [ ] **2.2** §9.1 rows over generated row arrays (Swift Testing house pattern — `@testable import
+- [x] **2.1** Load `swift-security` + `swift-performance` before editing.
+- [x] **2.2** §9.1 rows over generated row arrays (Swift Testing house pattern — `@testable import
   InstantPlayer`, `@Test` + `#expect`; no view hierarchy, no mouse): single click sets and never
   activates (S6); ⌘-click toggles preserving the rest (S7); ⇧-click builds the anchor…target range
   and keeps the anchor (S8); arrows move and collapse to the lead, ⇧-arrows extend from the anchor
   (S9); clamping at both ends, no wrap, idempotent boundary repeats (S9); empty-click clears (S10);
   `reset()` empties everything (S18).
-- [ ] **2.3** **Done:** full gate green with the new suite running. Commit:
+- [x] **2.3** **Done:** full gate green with the new suite running. Commit:
   `test(e5-s1): task 2 — selection machine tests`.
 
 ## Task 3 — MediaList Presentation: view model + list surface + toggle control `[P]` · design §2, §3.2, §3.3, §4, §5.2, §6.1
