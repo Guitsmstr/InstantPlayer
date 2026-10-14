@@ -422,23 +422,23 @@ Deliverable (docs): `docs/decisions.md` — append the three ADRs of design §11
 Deliverable (docs): `docs/specs/e3-s1-scrub-seek/evidence.md` (new) + acceptance-criteria ticks in
 this file.
 
-- [ ] **11.1** Load `swift-security` + `swift-performance` (the walk covers the pillar rows).
-- [ ] **11.2** Traceability walk: **S1–S17 row by row** — for each row name the shipped artifact
+- [x] **11.1** Load `swift-security` + `swift-performance` (the walk covers the pillar rows).
+- [x] **11.2** Traceability walk: **S1–S17 row by row** — for each row name the shipped artifact
   (file, test, or ADR) that satisfies it, with its design section — and then the **product R-map**
   of the spec's acceptance table (product R13 → story outcome → verified by; product R16 via S17
   and product R17 via S16 as the cross-cutting/inherited notes, never claimed). Record both tables
   in evidence.md.
-- [ ] **11.3** Run the full gate with machine-readable evidence:
+- [x] **11.3** Run the full gate with machine-readable evidence:
   `./scripts/validate.sh --json <tmp>/e3-s1-gate.json` (`<tmp>` = session temp dir outside the
   repo; the JSON is never committed). Quote it **verbatim** into evidence.md — `result` plus every
   step name and status — and confirm the SwiftLint and SwiftFormat steps read `pass`.
-- [ ] **11.4** **UI-test mandate (spec Story context; R14 of E1-S2):** record the decision — flows
+- [x] **11.4** **UI-test mandate (spec Story context; R14 of E1-S2):** record the decision — flows
   are **not** affected, the converge run keeps the **default gate scope with no `--uitests`
   obligation** ([docs/development.md](../../development.md) §3) — together with the spec's honest
   caveat (even a `--uitests` run could not exercise scrub/seek: no media is open in the launch
   tests) and the fact that `testLaunchPerformance` and the launch tests run green unchanged within
   the full gate of 11.3.
-- [ ] **11.5** Record from tooling, never from memory: (a) the design §8(2) performance
+- [x] **11.5** Record from tooling, never from memory: (a) the design §8(2) performance
   measurements (task 4.5's `measure` numbers against the **300 ms / 500 ms** landing budgets and
   the design §8(1) drag-preview bound as reviewed); (b) the **D21 audit** (design §1.1, §9, §13) —
   `git diff main...HEAD` stat restricted to `InstantPlayer.xcodeproj/ InstantPlayer/Config/`
@@ -446,7 +446,7 @@ this file.
   D19's four read-only keys **unchanged**; (c) the design §9.1 sandbox/media-read review table
   walked row by row (no export/reader/writer, no sidecars, no `UserDefaults`, no position
   persistence anywhere — S16).
-- [ ] **11.6** Functional-review checklist: carry the spec's AC list verbatim into evidence.md (the
+- [x] **11.6** Functional-review checklist: carry the spec's AC list verbatim into evidence.md (the
   design §10.3 list — bar appearance on mouse movement over playing and paused video pages, idle
   hiding, never on image pages; drag → pause + fluid live frame; release → resume-vs-frozen-frame
   per prior state at the frame-exact position; track click seeking without toggling while
@@ -455,15 +455,15 @@ this file.
   revisit restarting from the beginning; keyboard seek inert on non-current/mid-gesture/image pages;
   media files byte-identical on disk afterwards) as the checklist the stakeholder exercises in
   `./scripts/app.sh run` — agent-recorded evidence is supporting material, never the approval.
-- [ ] **11.7** Deviations honest: list every deviation from the approved design (files, signatures,
+- [x] **11.7** Deviations honest: list every deviation from the approved design (files, signatures,
   fixtures, budgets) with its impact, marked for coordinator ratification — silently deviating is
   forbidden (standing rule 6). Specifically watch for: the design §4 `acceptsMouseMovedEvents`
   fallback if taken (task 6.3); any `@testable` internals used in the conformance assertions
   (task 4.4); and the ADR numbering (D32–D34 vs the design §11's stale D30–D32 labels — the log's
   continuation rule applied; task 10.1).
-- [ ] **11.8** Tick AC1–AC7 below and mirror them in evidence.md; leave the converge-owned AC8–AC10
+- [x] **11.8** Tick AC1–AC7 below and mirror them in evidence.md; leave the converge-owned AC8–AC10
   unticked.
-- [ ] **11.9** Commit (docs-only; stage first, the hook runs the gate):
+- [x] **11.9** Commit (docs-only; stage first, the hook runs the gate):
   `docs(e3-s1): task 11 — evidence and acceptance`.
 
 ---
