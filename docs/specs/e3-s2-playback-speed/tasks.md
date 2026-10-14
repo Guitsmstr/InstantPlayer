@@ -265,16 +265,16 @@ Deliverable (code): `InstantPlayer/Features/Feed/Presentation/PlaybackControlBar
 `InstantPlayer/Features/Feed/Presentation/FeedItemView.swift`,
 `InstantPlayer/Features/Feed/Presentation/FeedView.swift`.
 
-- [ ] **5.1** Load `swift-security` + `swift-performance` before editing (SwiftUI views + hit-test
+- [x] **5.1** Load `swift-security` + `swift-performance` before editing (SwiftUI views + hit-test
   geometry — skill §2 applies directly).
-- [ ] **5.2** Strip layout per design §4 (S3 — the plain amendment of E3-S1's bar-contents contract):
+- [x] **5.2** Strip layout per design §4 (S3 — the plain amendment of E3-S1's bar-contents contract):
   the track row is unchanged (full-width thin line + thumb); the label row becomes `HStack { elapsed
   … Spacer … [badge] … speed-menu … duration }` — elapsed stays leading, duration stays trailing
   (E3-S1's visual contract), badge and menu form one trailing cluster. Everything else about the bar
   carries unchanged: demand-driven visibility, 3 s idle-hide, structural absence everywhere the model
   is `nil`, the strip's carve-out from the whole-page toggle (a click or selection on the speed
   control never toggles play/pause).
-- [ ] **5.3** Speed control per design §4 (S1) — pinned form: a SwiftUI `Menu` labeled
+- [x] **5.3** Speed control per design §4 (S1) — pinned form: a SwiftUI `Menu` labeled
   `Label("Speed", systemImage: "speedometer")` (constant copy — at 1× the closed control shows no
   number, US5's chrome minimality). Contents: a `Picker` over `MediaPlaybackSpeed.allCases` with
   `.pickerStyle(.menu)` (the native mutually-exclusive menu with a checkmark), rows rendered by
@@ -282,23 +282,23 @@ Deliverable (code): `InstantPlayer/Features/Feed/Presentation/PlaybackControlBar
   exact five display strings `0.25×`, `0.5×`, `1×`, `1.5×`, `2×`. The selection binding is
   write-through to the drilled `onSpeedSelected` closure (the binder owns no state — D8); the menu
   checkmark and badge render from `model.speed` alone.
-- [ ] **5.4** Speed badge per design §4 (S4) — pinned form: rendered **iff `model.speed != .normal`**
+- [x] **5.4** Speed badge per design §4 (S4) — pinned form: rendered **iff `model.speed != .normal`**
   (nothing at 1×, the identity at every other preset), text from `speedText`, styled
   `\.caption.monospacedDigit()` in a `Capsule().fill(.quaternary)` — monospaced so the strip does not
   twitch as digits change.
-- [ ] **5.5** Cluster hit-test island per design §4 (S3's carve-out, mechanically): the badge/menu
+- [x] **5.5** Cluster hit-test island per design §4 (S3's carve-out, mechanically): the badge/menu
   cluster gets its own `contentShape`; taps on the badge fall to the strip's existing consumed no-op
   (a badge is not a control); taps on the menu are claimed by the `Menu` itself; a **drag** starting
   anywhere on the cluster is consumed by the cluster's own `highPriorityGesture(DragGesture(
   minimumDistance: 3))` no-op — speed surface interactions never toggle playback (the strip is a
   sibling above the tap surface), never start a scrub (the track gesture is the track's own), and
   never start paging (the consumed drag beats the scroll surface).
-- [ ] **5.6** Drill per design §6/§7: `FeedPageActions` gains `speedSelected: (MediaPlaybackSpeed) ->
+- [x] **5.6** Drill per design §6/§7: `FeedPageActions` gains `speedSelected: (MediaPlaybackSpeed) ->
   Void`; `FeedView` drills it per page capturing the item id (the `togglePlaybackFromTap(itemID:)`
   tap-closure precedent) into `selectSpeed(_:itemID:)`. `FeedItemDisplayState.player(MediaPlayback)`
   is unchanged; the cell still never sees the item. No App-level mouse monitor, no focus handling, no
   new delivery mechanism anywhere (D28; design §6).
-- [ ] **5.7** Full gate. If functional review later shows the idle-hide disturbing an open menu, the
+- [x] **5.7** Full gate. If functional review later shows the idle-hide disturbing an open menu, the
   design §4 recorded fallback (the menu label's press suspends the idle policy) is the sanctioned
   path — a **ratified deviation** recorded in task 10 if taken. Fix, tick; commit:
   `feat(e3-s2): task 5 — speed menu and badge on the control bar`.
