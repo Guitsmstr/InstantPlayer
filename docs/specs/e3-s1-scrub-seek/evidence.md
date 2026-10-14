@@ -68,11 +68,14 @@ measure iteration (target 1.5s): 6.4 ms
 Raw numbers against the budget: the largest recorded landing is **6.4 ms** against the 300 ms
 typical budget (roughly 2 % of it — no landing comes near it), and the atypical 500 ms budget is
 functional-review/Instruments territory (long-GOP/heavy media — design §2's accepted honesty
-limit), not claimed from this fixture. The design §8(1) drag-preview frame bound (≤ 150 ms p95)
-and the cadence ceiling (≤ 12 ticks/s) are unit-asserted: `AVMediaPlaybackSeekTests.
-timeUpdatesTickWhilePlayingAndStaySilentWhilePaused` (10 Hz source, ceiling pinned) and
-`SeekSchedulerTests.previewStormKeepsOneInFlightAndOnePendingTarget` (the §8(5) bound: a
-50-preview storm issues exactly one dispatch).
+limit), not claimed from this fixture. Unit-asserted, each against its test: the cadence ceiling
+(≤ 12 ticks/s, 10 Hz source — design §3/§8(3)) by
+`AVMediaPlaybackSeekTests.timeUpdatesTickWhilePlayingAndStaySilentWhilePaused`, and the §8(5)
+seek-storm bound (≤ 1 seek in flight, one pending target) by
+`SeekSchedulerTests.previewStormKeepsOneInFlightAndOnePendingTarget` (a 50-preview storm
+issues exactly one dispatch). The design §8(1) drag-preview frame bound (≤ 150 ms p95) is
+**not** unit-asserted: it is a perceptual budget, which design §8(8) backs with the measured
+dispatch costs above plus stakeholder functional review.
 
 ## 4 · D21 audit — zero project-config diff (task 11.5b; design §1.1, §9, §13)
 
