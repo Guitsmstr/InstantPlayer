@@ -4,7 +4,8 @@
 //
 //  Feed Data stub for the player seam (E1-S3, design §3.6 — R2;
 //  E2-S3, design §2 — stub session handles, task 1.5; E3-S1, design §2 —
-//  the stub handle grows the seek members, task 1.3).
+//  the stub handle grows the seek members, task 1.3; E3-S2, design §2 —
+//  the stub grows the speed members, task 1.5).
 //
 
 import AppKit
@@ -32,9 +33,13 @@ final class StubMediaPlayerService: MediaPlayerService {
     /// Canned answer (design §2 contract shape): a fresh inert stub handle
     /// for every call. Never fails — the seam's `nil` is reserved for real
     /// failure (S14, S15) and a stub has none; never emits events; never
-    /// touches media.
-    func startPlayback(for _: MediaItem) async -> MediaPlayback? {
-        StubMediaPlayback()
+    /// touches media. The `at:` start speed (E3-S2 task 1.5) is recorded
+    /// for wiring tests — recording is the stub's whole speed behavior.
+    private(set) var startSpeeds: [MediaPlaybackSpeed] = []
+
+    func startPlayback(for _: MediaItem, at speed: MediaPlaybackSpeed) async -> MediaPlayback? {
+        startSpeeds.append(speed)
+        return StubMediaPlayback()
     }
 }
 
@@ -65,12 +70,24 @@ private final class StubMediaPlayback: MediaPlayback {
     /// the stub's whole seek behavior — no I/O, no player state.
     private(set) var seeks: [(seconds: TimeInterval, tolerance: MediaSeekTolerance)] = []
 
+    /// Recorded speed selections (E3-S2 task 1.5): every `setPlaybackSpeed`
+    /// call, in call order — the stub's observable speed state (it has no
+    /// player to re-pace, so the selection's reflection is the record
+    /// itself). Zero I/O, no AVFoundation.
+    private(set) var speedSelections: [MediaPlaybackSpeed] = []
+
     init() {
         (events, continuation) = AsyncStream.makeStream(of: MediaPlaybackEvent.self)
         (timeUpdates, timeUpdatesContinuation) = AsyncStream.makeStream(of: TimeInterval.self)
     }
 
     func pause() {}
+
+    /// Records the selection (E3-S2 task 1.5) — the stub's whole speed
+    /// behavior; there is no player rate to write.
+    func setPlaybackSpeed(_ speed: MediaPlaybackSpeed) {
+        speedSelections.append(speed)
+    }
 
     func resume() {}
 

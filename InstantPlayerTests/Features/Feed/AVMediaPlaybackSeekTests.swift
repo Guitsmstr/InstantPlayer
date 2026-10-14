@@ -75,7 +75,7 @@ struct AVMediaPlaybackSeekTests {
             pixelHeight: 32,
             frameCount: 60
         )
-        let handle = try #require(await service.startPlayback(for: makeItem(url)))
+        let handle = try #require(await service.startPlayback(for: makeItem(url), at: .normal))
         let session = try #require(handle as? AVMediaPlayback)
         if let view = handle.makeDisplayView() as? NSView {
             windowHost.host(view)
@@ -234,7 +234,7 @@ struct AVMediaPlaybackSeekTests {
             pixelHeight: 720,
             frameCount: 60
         )
-        let handle = try #require(await service.startPlayback(for: makeItem(url)))
+        let handle = try #require(await service.startPlayback(for: makeItem(url), at: .normal))
         let session = try #require(handle as? AVMediaPlayback)
         if let view = handle.makeDisplayView() as? NSView {
             windowHost.host(view)
@@ -440,7 +440,7 @@ struct AVMediaPlaybackSeekTests {
             named: "b.mp4", pixelWidth: 64, pixelHeight: 32, frameCount: 30
         )
 
-        let first = try #require(await service.startPlayback(for: makeItem(urlA)))
+        let first = try #require(await service.startPlayback(for: makeItem(urlA), at: .normal))
         let firstSession = try #require(first as? AVMediaPlayback)
         firstSession.pause()
         firstSession.seek(to: 0.5, tolerance: .preview) // dispatch 1, in flight
@@ -450,7 +450,7 @@ struct AVMediaPlaybackSeekTests {
         // A newer start supersedes and tears the previous session down
         // (§8(3) — the service's own teardown): the reset must drop the
         // pending seek with it.
-        let second = try #require(await service.startPlayback(for: makeItem(urlB)))
+        let second = try #require(await service.startPlayback(for: makeItem(urlB), at: .normal))
         let secondSession = try #require(second as? AVMediaPlayback)
 
         try await Task.sleep(for: .milliseconds(300))

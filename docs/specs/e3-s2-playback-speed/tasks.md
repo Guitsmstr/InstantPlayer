@@ -105,14 +105,14 @@ Deliverable (code): `InstantPlayer/Features/Feed/Domain/MediaPlaybackSpeed.swift
 `InstantPlayer/Features/Feed/Data/StubMediaPlayerService.swift` (grown), plus minimal test-double
 compile fixes. `MediaPlaybackEvent.swift` is **untouched** (design §1).
 
-- [ ] **1.1** Load `swift-security` + `swift-performance` before editing.
-- [ ] **1.2** `MediaPlaybackSpeed` exactly per design §2 — `nonisolated enum MediaPlaybackSpeed:
+- [x] **1.1** Load `swift-security` + `swift-performance` before editing.
+- [x] **1.2** `MediaPlaybackSpeed` exactly per design §2 — `nonisolated enum MediaPlaybackSpeed:
   Float, CaseIterable, Sendable` with the five cases in ladder order (0.25/0.5/1/1.5/2). The ladder
   is structural (S2): nothing outside these cases exists to select, so no raw float can ever reach
   AVFoundation. Foundation-only (R10) — no `AVPlayer`, no `AVAudioTimePitchAlgorithm`, no `CMTime`
   in any Domain signature. The file joins the target through synchronized groups (D21) — **no
   pbxproj edit**.
-- [ ] **1.3** `MediaPlayback` grows exactly `func setPlaybackSpeed(_ speed: MediaPlaybackSpeed)` — a
+- [x] **1.3** `MediaPlayback` grows exactly `func setPlaybackSpeed(_ speed: MediaPlaybackSpeed)` — a
   synchronous command (D25's pattern; unchanged `@MainActor` isolation) carrying the design §2
   contract in its docs: playing → the rate changes in this same main-actor turn (rate change only —
   no restart, no position change — S10); paused → the selection is remembered and the next
@@ -121,20 +121,20 @@ compile fixes. `MediaPlaybackEvent.swift` is **untouched** (design §1).
   crosses the seam** (the frozen seam carries no state-query members — the E3-S1 `seekDispatchCount`
   precedent). `seek`/`resume`/`restart` doc evolution per design §2/§5 — `seek` reads "never changes
   the *selected* speed" (S13's evolved phrasing).
-- [ ] **1.4** `MediaPlayerService` per design §2/§3: `startPlayback(for:)` becomes `startPlayback(for
+- [x] **1.4** `MediaPlayerService` per design §2/§3: `startPlayback(for:)` becomes `startPlayback(for
   item: MediaItem, at speed: MediaPlaybackSpeed) async -> MediaPlayback?`. Every D25 contract clause
   is unchanged (supersedes and tears down the previous session; async only for the asset load;
   unified `nil` failure answer; audio unmuted) plus one clause: **the session starts playing at
   `speed`** (approved reading F3).
-- [ ] **1.5** Stub grows the new members/parameter in **this same commit** (house stub pattern; the
+- [x] **1.5** Stub grows the new members/parameter in **this same commit** (house stub pattern; the
   composition still binds the stub until this story's code is complete and tests use their own
   scripted doubles): the `at:` parameter and `setPlaybackSpeed` calls are recorded for wiring tests,
   selection state is reflected into the stub's observable behavior — zero I/O, no AVFoundation.
-- [ ] **1.6** Existing call sites and test doubles updated minimally so everything compiles from
+- [x] **1.6** Existing call sites and test doubles updated minimally so everything compiles from
   this commit on (scripted handles/services in `InstantPlayerTests/Features/Feed/FeedViewModelTests.swift`
   and `InstantPlayerTests/App/AppDependenciesTests.swift` gain the new member/parameter; full suites
   are tasks 4 and 7).
-- [ ] **1.7** Full gate `./scripts/validate.sh` — the new type and the grown protocols and stub must
+- [x] **1.7** Full gate `./scripts/validate.sh` — the new type and the grown protocols and stub must
   compile (that is what proves target membership). Fix, tick this task's boxes, commit:
   `feat(e3-s2): task 1 — playback-speed ladder and rate seam additions`.
 

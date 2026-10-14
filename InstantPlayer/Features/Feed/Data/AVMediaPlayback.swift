@@ -213,6 +213,13 @@ final class AVMediaPlayback: MediaPlayback {
         seekScheduler.seek(to: seconds, tolerance: tolerance)
     }
 
+    /// Task-1 minimal shape (this story's task 1.6: compile-only growth —
+    /// no caller exists until the task-3 policy lands): the real
+    /// mechanism — the per-session remembered selection, the in-turn
+    /// rate write while playing, the paused-case skip — is task 2's
+    /// deliverable and replaces this body.
+    func setPlaybackSpeed(_: MediaPlaybackSpeed) {}
+
     func pause() {
         guard !isStopped else { return }
         // Synchronous bite (design §8(2)): rate 0 before this returns.

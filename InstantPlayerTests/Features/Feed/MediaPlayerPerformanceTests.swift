@@ -84,7 +84,7 @@ final class MediaPlayerPerformanceTests: XCTestCase {
             return
         }
         let started = Date()
-        guard let handle = await service.startPlayback(for: item) else {
+        guard let handle = await service.startPlayback(for: item, at: .normal) else {
             cycleBox.failure = "startPlayback answered nil for a playable clip"
             cycleBox.done = true
             return

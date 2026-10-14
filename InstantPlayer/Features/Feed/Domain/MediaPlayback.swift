@@ -3,7 +3,8 @@
 //  InstantPlayer
 //
 //  Feed Domain playback-session handle (E2-S3, design §2 — S1–S3, S5–S11;
-//  E3-S1, design §2 — the seek seam additions, S1–S2, S5–S7, S11).
+//  E3-S1, design §2 — the seek seam additions, S1–S2, S5–S7, S11;
+//  E3-S2, design §2 — the speed command, S10–S14).
 //
 
 import Foundation
@@ -42,10 +43,11 @@ nonisolated enum MediaSeekTolerance: Sendable {
 /// `@MainActor` view model — and the commands must bite synchronously:
 /// `stop()`/`pause()` take effect before returning (S5, S9; design §8(2)).
 ///
-/// There are deliberately no rate or volume members (design §2): E3-S2/E3-S3
-/// grow those — the minimal session per story is the contract. E3-S1 grows
+/// There are deliberately no volume members (design §2): E3-S3 grows
+/// those — the minimal session per story is the contract. E3-S1 grew
 /// exactly the seek seam (design §2): `MediaSeekTolerance`, `duration`,
-/// `timeUpdates`, `seek(to:tolerance:)`. Async/await only (D8, R4):
+/// `timeUpdates`, `seek(to:tolerance:)`. E3-S2 grows exactly the speed
+/// command (design §2): `setPlaybackSpeed(_:)`. Async/await only (D8, R4):
 /// events are a stream, never completion handlers.
 @MainActor
 protocol MediaPlayback: AnyObject {
@@ -81,21 +83,47 @@ protocol MediaPlayback: AnyObject {
     /// coalesced live preview (S6: ≤ 1 seek in flight, newer targets
     /// replace the pending one), `.exact` is every commit action's
     /// immediate seek (S7: supersedes any in-flight or pending seek).
-    /// Never changes rate (S10). Seconds are clamped by the caller to
+    /// Never changes the *selected* speed (S13 — a playing video keeps
+    /// its pace across a seek). Seconds are clamped by the caller to
     /// `[0, duration]` (S13) and defensively re-bounded in the
     /// conformance; completion is mechanism — no completion event or
     /// callback crosses this seam (D8, R4).
     func seek(to seconds: TimeInterval, tolerance: MediaSeekTolerance)
 
+    /// Changes the session's playback speed (E3-S2 design §2) — a
+    /// synchronous command (D25's pattern): decided and issued in this
+    /// same main-actor turn.
+    ///
+    /// - Playing session (rate ≠ 0): the playback rate changes in this
+    ///   same main-actor turn — a rate change only: no restart, no
+    ///   position change, no play/pause change (S10; a speed input is
+    ///   state-neutral on the play/pause axis).
+    /// - Paused session (rate 0 — the frozen frame, the gesture-scoped
+    ///   scrub pause, a frame parked at either end): the selection is
+    ///   remembered and the next `resume()` plays at it (S11); the frozen
+    ///   frame is untouched.
+    /// - The session's selected speed is what `resume()` and `restart()`
+    ///   use (S14) — the loop, the resume after a scrub drag or a seek,
+    ///   and the toggle resume all play at the selection without
+    ///   re-application.
+    /// - The command never touches position (a rate write preserves it),
+    ///   play/pause state, or seek behavior, and nothing crosses the seam
+    ///   back — no rate read: the frozen seam carries no state-query
+    ///   members (the `seekDispatchCount` precedent).
+    func setPlaybackSpeed(_ speed: MediaPlaybackSpeed)
+
     /// Pauses (S5, S6) — synchronous, deterministic (design §8(2)): the
     /// rate is 0 before this returns.
     func pause()
 
-    /// Resumes a paused session (S5, S6).
+    /// Resumes a paused session (S5, S6) at the session's selected speed
+    /// (E3-S2 S11, S14) — the selection last commanded through
+    /// `setPlaybackSpeed` (or the speed the session was started at).
     func resume()
 
-    /// Seeks to the beginning and plays (S11's mechanism — it lives in
-    /// Data; the restart *policy* lives in the view model, design §2, §5).
+    /// Seeks to the beginning and plays at the session's selected speed
+    /// (S11's mechanism, E3-S2 S14 — it lives in Data; the restart
+    /// *policy* lives in the view model, design §2, §5).
     func restart()
 
     /// Tears the session down now (S9; design §8(2)): rate 0, item

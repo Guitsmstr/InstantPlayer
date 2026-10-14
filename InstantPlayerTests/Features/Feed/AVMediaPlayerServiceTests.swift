@@ -86,7 +86,7 @@ struct AVMediaPlayerServiceTests {
         let host = PlaybackWindowHost()
         defer { host.close() }
 
-        let handle = try #require(await service.startPlayback(for: item))
+        let handle = try #require(await service.startPlayback(for: item, at: .normal))
         if let view = handle.makeDisplayView() as? NSView {
             host.host(view)
         }
@@ -117,7 +117,7 @@ struct AVMediaPlayerServiceTests {
         let host = PlaybackWindowHost()
         defer { host.close() }
 
-        let handle = try #require(await service.startPlayback(for: item))
+        let handle = try #require(await service.startPlayback(for: item, at: .normal))
         if let view = handle.makeDisplayView() as? NSView {
             host.host(view)
         }
@@ -158,7 +158,7 @@ struct AVMediaPlayerServiceTests {
         let host = PlaybackWindowHost()
         defer { host.close() }
 
-        let handle = try #require(await service.startPlayback(for: item))
+        let handle = try #require(await service.startPlayback(for: item, at: .normal))
         if let view = handle.makeDisplayView() as? NSView {
             host.host(view)
         }
@@ -187,7 +187,7 @@ struct AVMediaPlayerServiceTests {
         let host = PlaybackWindowHost()
         defer { host.close() }
 
-        let handle = try #require(await service.startPlayback(for: item))
+        let handle = try #require(await service.startPlayback(for: item, at: .normal))
         if let view = handle.makeDisplayView() as? NSView {
             host.host(view)
         }
@@ -213,7 +213,7 @@ struct AVMediaPlayerServiceTests {
         let url = try fixture.writeFile("fake.mp4", bytes: Array(junk.utf8))
         let item = makeItem(url)
 
-        let handle = await service.startPlayback(for: item)
+        let handle = await service.startPlayback(for: item, at: .normal)
 
         #expect(handle == nil, "mislabeled content must answer nil (S14)")
     }
@@ -224,7 +224,7 @@ struct AVMediaPlayerServiceTests {
         let url = fixture.root.appending(path: "ghost.mp4")
         let item = makeItem(url)
 
-        let handle = await service.startPlayback(for: item)
+        let handle = await service.startPlayback(for: item, at: .normal)
 
         #expect(handle == nil, "a missing file must answer nil (S15)")
     }
@@ -236,7 +236,7 @@ struct AVMediaPlayerServiceTests {
         let url = try await fixture.writeShortMP4(named: "clip.mp4", pixelWidth: 64, pixelHeight: 32)
         let item = makeItem(url)
 
-        let handle = try #require(await service.startPlayback(for: item))
+        let handle = try #require(await service.startPlayback(for: item, at: .normal))
         let session = try #require(handle as? AVMediaPlayback)
         session.stop()
 
@@ -280,8 +280,8 @@ struct AVMediaPlayerServiceTests {
             frameCount: 30
         )
 
-        let first = try #require(await service.startPlayback(for: makeItem(urlA)))
-        let second = try #require(await service.startPlayback(for: makeItem(urlB)))
+        let first = try #require(await service.startPlayback(for: makeItem(urlA), at: .normal))
+        let second = try #require(await service.startPlayback(for: makeItem(urlB), at: .normal))
         #expect(first !== second, "each start vends its own session")
 
         let firstSession = try #require(first as? AVMediaPlayback)

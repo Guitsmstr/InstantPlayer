@@ -46,7 +46,7 @@ final class AVMediaPlayerService: MediaPlayerService {
         "AVMediaPlayerService"
     }
 
-    func startPlayback(for item: MediaItem) async -> MediaPlayback? {
+    func startPlayback(for item: MediaItem, at _: MediaPlaybackSpeed) async -> MediaPlayback? {
         // Supersede + tear down any previous session first — exactly one
         // live player, biting synchronously in this same main-actor turn
         // (design §3, §8(3)).
@@ -73,8 +73,12 @@ final class AVMediaPlayerService: MediaPlayerService {
         currentSession = session
         // Start now, without the player's waiting policy (design §0.1 —
         // local files wait for nothing; `automaticallyWaitsToMinimizeStall
-        // ing` is network machinery). Audio unmuted: `isMuted`/`volume`
-        // are never touched (S3 — app-level volume is E3-S3).
+        // ing` is network machinery). Task-1 minimal shape (this story's
+        // task 1.6: compile-only growth) — the rate stays 1 until task 2
+        // maps the seam's `at:` parameter onto `playImmediately(atRate:)`,
+        // pins the pitch algorithm, and seeds the per-session speed.
+        // Audio unmuted: `isMuted`/`volume` are never touched (S3 —
+        // app-level volume is E3-S3).
         player.playImmediately(atRate: 1)
         return session
     }

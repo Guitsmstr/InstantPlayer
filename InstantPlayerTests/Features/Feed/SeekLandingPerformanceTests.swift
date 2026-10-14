@@ -123,7 +123,7 @@ final class SeekLandingPerformanceTests: XCTestCase {
             let item = MediaItem(id: clipURL, url: clipURL, name: "seek-720p.mp4", kind: .video)
             let service = AVMediaPlayerService()
             box.service = service
-            guard let handle = await service.startPlayback(for: item) else {
+            guard let handle = await service.startPlayback(for: item, at: .normal) else {
                 box.failure = "startPlayback answered nil for a playable clip"
                 box.done = true
                 return

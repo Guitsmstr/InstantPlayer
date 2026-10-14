@@ -730,7 +730,7 @@ final class FeedViewModel {
         playbackItemID = item.id
         let generation = latestEntryGeneration
         playbackStartTask = Task { [weak self] in
-            let handle = await self?.mediaPlayerService.startPlayback(for: item)
+            let handle = await self?.mediaPlayerService.startPlayback(for: item, at: .normal)
             guard !Task.isCancelled else {
                 handle?.stop() // superseded mid-start: never install, never leak
                 return

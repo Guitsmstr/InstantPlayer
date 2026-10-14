@@ -2501,7 +2501,7 @@ private final class ScriptedMediaPlayerService: MediaPlayerService {
         "ScriptedMediaPlayerService"
     }
 
-    func startPlayback(for item: MediaItem) async -> MediaPlayback? {
+    func startPlayback(for item: MediaItem, at _: MediaPlaybackSpeed) async -> MediaPlayback? {
         calls.append(item)
         if calls.count == 1, holdFirstCall {
             return await withCheckedContinuation { (continuation: CheckedContinuation<MediaPlayback?, Never>) in
@@ -2579,6 +2579,17 @@ private final class ScriptedMediaPlayback: MediaPlayback {
         guard !isStopped else { return }
         seeks.append((seconds, tolerance))
     }
+
+    /// The speed spy (E3-S2 task 1.6's minimal member): records the
+    /// command, like every other scripted command.
+    func setPlaybackSpeed(_ speed: MediaPlaybackSpeed) {
+        guard !isStopped else { return }
+        speedCommands.append(speed)
+    }
+
+    /// Recorded speed selections: every `setPlaybackSpeed` call, in call
+    /// order.
+    private(set) var speedCommands: [MediaPlaybackSpeed] = []
 
     /// Drives one elapsed tick into the stream (the task-5 suite's hand
     /// on the clock — `applyTick` consumes it through the view model's
