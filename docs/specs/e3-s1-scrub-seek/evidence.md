@@ -296,7 +296,8 @@ and not claimed here).
   the functional-review clause is converge-owned (§7). ✔ for the implementation walk; file
   byte-identity awaits functional review.
 - **AC6 · S17 / product R16 share · RNF-02** — responsiveness budgets measured and recorded from
-  tooling (landing ≤ 6.3 ms on the reference fixture against the 300/500 ms budgets, §3; the
+  tooling (landing within ≈0–6.4 ms across recorded runs on the reference fixture
+  (largest ≈ 6.4 ms; §3) against the 300/500 ms budgets; the
   drag-preview issuance is a synchronous O(1) dispatch; cadence ceiling and storm bound
   unit-asserted); zero added launch cost (`testLaunchPerformance` intact, no `Timer`/run-loop
   sources); drag fluidity in functional review is converge-owned. ✔ for the measured/unit
