@@ -39,7 +39,7 @@ All E2–E5 feature stories implement on the architecture per [docs/architecture
 
 - [x] **E3-S1 · Scrub & seek** (move playback to the indicated point in the current video) · `done`
   - Requirements: R13 (playback)
-- [ ] **E3-S2 · Playback speed** (apply the selected speed to the current video) · `draft`
+- [ ] **E3-S2 · Playback speed** (apply the selected speed to the current video) · `in progress`
   - Requirements: R14 (playback)
 - [ ] **E3-S3 · Volume & mute** (app-level keyboard volume, mute toggle, state restored on relaunch) · `draft`
   - Requirements: R18–R20 (volume)
