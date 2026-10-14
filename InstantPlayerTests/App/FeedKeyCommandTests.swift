@@ -163,16 +163,18 @@ struct FeedKeyCommandTests {
         )
     }
 
-    /// Non-routed arrow keys pass through (←/→ are not feed commands in
-    /// this story; the vertical feed pages on ↓/↑ only — S5).
-    @Test func nonRoutedArrowsPassThrough() {
+    /// Seek keys with a feed open (E3-S1 design §6 — S2; the recorded
+    /// contract change: ←/→ 123/124 previously passed through —
+    /// `nonRoutedArrowsPassThrough` is replaced by these rows): plain ←
+    /// seeks backward, plain → seeks forward.
+    @Test func plainLeftRightArrowsSeekWhenFeedIsOpen() {
         #expect(
             FeedKeyCommand.route(
                 keyCode: 123,
                 modifiers: [],
                 isRepeat: false,
                 hasOpenFeed: true
-            ) == .passThrough
+            ) == .seekBackward
         )
         #expect(
             FeedKeyCommand.route(
@@ -180,6 +182,121 @@ struct FeedKeyCommandTests {
                 modifiers: [],
                 isRepeat: false,
                 hasOpenFeed: true
+            ) == .seekForward
+        )
+    }
+
+    /// Seek auto-repeat = repeated steps (S9 — paging's repeat parity,
+    /// `arrowAutoRepeatStillPages`'s sibling): a held ←/→ steps once per
+    /// keyDown.
+    @Test func seekAutoRepeatStillSteps() {
+        #expect(
+            FeedKeyCommand.route(
+                keyCode: 123,
+                modifiers: [],
+                isRepeat: true,
+                hasOpenFeed: true
+            ) == .seekBackward
+        )
+        #expect(
+            FeedKeyCommand.route(
+                keyCode: 124,
+                modifiers: [],
+                isRepeat: true,
+                hasOpenFeed: true
+            ) == .seekForward
+        )
+    }
+
+    /// ⇧ alone is not a command modifier for the seek keys either —
+    /// ⇧←/⇧→ seek, like ⇧↓ paging (the documented decision).
+    @Test func shiftAloneStillSeeks() {
+        #expect(
+            FeedKeyCommand.route(
+                keyCode: 123,
+                modifiers: [.shift],
+                isRepeat: false,
+                hasOpenFeed: true
+            ) == .seekBackward
+        )
+        #expect(
+            FeedKeyCommand.route(
+                keyCode: 124,
+                modifiers: [.shift],
+                isRepeat: false,
+                hasOpenFeed: true
+            ) == .seekForward
+        )
+    }
+
+    /// Real seek keyDown events carry `.function`/`.numericPad` — those
+    /// flags are not command modifiers and must still seek (the
+    /// arrow-flags regression pin's seek counterpart).
+    @Test func systemSeekFlagsStillSeek() {
+        #expect(
+            FeedKeyCommand.route(
+                keyCode: 123,
+                modifiers: [.function, .numericPad],
+                isRepeat: false,
+                hasOpenFeed: true
+            ) == .seekBackward
+        )
+        #expect(
+            FeedKeyCommand.route(
+                keyCode: 124,
+                modifiers: [.function, .numericPad],
+                isRepeat: false,
+                hasOpenFeed: true
+            ) == .seekForward
+        )
+    }
+
+    /// ⌘/⌥/⌃-modified seek keys pass through — system shortcuts are
+    /// never robbed (design §6's seek rows, the paging modifier columns).
+    @Test func commandModifiedSeekKeysPassThrough() {
+        let commandModifiers: [NSEvent.ModifierFlags] = [
+            [.command],
+            [.option],
+            [.control],
+            [.command, .option, .control],
+        ]
+        for modifiers in commandModifiers {
+            #expect(
+                FeedKeyCommand.route(
+                    keyCode: 123,
+                    modifiers: modifiers,
+                    isRepeat: false,
+                    hasOpenFeed: true
+                ) == .passThrough
+            )
+            #expect(
+                FeedKeyCommand.route(
+                    keyCode: 124,
+                    modifiers: modifiers,
+                    isRepeat: false,
+                    hasOpenFeed: true
+                ) == .passThrough
+            )
+        }
+    }
+
+    /// Welcome: the seek keys pass through like every key — no feed, no
+    /// feed commands (S16; design §6's seek rows' no-feed column).
+    @Test func welcomePassesSeekKeysThrough() {
+        #expect(
+            FeedKeyCommand.route(
+                keyCode: 123,
+                modifiers: [],
+                isRepeat: false,
+                hasOpenFeed: false
+            ) == .passThrough
+        )
+        #expect(
+            FeedKeyCommand.route(
+                keyCode: 124,
+                modifiers: [],
+                isRepeat: true,
+                hasOpenFeed: false
             ) == .passThrough
         )
     }

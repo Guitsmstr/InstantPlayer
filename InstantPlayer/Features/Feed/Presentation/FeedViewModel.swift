@@ -5,7 +5,7 @@
 //  Feed Presentation view model — the house pattern (E1-S3, design §3.7 —
 //  R3, R4; E2-S1, design §4 — S5–S7; E2-S2, design §5.1–§5.2, §5.5, §6.2,
 //  §7 — S1, S4–S6, S9, S12, S13, S16; E2-S3, design §3, §6, §7 — S1–S11,
-//  S14–S16).
+//  S14–S16; E3-S1, design §3, §4, §5, §7 — S1–S17).
 //
 
 import Foundation
@@ -56,6 +56,31 @@ nonisolated enum FeedItemDisplayState: Equatable {
     }
 }
 
+/// The overlay control bar's presentation value (E3-S1 design §7): a pure
+/// value drilled to the current page; `nil` means structurally absent
+/// (image pages, unavailable items, non-current pages, mid-paging — S4,
+/// S12), while a non-`nil` model with `isVisible == false` is the
+/// hidden-at-rest state that still drives the presentation semantics
+/// (`opacity(0)` + `allowsHitTesting(false)` — the whole-page toggle stays
+/// intact). Foundation-only (R10).
+nonisolated struct PlaybackControlBarModel: Equatable {
+    /// What the elapsed label shows (design §3): the view model's own
+    /// displayed position — ticks and drag targets, never a player read
+    /// (design §2's drift-proof arithmetic).
+    let elapsed: TimeInterval
+
+    /// The session's duration in seconds (design §3).
+    let duration: TimeInterval
+
+    /// The thumb's fraction along the track (`0...1`) — geometry stays a
+    /// view concern; the view model reports the value (design §5).
+    let scrubFraction: Double
+
+    /// Visibility (S3): `true` while mouse activity keeps the bar up;
+    /// `false` at rest. Keyboard seek never sets it (S3(b)).
+    let isVisible: Bool
+}
+
 /// The only presentation-state holder (D8): owns the `FeedState` machine,
 /// routes the one entry action to the `MediaFolderRepository` seam, and —
 /// since E2-S2 — owns the paging state: the current item over the open
@@ -65,7 +90,11 @@ nonisolated enum FeedItemDisplayState: Equatable {
 /// auto-play (S1, S2), the play/pause toggles and their guard matrix
 /// (S5–S7), the stop-on-away/restart-on-revisit lifecycle (S9, S10), the
 /// loop policy (S11), and the per-axis playback-failure stickiness
-/// (S14, S15). `@MainActor
+/// (S14, S15). Since E3-S1 it is also the scrub & seek policy owner
+/// (E3-S1 design §5): the drag state machine (S5–S8), the commit seeks
+/// (S2, S9–S11), the seek guard matrix (S12), clamping + end handover
+/// (S13, S14), the bar-visibility + idle policy (S3, S4), and the
+/// time-display state (design §3). `@MainActor
 /// @Observable final class` per the house pattern (R3, R4).
 ///
 /// Last-wins supersede (E2-S1 design §3.1, §4, §7.4): an entry action
@@ -160,14 +189,68 @@ final class FeedViewModel {
     /// identity). Entries live exactly as long as their `.player` state.
     private var parkedPosterStates: [MediaItem.ID: FeedItemDisplayState] = [:]
 
+    // MARK: Scrub & seek state (E3-S1 design §2, §3, §4, §5)
+
+    /// What the labels and thumb show (design §2): the view model keeps
+    /// its own position and computes every commit target from it — never
+    /// by reading the player's possibly-stale position. Fed by the clock
+    /// consumer (`applyTick`), owned during a drag (`scrubChanged`),
+    /// and set directly by every `.exact` commit.
+    private(set) var displayedPosition: TimeInterval = 0
+
+    /// The bar overlay's model (design §7): non-`nil` only for the
+    /// settled current video's live player page; `isVisible == false` is
+    /// the hidden-at-rest state. Recomputed by `refreshControlBar`.
+    private(set) var controlBarModel: PlaybackControlBarModel?
+
+    /// The scrub drag flag (design §5): true from `beginScrub` until
+    /// `scrubEnded` (or the session dying — `stopPlayback` resets it).
+    /// Guards every tick and mid-drag keyboard seek (S12).
+    private var isScrubbing = false
+
+    /// The drag's play/pause memory (S8): recorded by `beginScrub` from
+    /// `isPlaybackPaused` — which `beginScrub` deliberately does NOT
+    /// touch (the pause is gesture-scoped) — and honored by `scrubEnded`:
+    /// was-playing → `resume()`, was-paused → stay paused on the frozen
+    /// frame.
+    private var wasPlayingBeforeDrag = false
+
+    /// The post-commit tick-suppression deadline (design §3): ticks are
+    /// ignored until this instant — a stale tick right after an `.exact`
+    /// seek would otherwise bounce the thumb backwards. Set by every
+    /// `.exact` commit.
+    private var exactSeekSuppressUntil: TimeInterval?
+
+    /// The clock consumer (design §3): the installed session's
+    /// `timeUpdates` loop, cancelled with the session (`stopPlayback`).
+    private var playbackTimeTask: Task<Void, Never>?
+
+    /// The idle-hide deadline (design §4, S3): armed by mouse activity,
+    /// 3 s out, suspended for the whole scrub drag (S3(a)).
+    private var idleDeadline: TimeInterval?
+
+    /// The idle machinery (design §4): one cancellable generation-guarded
+    /// `Task.sleep` — never a `Timer`, never a run-loop source — created
+    /// only while a bar is visible, re-armed throttled to ≤ 4/s (§8(4)).
+    private var idleTask: Task<Void, Never>?
+    private var idleGeneration = 0
+    private var lastIdleRearm: TimeInterval = 0
+
+    /// The injected clock (design §4): the pure policy reads time only
+    /// through this — tests drive the machinery deterministically with
+    /// their own `now`.
+    private let now: () -> TimeInterval
+
     init(
         mediaPlayerService: any MediaPlayerService,
         mediaFolderRepository: any MediaFolderRepository,
-        mediaPreviewService: any MediaPreviewService
+        mediaPreviewService: any MediaPreviewService,
+        now: @escaping () -> TimeInterval = { Date.timeIntervalSinceReferenceDate }
     ) {
         self.mediaPlayerService = mediaPlayerService
         self.mediaFolderRepository = mediaFolderRepository
         self.mediaPreviewService = mediaPreviewService
+        self.now = now
     }
 
     /// Routes one entry action (S1–S4) through the seam exactly once —
@@ -246,9 +329,18 @@ final class FeedViewModel {
     /// Scroll onset (scroll leaves rest): record the settled index as
     /// `gestureStart` (design §5.2 step 1). A new touch during
     /// deceleration starts a new gesture from the then-visible index —
-    /// this method is called again and re-records (§5.2 step 3).
+    /// this method is called again and re-records (§5.2 step 3). A paging
+    /// gesture in flight also drops the bar model to `nil` at once (S12's
+    /// premise — design §4), suspends the idle machinery, and **clears
+    /// the scrub state** — a paging gesture supersedes any in-flight drag
+    /// (S12: its page lost eligibility), so the machine can never wedge
+    /// with `isScrubbing` set.
     func scrollGestureDidStart() {
         gestureStartIndex = currentIndex
+        isScrubbing = false
+        wasPlayingBeforeDrag = false
+        controlBarModel = nil
+        suspendIdlePolicy()
     }
 
     /// Settle (scroll returns to rest): run the guard (design §5.2 step 2)
@@ -270,6 +362,10 @@ final class FeedViewModel {
         )
         setIndex(corrected)
         syncPlayback()
+        // After the settle, the (possibly unchanged) current video's bar
+        // model returns hidden-at-rest; a page-turned item stays `nil`
+        // until its `.readyForDisplay` (design §7).
+        refreshControlBar(visible: false)
     }
 
     /// The gesture guard's correction as a pure function (design §5.2) —
@@ -312,6 +408,301 @@ final class FeedViewModel {
     func togglePlaybackFromTap(itemID: MediaItem.ID) {
         guard itemID == currentItemID else { return } // non-current page (S7)
         togglePlayback()
+    }
+
+    // MARK: Scrub & seek policy (E3-S1 design §4, §5 — S1–S15)
+
+    /// Frozen constants (design §4, §5; spec S2, S3).
+    private static let keyboardStepSeconds: TimeInterval = 5
+    private static let controlBarIdleTimeout: TimeInterval = 3
+    private static let exactSeekTickSuppression: TimeInterval = 0.25
+
+    /// The re-arm throttle (§8(4)): pointer-rate `mouseMoved` extends the
+    /// deadline every event (O(1)), but the idle task itself is recreated
+    /// at most 4 times/s.
+    private static let idleRearmInterval: TimeInterval = 0.25
+
+    /// Drag start (S5, design §5 step 1): guard the matrix, record the
+    /// play/pause memory, pause **gesture-scoped** — `isPlaybackPaused`
+    /// itself is untouched, so the user's intent is preserved for S8 —
+    /// and suspend the idle policy entirely (S3(a): `mouseDragged` is not
+    /// `mouseMoved`, so without the suspend the bar would hide mid-drag).
+    func beginScrub(itemID: MediaItem.ID) {
+        guard !isScrubbing else { return } // already scrubbing
+        guard let handle = seekGuard(itemID: itemID) else { return } // S12
+        isScrubbing = true
+        wasPlayingBeforeDrag = !isPlaybackPaused
+        handle.pause() // gesture-scoped (S5)
+        suspendIdlePolicy()
+    }
+
+    /// Drag movement (S5, S6 — design §5 step 2): the mapped target owns
+    /// the display (labels/thumb track the pointer exactly) and issues a
+    /// coalesced `.preview` seek (S6 — zero-tolerance since the converge
+    /// amendment, so the displayed frame is the frame under the scrubber;
+    /// the coalescing still bounds dispatch).
+    func scrubChanged(itemID: MediaItem.ID, fraction: Double) {
+        guard isScrubbing else { return } // design §5 step 2's guard
+        guard let handle = seekGuard(itemID: itemID) else { return } // S12
+        let target = Self.clampedTarget(fromFraction: fraction, duration: handle.duration)
+        displayedPosition = target
+        handle.seek(to: target, tolerance: .preview) // S6
+        refreshControlBar(visible: true)
+    }
+
+    /// Drag release (S7, S8, S14 — design §5 step 3): the frame-exact
+    /// `.exact` seek to the final target, the S8 restore
+    /// (`wasPlayingBeforeDrag` → `resume()`, else stay paused on the
+    /// frozen frame), the end handover when the clamped target is the
+    /// duration (S14), and the idle countdown restart (S3(a)).
+    func scrubEnded(itemID: MediaItem.ID, fraction: Double) {
+        guard isScrubbing else { return } // design §5 step 3's guard
+        guard let handle = seekGuard(itemID: itemID) else {
+            // The drag's page lost eligibility mid-drag (a paging gesture
+            // started, the session died, …): exit consistently — the
+            // scrub state clears and the machine is never wedged (S12
+            // hygiene). The bar/idle context is already consistent on
+            // every such path (the failing guard's own handler cleared
+            // it).
+            isScrubbing = false
+            wasPlayingBeforeDrag = false
+            return
+        }
+        isScrubbing = false
+        let target = Self.clampedTarget(fromFraction: fraction, duration: handle.duration)
+        if target == handle.duration {
+            endHandover(resumeAfter: wasPlayingBeforeDrag, handle: handle) // S14
+        } else {
+            displayedPosition = target
+            handle.seek(to: target, tolerance: .exact) // S7 — frame-exact
+            exactSeekSuppressUntil = now() + Self.exactSeekTickSuppression
+            if wasPlayingBeforeDrag {
+                handle.resume() // S8 restore
+            } // else: stay paused on the frozen frame at the new position (S8)
+        }
+        wasPlayingBeforeDrag = false
+        restartIdleCountdown() // S3(a): the deadline restarts after release
+        refreshControlBar(visible: true)
+    }
+
+    /// The track-click seek (S11): `.exact` to the mapped target — never
+    /// `pause()`/`resume()`; play/pause is left exactly as found (S10).
+    func seekFromTrackClick(itemID: MediaItem.ID, fraction: Double) {
+        guard let handle = seekGuard(itemID: itemID) else { return } // S12
+        let target = Self.clampedTarget(fromFraction: fraction, duration: handle.duration)
+        commitExactSeek(target, handle: handle)
+    }
+
+    /// The ← step (S2): −5 s from `displayedPosition` — the drift-proof
+    /// arithmetic (two quick presses net exactly 10 s; design §2).
+    /// Auto-repeat = repeated steps (S9). Consumed no-op on ineligible
+    /// states (S12); never shows the bar (S3(b)).
+    func seekBackwardByKeyboard() {
+        stepSeek(by: -Self.keyboardStepSeconds)
+    }
+
+    /// The → step (S2): +5 s from `displayedPosition` — `stepSeek`'s
+    /// mirror.
+    func seekForwardByKeyboard() {
+        stepSeek(by: Self.keyboardStepSeconds)
+    }
+
+    /// The bar's trigger (S3): mouse movement over the settled current
+    /// video page shows the bar and arms the 3 s idle deadline.
+    /// Movement anywhere else — neighbors, welcome, image pages — shows
+    /// nothing (S4, S12), movement during a scrub drag changes nothing
+    /// (the drag suspended the idle policy — S3(a)), and a paging gesture
+    /// in flight drops the model to `nil` before this can run.
+    func noteMouseMoved(itemID: MediaItem.ID) {
+        guard !isScrubbing else { return } // S3(a): the drag owns the bar
+        guard itemID == currentItemID, gestureStartIndex == nil else { return } // S4, S12
+        guard playbackItemID == itemID, isShowingPlayer(itemID) else { return } // live player page only
+        refreshControlBar(visible: true)
+        extendIdleCountdown()
+    }
+
+    // MARK: Scrub & seek internals (E3-S1 design §5 — one decision surface)
+
+    /// The seek guard matrix (S12, design §5's table) as one decision:
+    /// returns the live handle only when every row allows a seek — the
+    /// settled current video (non-current and mid-gesture rejected), a
+    /// live session (image pages, the neutral unavailable state including
+    /// sticky playback failure, and still-starting videos have none), and
+    /// a usable duration (the S13 clamp needs one). Guarded inputs do
+    /// nothing quietly — never beep (D28).
+    private func seekGuard(itemID: MediaItem.ID) -> (any MediaPlayback)? {
+        guard itemID == currentItemID else { return nil } // non-current page (S12)
+        guard gestureStartIndex == nil else { return nil } // paging gesture in flight (S12)
+        guard let handle = playback, playbackItemID == itemID else { return nil } // no live session
+        guard handle.duration > 0 else { return nil } // defensive: S13's clamp needs a duration
+        return handle
+    }
+
+    /// The keyboard step (S2, S10): ±`delta` seconds from
+    /// `displayedPosition`, clamped, `.exact` — leaving play/pause
+    /// exactly as found (S10). Mid-drag keyboard seek is a consumed no-op
+    /// (S12 — the release lands on the scrubber's point regardless, so a
+    /// mid-drag key seek could never survive).
+    private func stepSeek(by delta: TimeInterval) {
+        guard !isScrubbing else { return } // mid-drag keyboard (S12)
+        guard let id = currentItemID, let handle = seekGuard(itemID: id) else { return } // S12
+        let target = Self.clampedTarget(fromSeconds: displayedPosition + delta, duration: handle.duration)
+        commitExactSeek(target, handle: handle)
+    }
+
+    /// The commit path shared by the track click and the key steps (S2,
+    /// S9–S11): an `.exact` seek to the (already clamped) target — with
+    /// the end handover when the target is the duration (S14, the shared
+    /// rule) and the 250 ms tick suppression (design §3: no thumb bounce
+    /// from a stale tick). The bar's visibility is never changed here
+    /// (S3(b): keyboard seek never shows the bar).
+    private func commitExactSeek(_ target: TimeInterval, handle: any MediaPlayback) {
+        if target == handle.duration {
+            endHandover(resumeAfter: !isPlaybackPaused, handle: handle) // S14
+            return
+        }
+        displayedPosition = target
+        handle.seek(to: target, tolerance: .exact)
+        exactSeekSuppressUntil = now() + Self.exactSeekTickSuppression
+        refreshControlBar(visible: controlBarModel?.isVisible ?? false)
+    }
+
+    /// The end handover (S14, design §5): `target == duration` after
+    /// clamping enters the D26 loop contract with this story's play-state
+    /// rules — playing (or `wasPlayingBeforeDrag` on a release) →
+    /// `handle.restart()` (seek-zero-and-play); paused →
+    /// `handle.seek(to: 0, .exact)` and stay paused on the frozen frame
+    /// at the beginning. **Both branches reset the displayed position to
+    /// 0** — the labels/thumb report the restarted beginning immediately,
+    /// not the stale end position until the next tick. The index is never
+    /// touched (product R15 — no auto-advance by construction).
+    private func endHandover(resumeAfter: Bool, handle: any MediaPlayback) {
+        displayedPosition = 0
+        if resumeAfter {
+            handle.restart()
+        } else {
+            handle.seek(to: 0, tolerance: .exact)
+            exactSeekSuppressUntil = now() + Self.exactSeekTickSuppression
+        }
+        refreshControlBar(visible: controlBarModel?.isVisible ?? false)
+    }
+
+    /// One clock tick (design §3): updates the displayed position —
+    /// ignored during a scrub drag (the drag target owns the display) and
+    /// suppressed for 250 ms after any `.exact` seek (a stale tick would
+    /// bounce the thumb backwards). While the bar is **hidden** the tick
+    /// costs the O(1) position store only (§8(3): zero consumer work —
+    /// no property the feed body reads is mutated, so no view
+    /// invalidates); the model is rebuilt from the current position when
+    /// the bar becomes visible.
+    private func applyTick(_ seconds: TimeInterval) {
+        guard !isScrubbing else { return } // the drag owns the display
+        if let until = exactSeekSuppressUntil, now() < until {
+            return // 250 ms post-commit (design §3)
+        }
+        displayedPosition = seconds
+        if controlBarModel?.isVisible == true {
+            refreshControlBar(visible: true)
+        }
+    }
+
+    /// Recomputes the bar model (design §7): non-`nil` only for the
+    /// settled current video's live player page — no paging gesture, a
+    /// live session for the current item, and the player surface (not
+    /// poster/loading) actually showing; otherwise structurally absent.
+    private func refreshControlBar(visible: Bool) {
+        guard gestureStartIndex == nil, let id = currentItemID,
+              let handle = playback, playbackItemID == id, isShowingPlayer(id)
+        else {
+            controlBarModel = nil
+            return
+        }
+        let duration = handle.duration
+        controlBarModel = PlaybackControlBarModel(
+            elapsed: displayedPosition,
+            duration: duration,
+            scrubFraction: duration > 0 ? displayedPosition / duration : 0,
+            isVisible: visible
+        )
+    }
+
+    /// The fraction → seconds mapping with the clamp (S13, design §5) as
+    /// a pure function: `target = clamp(fraction × duration, 0,
+    /// duration)` — which also doubles as input validation (no unbounded
+    /// geometry ever reaches the player).
+    nonisolated static func clampedTarget(fromFraction fraction: Double, duration: TimeInterval) -> TimeInterval {
+        min(max(fraction * duration, 0), duration)
+    }
+
+    /// The seconds clamp (S13) — the key steps' arithmetic guard.
+    nonisolated static func clampedTarget(fromSeconds seconds: TimeInterval, duration: TimeInterval) -> TimeInterval {
+        min(max(seconds, 0), duration)
+    }
+
+    // MARK: Bar idle machinery (E3-S1 design §4 — S3, §8(4))
+
+    /// Mouse-activity re-arm: the deadline extends every event (O(1));
+    /// the task is recreated at most 4 times/s (§8(4)'s bound).
+    private func extendIdleCountdown() {
+        idleDeadline = now() + Self.controlBarIdleTimeout
+        guard now() - lastIdleRearm >= Self.idleRearmInterval else { return }
+        rearmIdleTask()
+    }
+
+    /// The forced re-arm (S3(a)): the scrub release restarts the countdown
+    /// regardless of the throttle — a release is not pointer-rate input.
+    private func restartIdleCountdown() {
+        idleDeadline = now() + Self.controlBarIdleTimeout
+        rearmIdleTask()
+    }
+
+    /// The one idle task (design §4): a generation-guarded `Task.sleep`
+    /// to the current deadline — no `Timer`, no `CADisplayLink`, no
+    /// run-loop source; it exists only while a bar is visible, and is
+    /// owned and cancelled on every exit path (skill §4).
+    private func rearmIdleTask() {
+        lastIdleRearm = now()
+        idleGeneration += 1
+        let generation = idleGeneration
+        idleTask?.cancel()
+        idleTask = Task { [weak self] in
+            guard let self, let deadline = self.idleDeadline else { return }
+            let remaining = deadline - self.now()
+            guard remaining > 0 else {
+                self.idleHide(generation: generation)
+                return
+            }
+            try? await Task.sleep(for: .seconds(remaining))
+            guard !Task.isCancelled else { return }
+            self.idleHide(generation: generation)
+        }
+    }
+
+    /// The pure hide decision, generation-guarded: a stale wake (newer
+    /// activity, a drag, or a dead session bumped the generation) is
+    /// dropped; a wake before the (re-extended) deadline re-arms for the
+    /// remainder — the hide must happen even though the pointer never
+    /// moves again.
+    private func idleHide(generation: Int) {
+        guard generation == idleGeneration, !isScrubbing else { return }
+        guard let deadline = idleDeadline else { return }
+        guard now() >= deadline else {
+            rearmIdleTask()
+            return
+        }
+        idleTask = nil
+        refreshControlBar(visible: false)
+    }
+
+    /// Suspends the idle policy entirely (S3(a), design §4): the deadline
+    /// is cleared and any in-flight sleep is made stale — used by the
+    /// scrub drag and by every path that kills the bar's page context
+    /// (paging start, page turns, session death).
+    private func suspendIdlePolicy() {
+        idleGeneration += 1
+        idleTask?.cancel()
+        idleTask = nil
+        idleDeadline = nil
     }
 
     // MARK: Playback policy (E2-S3 design §3, §7)
@@ -370,10 +761,21 @@ final class FeedViewModel {
         }
         playback = handle
         isPlaybackPaused = false // fresh sessions auto-play (S1)
+        displayedPosition = 0 // a fresh session starts at the beginning (S15 — nothing carried)
         playbackEventTask = Task { [weak self] in
             for await event in handle.events {
                 guard let self else { return }
                 self.applyPlayback(event, from: handle, toItemID: item.id, generation: generation)
+            }
+        }
+        // The clock consumer (design §3): ticks feed the displayed
+        // position (drag- and suppression-aware — `applyTick`) until the
+        // stream finishes on `stop()` or the task is cancelled with the
+        // session.
+        playbackTimeTask = Task { [weak self] in
+            for await tick in handle.timeUpdates {
+                guard let self else { return }
+                self.applyTick(tick)
             }
         }
     }
@@ -388,10 +790,22 @@ final class FeedViewModel {
         playbackStartTask = nil
         playbackEventTask?.cancel()
         playbackEventTask = nil
+        playbackTimeTask?.cancel()
+        playbackTimeTask = nil
         playback?.stop()
         playback = nil
         playbackItemID = nil
         isPlaybackPaused = false
+        // E3-S1 (S15 — nothing carried; design §7): the drag machine, the
+        // displayed position, the tick suppression, and the bar die with
+        // the session — a drag on a stopping session cannot survive it,
+        // and the bar is structurally absent without a live player page.
+        isScrubbing = false
+        wasPlayingBeforeDrag = false
+        displayedPosition = 0
+        exactSeekSuppressUntil = nil
+        controlBarModel = nil
+        suspendIdlePolicy()
     }
 
     /// Applies one playback event (design §3, §5, §7) behind the
@@ -420,6 +834,10 @@ final class FeedViewModel {
             // state (a repeated `.readyForDisplay` is idempotent).
             parkedPosterStates[id] = displayStates[id] ?? .loading
             displayStates[id] = .player(handle)
+            // The current video's page is now live: its bar model exists
+            // hidden-at-rest (design §7 — chrome is demand-driven; mouse
+            // movement shows it, S3).
+            refreshControlBar(visible: false)
         case .readyForDisplay:
             break // the surface is already installed
         case .reachedEnd:

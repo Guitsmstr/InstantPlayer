@@ -4,7 +4,8 @@
 //
 //  Feed Presentation view — a dumb binder (E1-S3, design §3.8 — R3;
 //  E2-S1, design §4 — S5–S7; E2-S2, design §2, §5.1–§5.3 — S1, S2,
-//  S4–S6, S10, S11, S14).
+//  S4–S6, S10, S11, S14; E3-S1, design §7 — S1, S3, S5, S11: the bar
+//  model + actions drill).
 //
 
 import SwiftUI
@@ -30,8 +31,12 @@ import SwiftUI
 /// page (capturing the item id) into the guarded
 /// `togglePlaybackFromTap(itemID:)` — taps are not focus-dependent (the
 /// evidence §8 failure was key focus), and no App-level mouse monitor
-/// exists. Chrome-free (S14): hidden scroll indicators, no overlays of
-/// any kind. No state of its own, no Data imports (R2), no I/O in `body`
+/// exists. E3-S1 (design §7) drills the same way: each page receives its
+/// own `PlaybackControlBarModel?` (the view model's value gated to the
+/// page — structurally absent on every other page, S4/S12) and an
+/// actions value whose closures capture the item id into the view
+/// model's §5 entry points. No App-level mouse monitor (D28), no focus
+/// handling. No state of its own, no Data imports (R2), no I/O in `body`
 /// (RNF-02 — the behavior's id map is one O(n) pass over the same
 /// snapshot `ForEach` already iterates).
 struct FeedView: View {
@@ -58,11 +63,33 @@ struct FeedView: View {
                 ForEach(collection.items) { item in
                     FeedItemView(
                         displayState: viewModel.displayStates[item.id],
+                        // The page's id (E3-S1 design §4): the mouse-move
+                        // tracking area reports it.
+                        itemID: item.id,
                         // The per-page tap (E2-S3 design §6): the closure
                         // captures the item id — the cell itself never
                         // sees the item (S14's structural absence); the
                         // guard matrix lives in the view model (S7).
-                        onTap: { viewModel.togglePlaybackFromTap(itemID: item.id) }
+                        onTap: { viewModel.togglePlaybackFromTap(itemID: item.id) },
+                        // The per-page bar model (E3-S1 design §7): the
+                        // view model builds it for the settled current
+                        // video only — gated here so a neighbor cell can
+                        // never render the current page's strip (S4, S12).
+                        controlBarModel: item.id == viewModel.currentItemID
+                            ? viewModel.controlBarModel
+                            : nil,
+                        // The per-page actions (E3-S1 design §7): each
+                        // closure captures the item id and routes into
+                        // the view model's guarded §5 entry points —
+                        // ineligible states consume and no-op quietly
+                        // (S12, D28).
+                        actions: FeedPageActions(
+                            scrubBegan: { viewModel.beginScrub(itemID: item.id) },
+                            scrubChanged: { viewModel.scrubChanged(itemID: item.id, fraction: $0) },
+                            scrubEnded: { viewModel.scrubEnded(itemID: item.id, fraction: $0) },
+                            trackClick: { viewModel.seekFromTrackClick(itemID: item.id, fraction: $0) },
+                            mouseMoved: { viewModel.noteMouseMoved(itemID: item.id) }
+                        )
                     )
                     // The page IS the viewport (design §5.1) — resize
                     // and native fullscreen re-fill it with no code

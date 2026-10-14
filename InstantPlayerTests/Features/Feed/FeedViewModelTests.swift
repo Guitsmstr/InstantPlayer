@@ -1558,6 +1558,768 @@ struct FeedViewModelTests {
             "the re-attempted session must install and paint"
         )
     }
+
+    // MARK: Scrub & seek policy (E3-S1 design §10.1 — S1–S15)
+
+    /// The arrange step of the scrub/seek rows: a one-video collection,
+    /// the scripted handle (duration scripted) installed and displayed,
+    /// and the manual clock injected into the view model. Returns the
+    /// view model, its player double, and the collection.
+    private static func arrangeSeekRow(
+        handle: ScriptedMediaPlayback,
+        duration: TimeInterval,
+        clock: ManualClock,
+        itemCount: Int = 1
+    ) async -> (FeedViewModel, ScriptedMediaPlayerService, MediaCollection) {
+        let folder = Self.uniqueFolder("seek")
+        let items = (0 ..< itemCount).map { Self.makeItem(folder, named: "v\($0).mp4", kind: .video) }
+        let collection = Self.makeCollection(folderURL: folder, items: items, startIndex: 0)
+        handle.duration = duration
+        let players = ScriptedMediaPlayerService(answers: [handle])
+        let viewModel = FeedViewModel(
+            mediaPlayerService: players,
+            mediaFolderRepository: ScriptedMediaFolderRepository(results: [collection]),
+            mediaPreviewService: StubMediaPreviewService(),
+            now: { clock.time }
+        )
+        await viewModel.handle(entryAction: EntryAction(enteredURL: folder))
+        let installed = await Self.installPlayback(
+            collection.items[0], handle: handle, in: viewModel, service: players
+        )
+        guard installed else {
+            Issue.record("arrange: the session must install and paint")
+            return (viewModel, players, collection)
+        }
+        return (viewModel, players, collection)
+    }
+
+    /// The recorded seeks as parallel arrays — tuples are not `Equatable`,
+    /// so the rows compare seconds and tolerances separately.
+    private static func seekSeconds(_ handle: ScriptedMediaPlayback) -> [TimeInterval] {
+        handle.seeks.map(\.seconds)
+    }
+
+    private static func seekTolerances(_ handle: ScriptedMediaPlayback) -> [MediaSeekTolerance] {
+        handle.seeks.map(\.tolerance)
+    }
+
+    /// Drag machine (S5–S8), the was-playing case: begin records the
+    /// intent and pauses gesture-scoped, change issues `.preview` to the
+    /// mapped target and moves the displayed position, end issues
+    /// `.exact` to the final target and resumes.
+    @Test func dragMachinePlayingCasePausePreviewExactResume() async {
+        let clock = ManualClock()
+        let handle = ScriptedMediaPlayback()
+        let (viewModel, _, collection) = await Self.arrangeSeekRow(
+            handle: handle, duration: 100, clock: clock
+        )
+        let item = collection.items[0]
+
+        viewModel.beginScrub(itemID: item.id)
+        #expect(handle.pauseCount == 1, "begin pauses for the drag (S5)")
+
+        viewModel.scrubChanged(itemID: item.id, fraction: 0.5)
+        #expect(
+            Self.seekSeconds(handle) == [50] && Self.seekTolerances(handle) == [.preview],
+            "the change issues one coalesced preview seek — zero-tolerance landing — to the mapped target (S6)"
+        )
+        #expect(viewModel.displayedPosition == 50, "the labels/thumb track the pointer exactly (S5)")
+
+        viewModel.scrubEnded(itemID: item.id, fraction: 0.75)
+        #expect(
+            Self.seekSeconds(handle).last == 75 && Self.seekTolerances(handle).last == .exact,
+            "the release issues the frame-exact seek to the final target (S7)"
+        )
+        #expect(handle.resumeCount == 1, "was-playing → resume (S8)")
+        #expect(handle.pauseCount == 1, "no further pause")
+        #expect(viewModel.displayedPosition == 75)
+    }
+
+    /// Drag machine (S8), the was-paused case: the release stays paused on
+    /// the frozen frame — no resume.
+    @Test func dragMachineWasPausedStaysPausedOnTheFrozenFrame() async {
+        let clock = ManualClock()
+        let handle = ScriptedMediaPlayback()
+        let (viewModel, _, collection) = await Self.arrangeSeekRow(
+            handle: handle, duration: 100, clock: clock
+        )
+        let item = collection.items[0]
+
+        viewModel.togglePlayback() // pause (S8's prior state)
+        #expect(handle.pauseCount == 1)
+        viewModel.beginScrub(itemID: item.id)
+        #expect(handle.pauseCount == 2, "begin pauses again — the gesture-scoped pause")
+        viewModel.scrubChanged(itemID: item.id, fraction: 0.25)
+        viewModel.scrubEnded(itemID: item.id, fraction: 0.25)
+
+        #expect(
+            Self.seekSeconds(handle).last == 25 && Self.seekTolerances(handle).last == .exact,
+            "the release lands the exact seek (S7)"
+        )
+        #expect(handle.resumeCount == 0, "was-paused → stays paused on the frozen frame (S8)")
+    }
+
+    /// `beginScrub` must not flip `isPlaybackPaused` (S5's gesture-scope):
+    /// observed through the toggle — the untouched (playing) state pauses
+    /// again; a flipped state would have resumed.
+    @Test func beginScrubDoesNotFlipIsPlaybackPaused() async {
+        let clock = ManualClock()
+        let handle = ScriptedMediaPlayback()
+        let (viewModel, _, collection) = await Self.arrangeSeekRow(
+            handle: handle, duration: 100, clock: clock
+        )
+
+        viewModel.beginScrub(itemID: collection.items[0].id)
+        viewModel.togglePlayback()
+
+        #expect(
+            handle.pauseCount == 2 && handle.resumeCount == 0,
+            "the toggle paused again — isPlaybackPaused was never flipped by the drag (S5)"
+        )
+    }
+
+    /// Key steps (S2, S9): ±5 s computed from `displayedPosition` — two
+    /// quick presses net exactly 10 s (no drift), auto-repeat = repeated
+    /// steps.
+    @Test func keyboardStepsAreFiveSecondsFromDisplayedPositionWithoutDrift() async {
+        let clock = ManualClock()
+        let handle = ScriptedMediaPlayback()
+        let (viewModel, _, _) = await Self.arrangeSeekRow(handle: handle, duration: 100, clock: clock)
+
+        viewModel.seekForwardByKeyboard()
+        viewModel.seekForwardByKeyboard()
+        viewModel.seekBackwardByKeyboard()
+
+        #expect(
+            Self.seekSeconds(handle) == [5, 10, 5] && Self.seekTolerances(handle) == [.exact, .exact, .exact],
+            "each step is exact ±5 s from the displayed position — two presses net 10 s (S2, S9)"
+        )
+        #expect(viewModel.displayedPosition == 5)
+    }
+
+    /// Key steps (S10): rate untouched in both play states — the seek
+    /// never pauses or resumes.
+    @Test func keyboardStepsLeavePlayPauseUntouchedInBothStates() async {
+        let clock = ManualClock()
+        let handle = ScriptedMediaPlayback()
+        let (viewModel, _, _) = await Self.arrangeSeekRow(handle: handle, duration: 100, clock: clock)
+
+        viewModel.seekForwardByKeyboard()
+        #expect(handle.pauseCount == 0 && handle.resumeCount == 0, "playing: the step changed nothing (S10)")
+
+        viewModel.togglePlayback() // pause
+        viewModel.seekBackwardByKeyboard()
+        #expect(
+            handle.pauseCount == 1 && handle.resumeCount == 0,
+            "paused: the step changed nothing either (S10)"
+        )
+    }
+
+    /// Track click (S11): `.exact` to the mapped target; never
+    /// `pause()`/`resume()` — the play/pause state is untouched.
+    @Test func trackClickSeeksExactWithoutToggling() async {
+        let clock = ManualClock()
+        let handle = ScriptedMediaPlayback()
+        let (viewModel, _, collection) = await Self.arrangeSeekRow(handle: handle, duration: 100, clock: clock)
+
+        viewModel.seekFromTrackClick(itemID: collection.items[0].id, fraction: 0.4)
+
+        #expect(
+            Self.seekSeconds(handle) == [40] && Self.seekTolerances(handle) == [.exact],
+            "the click seeks exactly to the mapped target (S11)"
+        )
+        #expect(
+            handle.pauseCount == 0 && handle.resumeCount == 0 && handle.restartCount == 0,
+            "a click must never toggle (S11, S10)"
+        )
+    }
+
+    /// Guard matrix (S12): seek input on a non-current page is a consumed
+    /// no-op — the spy records nothing.
+    @Test func seekInputsOnANonCurrentPageAreQuietNoOps() async {
+        let clock = ManualClock()
+        let handle = ScriptedMediaPlayback()
+        let (viewModel, _, collection) = await Self.arrangeSeekRow(
+            handle: handle, duration: 100, clock: clock, itemCount: 2
+        )
+        let departed = collection.items[0]
+
+        viewModel.pageForward() // item 1 becomes current (its own seam answer)
+        viewModel.beginScrub(itemID: departed.id)
+        viewModel.scrubChanged(itemID: departed.id, fraction: 0.5)
+        viewModel.scrubEnded(itemID: departed.id, fraction: 0.5)
+        viewModel.seekFromTrackClick(itemID: departed.id, fraction: 0.5)
+
+        #expect(
+            handle.seeks.isEmpty && handle.pauseCount == 0 && handle.resumeCount == 0,
+            "non-current seek input must be a consumed no-op (S12)"
+        )
+    }
+
+    /// Guard matrix (S12): seek input while a paging gesture is in flight
+    /// is a consumed no-op.
+    @Test func seekInputsDuringAPagingGestureAreQuietNoOps() async {
+        let clock = ManualClock()
+        let handle = ScriptedMediaPlayback()
+        let (viewModel, _, collection) = await Self.arrangeSeekRow(
+            handle: handle, duration: 100, clock: clock
+        )
+        let item = collection.items[0]
+
+        viewModel.scrollGestureDidStart()
+        viewModel.seekForwardByKeyboard()
+        viewModel.seekFromTrackClick(itemID: item.id, fraction: 0.5)
+        viewModel.beginScrub(itemID: item.id)
+        viewModel.scrubChanged(itemID: item.id, fraction: 0.5)
+
+        #expect(
+            handle.seeks.isEmpty && handle.pauseCount == 0,
+            "mid-gesture seek input must be a consumed no-op (S12)"
+        )
+        viewModel.scrollGestureDidSettle()
+    }
+
+    /// Guard matrix (S4, S12): an image page has no bar and no seek —
+    /// mouse movement shows nothing, click seeks nothing.
+    @Test func seekInputsOnAnImagePageAreQuietNoOps() async {
+        let folder = Self.uniqueFolder("seek-image")
+        let image = Self.makeItem(folder, named: "pic.png", kind: .image)
+        let collection = Self.makeCollection(folderURL: folder, items: [image], startIndex: 0)
+        let clock = ManualClock()
+        let viewModel = FeedViewModel(
+            mediaPlayerService: ScriptedMediaPlayerService(),
+            mediaFolderRepository: ScriptedMediaFolderRepository(results: [collection]),
+            mediaPreviewService: StubMediaPreviewService(),
+            now: { clock.time }
+        )
+        await viewModel.handle(entryAction: EntryAction(enteredURL: folder))
+        let painted = await Self.waitFor(
+            { viewModel.displayStates[image.id] != nil },
+            "the image page must reach its preview state"
+        )
+        guard painted else { return }
+
+        viewModel.noteMouseMoved(itemID: image.id)
+        viewModel.seekFromTrackClick(itemID: image.id, fraction: 0.5)
+
+        #expect(
+            viewModel.controlBarModel == nil,
+            "an image page has no bar — movement shows nothing (S4)"
+        )
+    }
+
+    /// Guard matrix (S12): the neutral unavailable state (sticky playback
+    /// failure) has no bar and no seek.
+    @Test func seekInputsOnAnUnavailableItemAreQuietNoOps() async {
+        let folder = Self.uniqueFolder("seek-unavailable")
+        let item = Self.makeItem(folder, named: "broken.mp4", kind: .video)
+        let collection = Self.makeCollection(folderURL: folder, items: [item], startIndex: 0)
+        let clock = ManualClock()
+        let viewModel = FeedViewModel(
+            mediaPlayerService: ScriptedMediaPlayerService(answers: [nil]),
+            mediaFolderRepository: ScriptedMediaFolderRepository(results: [collection]),
+            mediaPreviewService: StubMediaPreviewService(),
+            now: { clock.time }
+        )
+        await viewModel.handle(entryAction: EntryAction(enteredURL: folder))
+        let failed = await Self.waitFor(
+            { viewModel.displayStates[item.id] == .unavailable },
+            "the nil seam answer must become the sticky unavailable state"
+        )
+        guard failed else { return }
+
+        viewModel.noteMouseMoved(itemID: item.id)
+        viewModel.seekFromTrackClick(itemID: item.id, fraction: 0.5)
+
+        #expect(
+            viewModel.controlBarModel == nil,
+            "the unavailable state has no bar (S12)"
+        )
+    }
+
+    /// Guard matrix (S12): keyboard seek during a scrub drag is a
+    /// consumed no-op — the release lands on the scrubber's point
+    /// regardless, so a mid-drag key seek could never survive.
+    @Test func keyboardSeekDuringAScrubDragIsAQuietNoOp() async {
+        let clock = ManualClock()
+        let handle = ScriptedMediaPlayback()
+        let (viewModel, _, collection) = await Self.arrangeSeekRow(
+            handle: handle, duration: 100, clock: clock
+        )
+        let item = collection.items[0]
+
+        viewModel.beginScrub(itemID: item.id)
+        viewModel.scrubChanged(itemID: item.id, fraction: 0.5)
+        let recordedDuringDrag = handle.seeks.count
+
+        viewModel.seekForwardByKeyboard()
+        viewModel.seekBackwardByKeyboard()
+
+        #expect(
+            handle.seeks.count == recordedDuringDrag,
+            "the mid-drag keyboard steps must record nothing (S12)"
+        )
+        #expect(viewModel.displayedPosition == 50, "the drag target still owns the display")
+    }
+
+    /// Guard matrix (S13's defensive row): a `duration <= 0` session
+    /// rejects every seek input — quietly.
+    @Test func seekInputsWithAZeroDurationSessionAreQuietNoOps() async {
+        let clock = ManualClock()
+        let handle = ScriptedMediaPlayback()
+        let (viewModel, _, collection) = await Self.arrangeSeekRow(
+            handle: handle, duration: 0, clock: clock
+        )
+        let item = collection.items[0]
+
+        viewModel.noteMouseMoved(itemID: item.id)
+        viewModel.seekFromTrackClick(itemID: item.id, fraction: 0.5)
+        viewModel.seekForwardByKeyboard()
+
+        #expect(
+            handle.seeks.isEmpty && handle.restartCount == 0,
+            "a duration-less session rejects seek input (S13's defensive row)"
+        )
+    }
+
+    /// Guard hygiene (S12 — the review fix): a paging gesture starting
+    /// mid-drag supersedes the drag — the scrub state clears, so the
+    /// machine can never wedge with `isScrubbing` set (keyboard seeks
+    /// stay alive afterwards).
+    @Test func pagingGestureDuringADragClearsTheScrubState() async {
+        let clock = ManualClock()
+        let handle = ScriptedMediaPlayback()
+        let (viewModel, _, collection) = await Self.arrangeSeekRow(
+            handle: handle, duration: 100, clock: clock
+        )
+        let item = collection.items[0]
+
+        viewModel.beginScrub(itemID: item.id)
+        viewModel.scrubChanged(itemID: item.id, fraction: 0.5)
+        viewModel.scrollGestureDidStart() // the drag is superseded mid-flight
+        viewModel.scrollGestureDidSettle() // zero-net — the same video stays current
+
+        viewModel.seekForwardByKeyboard()
+        #expect(
+            Self.seekSeconds(handle).last == 55,
+            "keyboard seek works after the interrupted drag — no wedge (50 + 5, S12 hygiene)"
+        )
+    }
+
+    /// Guard hygiene (S12 — the review fix): a release whose guard fails
+    /// (the page lost eligibility mid-drag) exits with the machine
+    /// consistent — `isScrubbing` never survives the method.
+    @Test func scrubEndedWithADeadGuardLeavesAConsistentMachine() async {
+        let clock = ManualClock()
+        let handle = ScriptedMediaPlayback()
+        let (viewModel, _, collection) = await Self.arrangeSeekRow(
+            handle: handle, duration: 100, clock: clock
+        )
+        let item = collection.items[0]
+
+        viewModel.beginScrub(itemID: item.id)
+        viewModel.scrubChanged(itemID: item.id, fraction: 0.5)
+        viewModel.scrollGestureDidStart() // eligibility lost mid-drag
+        viewModel.scrubEnded(itemID: item.id, fraction: 0.6) // the guard must fail — no seek, no wedge
+        #expect(
+            Self.seekSeconds(handle) == [50] && Self.seekTolerances(handle) == [.preview],
+            "the failed-guard release must seek nothing (S12)"
+        )
+        viewModel.scrollGestureDidSettle()
+
+        viewModel.seekForwardByKeyboard()
+        #expect(
+            Self.seekSeconds(handle).last == 55,
+            "consistent machine — keyboard seek works after the dead release (50 + 5)"
+        )
+    }
+
+    /// Clamping (S13): out-of-range targets clamp to `[0, duration]` —
+    /// the clamp also doubles as input validation for unbounded geometry.
+    @Test func clampedTargetsAtBothEnds() async {
+        let clock = ManualClock()
+        let handle = ScriptedMediaPlayback()
+        let (viewModel, _, collection) = await Self.arrangeSeekRow(handle: handle, duration: 100, clock: clock)
+        let item = collection.items[0]
+
+        viewModel.seekFromTrackClick(itemID: item.id, fraction: -0.5)
+        #expect(
+            Self.seekSeconds(handle) == [0] && Self.seekTolerances(handle) == [.exact],
+            "below-range clamps to 0 — an ordinary clamped seek, no special case"
+        )
+
+        viewModel.beginScrub(itemID: item.id)
+        viewModel.scrubChanged(itemID: item.id, fraction: 2.0)
+        #expect(
+            viewModel.displayedPosition == 100,
+            "above-range clamps to the duration (S13)"
+        )
+        viewModel.scrubEnded(itemID: item.id, fraction: 0.5)
+    }
+
+    /// End handover (S14), the playing case — shared by the click and the
+    /// key step: `target == duration` after clamping restarts the SAME
+    /// video; the index is never touched (product R15).
+    @Test func endHandoverFromClickAndKeyStepsRestartsPlaying() async {
+        let clock = ManualClock()
+        let handle = ScriptedMediaPlayback()
+        let (viewModel, _, collection) = await Self.arrangeSeekRow(
+            handle: handle, duration: 100, clock: clock
+        )
+        let item = collection.items[0]
+
+        // Drive the position off zero first (a tick records no seek): the
+        // click-path assertion below only pins the reset if it starts non-zero.
+        handle.emitTick(40)
+        let primed = await Self.waitFor(
+            { viewModel.displayedPosition == 40 },
+            "the clock consumer must be live"
+        )
+        guard primed else { return }
+
+        viewModel.seekFromTrackClick(itemID: item.id, fraction: 1.0)
+        #expect(handle.restartCount == 1, "the click at the end restarts the same video (S14, D26)")
+        #expect(handle.seeks.isEmpty, "the handover is not a seek (D26's restart)")
+        #expect(
+            viewModel.displayedPosition == 0,
+            "the click path resets a non-zero displayed position to the restarted beginning (S14 — the review fix)"
+        )
+        #expect(viewModel.currentItemID == item.id, "the index is never touched (R15)")
+
+        viewModel.seekFromTrackClick(itemID: item.id, fraction: 0.98)
+        viewModel.seekForwardByKeyboard() // 98 + 5 clamps to the duration
+        #expect(handle.restartCount == 2, "the key step at the end shares the rule (S14)")
+        #expect(
+            viewModel.displayedPosition == 0,
+            "the key-step path resets a non-zero displayed position too (S14 — the review fix)"
+        )
+        #expect(
+            Self.seekSeconds(handle) == [98] && Self.seekTolerances(handle) == [.exact],
+            "only the ordinary seek was issued"
+        )
+        #expect(viewModel.currentItemID == item.id, "still no auto-advance (R15)")
+    }
+
+    /// End handover (S14), the paused case: seek to 0 `.exact` and stay
+    /// paused on the frozen frame at the beginning.
+    @Test func endHandoverFromPausedClickSeeksZeroAndStaysPaused() async {
+        let clock = ManualClock()
+        let handle = ScriptedMediaPlayback()
+        let (viewModel, _, collection) = await Self.arrangeSeekRow(
+            handle: handle, duration: 100, clock: clock
+        )
+
+        viewModel.togglePlayback() // pause — the prior state
+        viewModel.seekFromTrackClick(itemID: collection.items[0].id, fraction: 1.0)
+
+        #expect(handle.restartCount == 0, "paused → no restart (S14)")
+        #expect(
+            Self.seekSeconds(handle) == [0] && Self.seekTolerances(handle) == [.exact],
+            "paused → the handover seeks to the beginning (S14)"
+        )
+        #expect(handle.resumeCount == 0, "and stays paused on the frozen frame (S14)")
+    }
+
+    /// End handover (S14), the drag-release case: `wasPlayingBeforeDrag`
+    /// decides — was-playing restarts even though the handle was paused
+    /// for the gesture.
+    @Test func endHandoverFromDragReleaseFollowsWasPlaying() async {
+        let clock = ManualClock()
+        let handle = ScriptedMediaPlayback()
+        let (viewModel, _, collection) = await Self.arrangeSeekRow(
+            handle: handle, duration: 100, clock: clock
+        )
+        let item = collection.items[0]
+
+        viewModel.beginScrub(itemID: item.id)
+        viewModel.scrubChanged(itemID: item.id, fraction: 0.9)
+        viewModel.scrubEnded(itemID: item.id, fraction: 1.0)
+
+        #expect(handle.restartCount == 1, "was-playing → the release at the end restarts (S14)")
+        #expect(viewModel.currentItemID == item.id, "the index is never touched (R15)")
+    }
+
+    /// Bar visibility (S3): mouse movement over the current video page
+    /// shows the bar and arms the 3 s idle deadline.
+    @Test func mouseMovementOnTheCurrentVideoPageShowsAndArmsTheBar() async {
+        let clock = ManualClock()
+        let handle = ScriptedMediaPlayback()
+        let (viewModel, _, collection) = await Self.arrangeSeekRow(
+            handle: handle, duration: 100, clock: clock
+        )
+        let item = collection.items[0]
+
+        #expect(
+            viewModel.controlBarModel?.isVisible == false,
+            "before any movement the bar exists hidden-at-rest (design §7)"
+        )
+        viewModel.noteMouseMoved(itemID: item.id)
+        #expect(viewModel.controlBarModel?.isVisible == true, "movement shows the bar (S3)")
+
+        clock.time += 4 // past the 3 s deadline — then let the task observe it
+        let hidden = await Self.waitFor(
+            { viewModel.controlBarModel?.isVisible == false },
+            "the armed 3 s idle deadline must hide the bar (S3)"
+        )
+        guard hidden else { return }
+        #expect(
+            viewModel.controlBarModel != nil,
+            "hidden is not absent — the live player page keeps its model (design §7)"
+        )
+    }
+
+    /// Bar visibility (S3(a)): a scrub drag suspends the idle policy
+    /// entirely — the bar cannot hide mid-drag even when the would-be
+    /// deadline passes — and the countdown restarts after release.
+    @Test func scrubDragSuspendsTheIdlePolicyAndReleaseRearmsIt() async {
+        let clock = ManualClock()
+        let handle = ScriptedMediaPlayback()
+        let (viewModel, _, collection) = await Self.arrangeSeekRow(
+            handle: handle, duration: 100, clock: clock
+        )
+        let item = collection.items[0]
+
+        viewModel.noteMouseMoved(itemID: item.id)
+        #expect(viewModel.controlBarModel?.isVisible == true)
+        viewModel.beginScrub(itemID: item.id)
+
+        clock.time += 10 // long past the would-be deadline
+        for _ in 0 ..< 50 {
+            await Task.yield()
+        }
+        #expect(
+            viewModel.controlBarModel?.isVisible == true,
+            "the drag suspends the idle policy — no mid-drag hide (S3(a))"
+        )
+
+        viewModel.scrubEnded(itemID: item.id, fraction: 0.5)
+        #expect(
+            viewModel.controlBarModel?.isVisible == true,
+            "the release restarts the countdown with the bar up (S3(a))"
+        )
+        clock.time += 4
+        let hidden = await Self.waitFor(
+            { viewModel.controlBarModel?.isVisible == false },
+            "the restarted 3 s deadline must hide the bar (S3(a))"
+        )
+        guard hidden else { return }
+    }
+
+    /// Bar visibility (S4, S12): movement on anything but the settled
+    /// current video page shows nothing — a neighbor page's id.
+    @Test func mouseMovementOnNonCurrentPagesShowsNothing() async {
+        let clock = ManualClock()
+        let handle = ScriptedMediaPlayback()
+        let (viewModel, _, collection) = await Self.arrangeSeekRow(
+            handle: handle, duration: 100, clock: clock, itemCount: 2
+        )
+        let neighbor = collection.items[1]
+
+        viewModel.noteMouseMoved(itemID: neighbor.id)
+
+        #expect(
+            viewModel.controlBarModel?.isVisible == false,
+            "movement on a non-current page never shows the bar (S4, S12)"
+        )
+    }
+
+    /// Bar visibility (S3(b)): keyboard seek never shows the bar — the
+    /// hidden model keeps its surface, the seek still lands.
+    @Test func keyboardSeekNeverShowsTheBar() async {
+        let clock = ManualClock()
+        let handle = ScriptedMediaPlayback()
+        let (viewModel, _, _) = await Self.arrangeSeekRow(handle: handle, duration: 100, clock: clock)
+
+        viewModel.seekForwardByKeyboard()
+
+        #expect(
+            handle.seeks.count == 1,
+            "the seek itself lands (S2)"
+        )
+        #expect(
+            viewModel.controlBarModel?.isVisible == false,
+            "keyboard seek never shows the bar (S3(b))"
+        )
+    }
+
+    /// Bar visibility (S12's premise): a paging gesture in flight drops
+    /// the bar model to `nil` at once.
+    @Test func pagingGestureDropsTheBarModelAtOnce() async {
+        let clock = ManualClock()
+        let handle = ScriptedMediaPlayback()
+        let (viewModel, _, collection) = await Self.arrangeSeekRow(
+            handle: handle, duration: 100, clock: clock
+        )
+
+        viewModel.noteMouseMoved(itemID: collection.items[0].id)
+        #expect(viewModel.controlBarModel?.isVisible == true)
+        viewModel.scrollGestureDidStart()
+
+        #expect(
+            viewModel.controlBarModel == nil,
+            "mid-paging the model is structurally absent (S12)"
+        )
+        viewModel.scrollGestureDidSettle()
+        #expect(
+            viewModel.controlBarModel?.isVisible == false,
+            "after the settle the (unchanged) video's model returns hidden (design §7)"
+        )
+    }
+
+    /// Time display (§3, §8(3) — the review fix): ticks while the bar is
+    /// **hidden** mutate no property the feed body reads — the model is
+    /// untouched (no 10 Hz invalidation); the position store still
+    /// advances, and the model rebuilds from it when the bar becomes
+    /// visible.
+    @Test func hiddenTicksCauseNoBarModelChangeAndVisibilityRebuilds() async {
+        let clock = ManualClock()
+        let handle = ScriptedMediaPlayback()
+        let (viewModel, _, collection) = await Self.arrangeSeekRow(
+            handle: handle, duration: 100, clock: clock
+        )
+        let item = collection.items[0]
+
+        // Pipeline proof: the consumer processes ticks within a few
+        // main-actor turns.
+        handle.emitTick(2)
+        let primed = await Self.waitFor(
+            { viewModel.displayedPosition == 2 },
+            "the clock consumer must be live"
+        )
+        guard primed else { return }
+
+        let hiddenModel = viewModel.controlBarModel
+        #expect(hiddenModel?.isVisible == false, "arrange: the bar is hidden at rest (design §7)")
+
+        handle.emitTick(9)
+        handle.emitTick(17)
+        let processed = await Self.waitFor(
+            { viewModel.displayedPosition == 17 },
+            "the hidden ticks must still advance the position store (drift-free arithmetic)"
+        )
+        guard processed else { return }
+        #expect(
+            viewModel.controlBarModel == hiddenModel,
+            "hidden ticks must not rebuild the bar model — no feed invalidation (design §8(3))"
+        )
+
+        viewModel.noteMouseMoved(itemID: item.id)
+        #expect(viewModel.controlBarModel?.isVisible == true, "movement shows the bar (S3)")
+        #expect(
+            viewModel.controlBarModel?.elapsed == 17,
+            "the visible model is rebuilt from the current position (§3)"
+        )
+    }
+
+    /// Time display (§3): ticks update the displayed position and the
+    /// bar model's elapsed.
+    /// Time display (§3): ticks update the displayed position and — while
+    /// the bar is **visible** — the bar model's elapsed.
+    @Test func ticksUpdateDisplayedPositionAndTheBarModel() async {
+        let clock = ManualClock()
+        let handle = ScriptedMediaPlayback()
+        let (viewModel, _, collection) = await Self.arrangeSeekRow(
+            handle: handle, duration: 100, clock: clock
+        )
+        let item = collection.items[0]
+
+        viewModel.noteMouseMoved(itemID: item.id) // visible — ticks feed the model
+        handle.emitTick(12.5)
+        let applied = await Self.waitFor(
+            { viewModel.displayedPosition == 12.5 },
+            "the tick must reach the displayed position (§3)"
+        )
+        guard applied else { return }
+        #expect(viewModel.controlBarModel?.elapsed == 12.5, "the bar's elapsed follows (§3)")
+    }
+
+    /// Time display (§3): ticks are ignored during a scrub drag — the
+    /// drag target owns the display.
+    @Test func ticksAreIgnoredDuringAScrubDrag() async {
+        let clock = ManualClock()
+        let handle = ScriptedMediaPlayback()
+        let (viewModel, _, collection) = await Self.arrangeSeekRow(
+            handle: handle, duration: 100, clock: clock
+        )
+        let item = collection.items[0]
+
+        viewModel.beginScrub(itemID: item.id)
+        viewModel.scrubChanged(itemID: item.id, fraction: 0.5)
+        handle.emitTick(10)
+
+        #expect(
+            viewModel.displayedPosition == 50,
+            "a stale tick must not move the display during the drag (§3)"
+        )
+    }
+
+    /// Time display (§3): ticks are suppressed for 250 ms after any
+    /// `.exact` seek — a stale tick must not bounce the thumb backwards.
+    @Test func ticksAreSuppressedFor250msAfterAnExactSeek() async {
+        let clock = ManualClock()
+        let handle = ScriptedMediaPlayback()
+        let (viewModel, _, _) = await Self.arrangeSeekRow(handle: handle, duration: 100, clock: clock)
+
+        // Pipeline proof: a tick lands within a few main-actor turns —
+        // so the in-window drop below is a real drop, not a race.
+        handle.emitTick(2)
+        let primed = await Self.waitFor(
+            { viewModel.displayedPosition == 2 },
+            "the clock consumer must be live"
+        )
+        guard primed else { return }
+
+        viewModel.seekForwardByKeyboard() // exact — 2 + 5; arms the suppression window
+        #expect(viewModel.displayedPosition == 7)
+
+        handle.emitTick(999) // inside the window
+        for _ in 0 ..< 20 {
+            await Task.yield()
+        }
+        #expect(
+            viewModel.displayedPosition == 7,
+            "the stale post-commit tick is dropped (§3's 250 ms suppression)"
+        )
+
+        clock.time += 1 // past the window
+        handle.emitTick(42)
+        let flowed = await Self.waitFor(
+            { viewModel.displayedPosition == 42 },
+            "ticks flow again after the window"
+        )
+        guard flowed else { return }
+    }
+
+    /// Nothing carried (S15): a current-item change resets the drag
+    /// machine's position state and the bar — nothing survives the page
+    /// turn.
+    @Test func pagingAwayResetsDragPositionAndBarState() async {
+        let clock = ManualClock()
+        let handle = ScriptedMediaPlayback()
+        let (viewModel, _, collection) = await Self.arrangeSeekRow(
+            handle: handle, duration: 100, clock: clock, itemCount: 2
+        )
+        let item = collection.items[0]
+
+        viewModel.noteMouseMoved(itemID: item.id)
+        viewModel.beginScrub(itemID: item.id)
+        viewModel.scrubChanged(itemID: item.id, fraction: 0.42)
+        #expect(viewModel.displayedPosition == 42)
+
+        viewModel.pageForward()
+
+        #expect(viewModel.displayedPosition == 0, "the displayed position resets (S15)")
+        #expect(viewModel.controlBarModel == nil, "the departed page has no bar (S12)")
+    }
+}
+
+/// The injected clock the scrub/seek rows drive (task 3's `now`): tests
+/// advance it synchronously and only then yield the main actor, so the
+/// generation-guarded idle task always observes a moved clock and no row
+/// ever sleeps real seconds.
+@MainActor
+final class ManualClock {
+    var time: TimeInterval = 1000
 }
 
 /// Test double for the welcome-state machine (design §9.2). Two modes:
@@ -1761,14 +2523,32 @@ private final class ScriptedMediaPlayback: MediaPlayback {
     let events: AsyncStream<MediaPlaybackEvent>
     private let continuation: AsyncStream<MediaPlaybackEvent>.Continuation
 
+    /// Scripted duration (task 1.4's minimal member): tests overwrite it
+    /// when the guard/clamp rows need a known length (task 5); the
+    /// non-zero default matches the stub's canned answer shape.
+    var duration: TimeInterval = 90
+
+    /// Elapsed ticks (task 1.4's minimal member): finished on `stop()` —
+    /// brace 1 parity with the real session (design §3). The task-5 suite
+    /// drives ticks through it.
+    let timeUpdates: AsyncStream<TimeInterval>
+    private let timeUpdatesContinuation: AsyncStream<TimeInterval>.Continuation
+
     private(set) var pauseCount = 0
     private(set) var resumeCount = 0
     private(set) var restartCount = 0
     private(set) var stopCount = 0
+
+    /// Recorded seeks (task 1.4's minimal member): target seconds +
+    /// tolerance per call, in call order — the spy record the task-5
+    /// policy suite asserts against.
+    private(set) var seeks: [(seconds: TimeInterval, tolerance: MediaSeekTolerance)] = []
+
     private(set) var isStopped = false
 
     init() {
         (events, continuation) = AsyncStream.makeStream(of: MediaPlaybackEvent.self)
+        (timeUpdates, timeUpdatesContinuation) = AsyncStream.makeStream(of: TimeInterval.self)
     }
 
     /// Drives one event into the stream (the test's hand on the double).
@@ -1792,11 +2572,28 @@ private final class ScriptedMediaPlayback: MediaPlayback {
         restartCount += 1
     }
 
+    /// The seek spy (task 1.4's minimal member): records the call — the
+    /// guard matches every other command; nothing is reflected into the
+    /// tick stream (the task-5 suite drives ticks explicitly).
+    func seek(to seconds: TimeInterval, tolerance: MediaSeekTolerance) {
+        guard !isStopped else { return }
+        seeks.append((seconds, tolerance))
+    }
+
+    /// Drives one elapsed tick into the stream (the task-5 suite's hand
+    /// on the clock — `applyTick` consumes it through the view model's
+    /// clock consumer).
+    func emitTick(_ seconds: TimeInterval) {
+        guard !isStopped else { return }
+        timeUpdatesContinuation.yield(seconds)
+    }
+
     func stop() {
         guard !isStopped else { return }
         isStopped = true
         stopCount += 1
         continuation.finish()
+        timeUpdatesContinuation.finish()
     }
 
     func makeDisplayView() -> AnyObject {

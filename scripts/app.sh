@@ -4,9 +4,18 @@
 # stay out of the subagent allowlists (see .opencode/agents/implementer*.md).
 #
 # Usage:
-#   ./scripts/app.sh run      build and launch the app
+#   ./scripts/app.sh run      build, refresh the ~/Applications copy, and launch it
+#                             (quits any running copy first — what you launch is
+#                             always the fresh build)
 #   ./scripts/app.sh stop     quit the app gracefully (fallback: terminate)
 #   ./scripts/app.sh status   print the app's process state
+#
+# `run` installs a copy at ~/Applications/InstantPlayer.app and registers it with
+# Launch Services + Spotlight: the pinned derived-data path (.deriveddata/) is
+# hidden and Spotlight does not index it, so Finder "Open With" and Spotlight
+# would otherwise resolve to stale copies and the app would be undiscoverable.
+# It quits a running copy before relaunching — macOS `open` would merely activate
+# the stale process — so the review always runs the latest build.
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -24,19 +33,32 @@ app_path() {
   printf '%s/Build/Products/%s/InstantPlayer.app' "$derived_data" "$config"
 }
 
+stop_app() {
+  osascript -e 'quit app id "'"$bundle_id"'"' 2>/dev/null || true
+  sleep 1
+  pgrep -xq InstantPlayer && pkill -x InstantPlayer 2>/dev/null || true
+}
+
 case "$cmd" in
   run)
     xcodebuild -project "$project" -scheme "$scheme" -configuration "$config" \
       -destination 'platform=macOS' -derivedDataPath "$derived_data" build
     built="$(app_path)"
     [ -d "$built" ] || { echo "error: built app not found at $built" >&2; exit 2; }
-    open "$built"
-    echo "app launched: $bundle_id"
+    install_dir="$HOME/Applications"
+    installed="$install_dir/InstantPlayer.app"
+    lsregister=/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/LaunchServices.framework/Versions/A/Support/lsregister
+    mkdir -p "$install_dir"
+    stop_app
+    rm -rf "$installed"
+    ditto "$built" "$installed"
+    "$lsregister" -f -R -trusted "$installed"
+    mdimport "$installed" >/dev/null 2>&1 || true
+    open "$installed"
+    echo "app launched: $bundle_id (installed: $installed)"
     ;;
   stop)
-    osascript -e 'quit app id "'"$bundle_id"'"' 2>/dev/null || true
-    sleep 1
-    pgrep -xq InstantPlayer && pkill -x InstantPlayer 2>/dev/null || true
+    stop_app
     echo "app stopped (if it was running)"
     ;;
   status)

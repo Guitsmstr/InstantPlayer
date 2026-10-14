@@ -37,7 +37,7 @@ All E2–E5 feature stories implement on the architecture per [docs/architecture
 
 All E2–E5 feature stories implement on the architecture per [docs/architecture.md](architecture.md) (D7–D10) — Clean layering per feature (see the preamble under E2).
 
-- [ ] **E3-S1 · Scrub & seek** (move playback to the indicated point in the current video) · `draft`
+- [x] **E3-S1 · Scrub & seek** (move playback to the indicated point in the current video) · `done`
   - Requirements: R13 (playback)
 - [ ] **E3-S2 · Playback speed** (apply the selected speed to the current video) · `draft`
   - Requirements: R14 (playback)

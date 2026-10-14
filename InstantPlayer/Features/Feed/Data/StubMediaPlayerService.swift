@@ -3,7 +3,8 @@
 //  InstantPlayer
 //
 //  Feed Data stub for the player seam (E1-S3, design §3.6 — R2;
-//  E2-S3, design §2 — stub session handles, task 1.5).
+//  E2-S3, design §2 — stub session handles, task 1.5; E3-S1, design §2 —
+//  the stub handle grows the seek members, task 1.3).
 //
 
 import AppKit
@@ -40,15 +41,33 @@ final class StubMediaPlayerService: MediaPlayerService {
 /// The stub session handle (design §2 shape): a session that does nothing
 /// and emits nothing — its event stream stays silent until `stop()`
 /// finishes it (the seam's finish-on-stop contract, design §3 brace 1).
-/// Inert on purpose: with this stub bound, no display state ever reaches
-/// `.player`, so the feed keeps showing posters.
+/// E3-S1 (task 1.3) grows it honestly along the seam: a canned non-zero
+/// `duration`, a `timeUpdates` stream that also finishes on `stop()`, and
+/// seeks that are recorded and reflected into the position feed (the
+/// `timeUpdates` ticks consumers map into displayed position) — still
+/// zero I/O, no AVFoundation. Inert on purpose: with this stub bound, no
+/// display state ever reaches `.player`, so the feed keeps showing posters.
 @MainActor
 private final class StubMediaPlayback: MediaPlayback {
+    /// Canned non-zero duration (task 1.3): large enough for wiring
+    /// consumers to map fractions, never derived from media (zero I/O).
+    let duration: TimeInterval = 90
+
     let events: AsyncStream<MediaPlaybackEvent>
     private let continuation: AsyncStream<MediaPlaybackEvent>.Continuation
 
+    /// Elapsed ticks (design §3): silent until a seek is reflected into
+    /// it; finished by `stop()` like `events` (design §3 brace 1).
+    let timeUpdates: AsyncStream<TimeInterval>
+    private let timeUpdatesContinuation: AsyncStream<TimeInterval>.Continuation
+
+    /// Recorded seeks (task 1.3): every call, in call order. Recording is
+    /// the stub's whole seek behavior — no I/O, no player state.
+    private(set) var seeks: [(seconds: TimeInterval, tolerance: MediaSeekTolerance)] = []
+
     init() {
         (events, continuation) = AsyncStream.makeStream(of: MediaPlaybackEvent.self)
+        (timeUpdates, timeUpdatesContinuation) = AsyncStream.makeStream(of: TimeInterval.self)
     }
 
     func pause() {}
@@ -57,8 +76,18 @@ private final class StubMediaPlayback: MediaPlayback {
 
     func restart() {}
 
+    /// Records the seek and reflects it into the position feed (task 1.3):
+    /// the yielded tick is how a seek lands in whatever consumes
+    /// `timeUpdates` into displayed position. No clamping here — clamping
+    /// is the caller's contract (design §2, S13).
+    func seek(to seconds: TimeInterval, tolerance: MediaSeekTolerance) {
+        seeks.append((seconds, tolerance))
+        timeUpdatesContinuation.yield(seconds)
+    }
+
     func stop() {
         continuation.finish()
+        timeUpdatesContinuation.finish()
     }
 
     func makeDisplayView() -> AnyObject {
