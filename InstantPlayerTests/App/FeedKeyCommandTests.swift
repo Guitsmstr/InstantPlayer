@@ -583,4 +583,409 @@ struct FeedKeyCommandTests {
             ) == .passThrough
         )
     }
+
+    // MARK: ⌘L view toggle (E5-S1 design §5.1 — S3, S5, S16)
+
+    /// ⌘L (key code 37 with .command) toggles in both presented views (S3,
+    /// S5) — the row is claimed in the folder-open state regardless of
+    /// which of the two views is presented. The recorded contract change:
+    /// ⌘-modified keys previously passed through; ⌘L is now claimed while
+    /// every other ⌘/⌥/⌃ combo still passes through.
+    @Test func commandLTogglesInBothPresentedViews() {
+        #expect(
+            FeedKeyCommand.route(
+                keyCode: 37,
+                modifiers: [.command],
+                isRepeat: false,
+                hasOpenFeed: true,
+                isListPresented: false
+            ) == .toggleView
+        )
+        #expect(
+            FeedKeyCommand.route(
+                keyCode: 37,
+                modifiers: [.command],
+                isRepeat: false,
+                hasOpenFeed: true,
+                isListPresented: true
+            ) == .toggleView
+        )
+    }
+
+    /// Welcome passes ⌘L through like every key (S16 — nothing to toggle
+    /// without an open folder).
+    @Test func welcomePassesCommandLThrough() {
+        #expect(
+            FeedKeyCommand.route(
+                keyCode: 37,
+                modifiers: [.command],
+                isRepeat: false,
+                hasOpenFeed: false
+            ) == .passThrough
+        )
+        #expect(
+            FeedKeyCommand.route(
+                keyCode: 37,
+                modifiers: [.command],
+                isRepeat: true,
+                hasOpenFeed: false
+            ) == .passThrough
+        )
+    }
+
+    /// ⇧ alone does not modify the ⌘L row (the table's house convention):
+    /// ⇧⌘L toggles like ⌘L, in both presented views.
+    @Test func shiftCommandLStillToggles() {
+        #expect(
+            FeedKeyCommand.route(
+                keyCode: 37,
+                modifiers: [.command, .shift],
+                isRepeat: false,
+                hasOpenFeed: true,
+                isListPresented: false
+            ) == .toggleView
+        )
+        #expect(
+            FeedKeyCommand.route(
+                keyCode: 37,
+                modifiers: [.command, .shift],
+                isRepeat: false,
+                hasOpenFeed: true,
+                isListPresented: true
+            ) == .toggleView
+        )
+    }
+
+    /// Every ⌘/⌥/⌃ combo other than ⌘L still passes through (the contract
+    /// change's boundary — system shortcuts are otherwise never robbed),
+    /// in both presented views: ⌥L, ⌃L, ⌘⌥⌃L, and a different ⌘-modified
+    /// letter (⌘A, key code 0).
+    @Test func otherCommandModifierCombosStillPassThrough() {
+        let passThroughCases: [(keyCode: UInt16, modifiers: NSEvent.ModifierFlags)] = [
+            (37, [.option]),
+            (37, [.control]),
+            (37, [.command, .option, .control]),
+            (0, [.command]),
+        ]
+        for testCase in passThroughCases {
+            #expect(
+                FeedKeyCommand.route(
+                    keyCode: testCase.keyCode,
+                    modifiers: testCase.modifiers,
+                    isRepeat: false,
+                    hasOpenFeed: true,
+                    isListPresented: false
+                ) == .passThrough
+            )
+            #expect(
+                FeedKeyCommand.route(
+                    keyCode: testCase.keyCode,
+                    modifiers: testCase.modifiers,
+                    isRepeat: false,
+                    hasOpenFeed: true,
+                    isListPresented: true
+                ) == .passThrough
+            )
+        }
+    }
+
+    // MARK: List-presented rows (E5-S1 design §5.1 — S9, S13)
+
+    /// List-presented plain ↑/↓ move the selection one row (S9). In the
+    /// list ⇧ IS the extend modifier — the feed rows' "⇧ alone does not
+    /// modify" reading inverts here, as the spec's S9 mandates.
+    @Test func listPresentedPlainArrowsMoveSelection() {
+        #expect(
+            FeedKeyCommand.route(
+                keyCode: 125,
+                modifiers: [],
+                isRepeat: false,
+                hasOpenFeed: true,
+                isListPresented: true
+            ) == .moveSelection(.down)
+        )
+        #expect(
+            FeedKeyCommand.route(
+                keyCode: 126,
+                modifiers: [],
+                isRepeat: false,
+                hasOpenFeed: true,
+                isListPresented: true
+            ) == .moveSelection(.up)
+        )
+    }
+
+    /// List-presented ⇧-↑/⇧-↓ extend the selection from the anchor (S9) —
+    /// the recorded inversion of `shiftAloneStillPages`.
+    @Test func listPresentedShiftArrowsExtendSelection() {
+        #expect(
+            FeedKeyCommand.route(
+                keyCode: 125,
+                modifiers: [.shift],
+                isRepeat: false,
+                hasOpenFeed: true,
+                isListPresented: true
+            ) == .extendSelection(.down)
+        )
+        #expect(
+            FeedKeyCommand.route(
+                keyCode: 126,
+                modifiers: [.shift],
+                isRepeat: false,
+                hasOpenFeed: true,
+                isListPresented: true
+            ) == .extendSelection(.up)
+        )
+    }
+
+    /// Real arrow keyDown events carry `.function`/`.numericPad` — not
+    /// command modifiers; the list rows must route through them (the
+    /// system-flags regression pin's list counterparts).
+    @Test func systemArrowFlagsStillRouteListRows() {
+        #expect(
+            FeedKeyCommand.route(
+                keyCode: 125,
+                modifiers: [.function, .numericPad],
+                isRepeat: false,
+                hasOpenFeed: true,
+                isListPresented: true
+            ) == .moveSelection(.down)
+        )
+        #expect(
+            FeedKeyCommand.route(
+                keyCode: 126,
+                modifiers: [.function, .numericPad],
+                isRepeat: false,
+                hasOpenFeed: true,
+                isListPresented: true
+            ) == .moveSelection(.up)
+        )
+        #expect(
+            FeedKeyCommand.route(
+                keyCode: 125,
+                modifiers: [.shift, .function, .numericPad],
+                isRepeat: false,
+                hasOpenFeed: true,
+                isListPresented: true
+            ) == .extendSelection(.down)
+        )
+        #expect(
+            FeedKeyCommand.route(
+                keyCode: 126,
+                modifiers: [.shift, .function, .numericPad],
+                isRepeat: false,
+                hasOpenFeed: true,
+                isListPresented: true
+            ) == .extendSelection(.up)
+        )
+    }
+
+    /// Enter (36; keypad 76) activates the lead row (S13) — only while
+    /// the list is presented (they are not feed keys; see the mirror pin
+    /// below).
+    @Test func listPresentedEnterActivatesTheLeadRow() {
+        #expect(
+            FeedKeyCommand.route(
+                keyCode: 36,
+                modifiers: [],
+                isRepeat: false,
+                hasOpenFeed: true,
+                isListPresented: true
+            ) == .activateLeadRow
+        )
+        #expect(
+            FeedKeyCommand.route(
+                keyCode: 76,
+                modifiers: [],
+                isRepeat: false,
+                hasOpenFeed: true,
+                isListPresented: true
+            ) == .activateLeadRow
+        )
+    }
+
+    /// List-presented ←/→ are consumed quiet no-ops (a single-column list
+    /// has no horizontal neighbor — D28's never-beep rule: consumed so
+    /// they never reach the system's unhandled-key beep path).
+    @Test func listPresentedLeftRightAreConsumedNoOps() {
+        #expect(
+            FeedKeyCommand.route(
+                keyCode: 123,
+                modifiers: [],
+                isRepeat: false,
+                hasOpenFeed: true,
+                isListPresented: true
+            ) == .ignore
+        )
+        #expect(
+            FeedKeyCommand.route(
+                keyCode: 124,
+                modifiers: [],
+                isRepeat: false,
+                hasOpenFeed: true,
+                isListPresented: true
+            ) == .ignore
+        )
+    }
+
+    /// Auto-repeat = repeated calls on every list row (D38 parity): the
+    /// machine's boundary clamp keeps repeats idempotent, so repeats
+    /// route like first presses.
+    @Test func listRowsAutoRepeatRepeatsCalls() {
+        #expect(
+            FeedKeyCommand.route(
+                keyCode: 125,
+                modifiers: [],
+                isRepeat: true,
+                hasOpenFeed: true,
+                isListPresented: true
+            ) == .moveSelection(.down)
+        )
+        #expect(
+            FeedKeyCommand.route(
+                keyCode: 126,
+                modifiers: [.shift],
+                isRepeat: true,
+                hasOpenFeed: true,
+                isListPresented: true
+            ) == .extendSelection(.up)
+        )
+        #expect(
+            FeedKeyCommand.route(
+                keyCode: 36,
+                modifiers: [],
+                isRepeat: true,
+                hasOpenFeed: true,
+                isListPresented: true
+            ) == .activateLeadRow
+        )
+    }
+
+    /// The feed rows do not route while the list is presented (S5's
+    /// never-compete rule): space and the bracket speed keys pass
+    /// through, and the plain arrows route to the list machine instead
+    /// of paging.
+    @Test func feedRowsDoNotRouteWhileListIsPresented() {
+        #expect(
+            FeedKeyCommand.route(
+                keyCode: 49,
+                modifiers: [],
+                isRepeat: false,
+                hasOpenFeed: true,
+                isListPresented: true
+            ) == .passThrough
+        )
+        #expect(
+            FeedKeyCommand.route(
+                keyCode: 49,
+                modifiers: [],
+                isRepeat: true,
+                hasOpenFeed: true,
+                isListPresented: true
+            ) == .passThrough
+        )
+        #expect(
+            FeedKeyCommand.route(
+                keyCode: 33,
+                modifiers: [],
+                isRepeat: false,
+                hasOpenFeed: true,
+                isListPresented: true
+            ) == .passThrough
+        )
+        #expect(
+            FeedKeyCommand.route(
+                keyCode: 30,
+                modifiers: [],
+                isRepeat: false,
+                hasOpenFeed: true,
+                isListPresented: true
+            ) == .passThrough
+        )
+    }
+
+    /// The list rows do not route while the feed is presented (S5's
+    /// never-compete rule, the mirror): Enter/keypad-Enter pass through,
+    /// and ⇧-arrows keep their feed paging meaning (pinned by
+    /// `shiftAloneStillPages`).
+    @Test func listRowsDoNotRouteWhileFeedIsPresented() {
+        #expect(
+            FeedKeyCommand.route(
+                keyCode: 36,
+                modifiers: [],
+                isRepeat: false,
+                hasOpenFeed: true,
+                isListPresented: false
+            ) == .passThrough
+        )
+        #expect(
+            FeedKeyCommand.route(
+                keyCode: 76,
+                modifiers: [],
+                isRepeat: false,
+                hasOpenFeed: true,
+                isListPresented: false
+            ) == .passThrough
+        )
+    }
+
+    /// The list-presented and feed-presented row sets never overlap
+    /// (§9.3): every shared key code routes to a different command per
+    /// presented view — explicitly, the list's ←/→ are consumed no-ops
+    /// while the feed's seek rows stay green (behavior-frozen).
+    @Test func listAndFeedRowSetsNeverOverlap() {
+        for keyCode: UInt16 in [123, 124, 125, 126] {
+            let listCommand = FeedKeyCommand.route(
+                keyCode: keyCode,
+                modifiers: [],
+                isRepeat: false,
+                hasOpenFeed: true,
+                isListPresented: true
+            )
+            let feedCommand = FeedKeyCommand.route(
+                keyCode: keyCode,
+                modifiers: [],
+                isRepeat: false,
+                hasOpenFeed: true,
+                isListPresented: false
+            )
+            #expect(listCommand != feedCommand)
+        }
+        #expect(
+            FeedKeyCommand.route(
+                keyCode: 123,
+                modifiers: [],
+                isRepeat: false,
+                hasOpenFeed: true,
+                isListPresented: true
+            ) == .ignore
+        )
+        #expect(
+            FeedKeyCommand.route(
+                keyCode: 123,
+                modifiers: [],
+                isRepeat: false,
+                hasOpenFeed: true,
+                isListPresented: false
+            ) == .seekBackward
+        )
+        #expect(
+            FeedKeyCommand.route(
+                keyCode: 124,
+                modifiers: [],
+                isRepeat: false,
+                hasOpenFeed: true,
+                isListPresented: true
+            ) == .ignore
+        )
+        #expect(
+            FeedKeyCommand.route(
+                keyCode: 124,
+                modifiers: [],
+                isRepeat: false,
+                hasOpenFeed: true,
+                isListPresented: false
+            ) == .seekForward
+        )
+    }
 }

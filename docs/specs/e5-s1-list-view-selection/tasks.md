@@ -195,8 +195,8 @@ with the toggle row and the list rows, with the table's pins in the same commit.
 (grown), `InstantPlayer/App/AppDependencies.swift` (minimal registration property),
 `InstantPlayerTests/App/FeedKeyCommandTests.swift` (grown). **Covers:** S3, S5, S9, S13, S16.
 
-- [ ] **5.1** Load `swift-security` + `swift-performance` before editing.
-- [ ] **5.2** Route table per design §5.1: a `.toggleView` row for **⌘L** (keyCode **37** =
+- [x] **5.1** Load `swift-security` + `swift-performance` before editing.
+- [x] **5.2** Route table per design §5.1: a `.toggleView` row for **⌘L** (keyCode **37** =
   `kVK_ANSI_L`, with `.command`) in the folder-open state in **both** presented views — **recorded
   contract change:** ⌘-modified keys previously passed through; ⌘L is now claimed while every other
   ⌘/⌥/⌃ combo still passes through. List-presented rows: ↑/↓ (126/125) → `moveSelection`,
@@ -207,16 +207,16 @@ with the toggle row and the list rows, with the table's pins in the same commit.
   behavior-frozen (S5's never-compete rule); welcome → everything passes through (S16 — the
   `hasOpenFeed` guard generalizes to presented-state input). Auto-repeat = repeated calls (D38
   parity; the machine clamps idempotently).
-- [ ] **5.3** `AppDelegate`'s monitor switch dispatches the new commands to the registered
+- [x] **5.3** `AppDelegate`'s monitor switch dispatches the new commands to the registered
   `activeListModel` (the weak `activeFeedModel` pattern, D10); the minimal weak registration
   property on `AppDependencies` lands in this commit as the compile enabler — the factory and
   `RootView` wiring are task 6. No new delivery mechanism (D28).
-- [ ] **5.4** Pins per design §9.3 **in this same commit** (the frozen table's tests are its
+- [x] **5.4** Pins per design §9.3 **in this same commit** (the frozen table's tests are its
   contract — the E3-S2 task-6 precedent): 37+⌘ toggles in both presented views and passes through
   in welcome; the list-presented and feed-presented row sets never overlap; 36/76 activate the lead
   row; 123/124 list-presented are consumed no-ops while their feed-presented seek rows stay green;
   all other ⌘/⌥/⌃ combos pass through; auto-repeat parity rows. **No existing pin changes.**
-- [ ] **5.5** **Done:** full gate green. Commit:
+- [x] **5.5** **Done:** full gate green. Commit:
   `feat(e5-s1): task 5 — list keyboard rows and ⌘L on the key router`.
 
 ## Task 6 — Composition wiring: factory, root switch, activation mediation · design §6.1, §4, §5.3

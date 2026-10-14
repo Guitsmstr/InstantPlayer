@@ -40,6 +40,17 @@ final class AppDependencies {
     /// discarded models — those must not steal the registration.
     private(set) weak var activeFeedModel: FeedViewModel?
 
+    /// The active MediaList view model — the list twin of
+    /// `activeFeedModel` (the same D10 registration pattern, E5-S1 design
+    /// §6.1): the App-owned key monitor consults it for the list rows and
+    /// the ⌘L dispatch, exactly as it consults `activeFeedModel` for the
+    /// feed rows. Weak on purpose — the view layer's `@State` owns the
+    /// instance, and the container must not extend a superseded model's
+    /// lifetime. This property is task 5's compile enabler for the
+    /// monitor's dispatch switch; the recording factory lands with task
+    /// 6 (`makeMediaListViewModel()`, design §6.1).
+    private(set) weak var activeListModel: MediaListViewModel?
+
     /// Binding API: production uses the defaults; tests and previews inject
     /// conformances through the same initializer. The default folder seam
     /// is the real security-scoped actor (E2-S1 design §1); the default
