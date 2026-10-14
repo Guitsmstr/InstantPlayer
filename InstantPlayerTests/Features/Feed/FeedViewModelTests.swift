@@ -1621,7 +1621,7 @@ struct FeedViewModelTests {
         viewModel.scrubChanged(itemID: item.id, fraction: 0.5)
         #expect(
             Self.seekSeconds(handle) == [50] && Self.seekTolerances(handle) == [.preview],
-            "the change issues one tolerant preview seek to the mapped target (S6)"
+            "the change issues one coalesced preview seek — zero-tolerance landing — to the mapped target (S6)"
         )
         #expect(viewModel.displayedPosition == 50, "the labels/thumb track the pointer exactly (S5)")
 
