@@ -173,18 +173,18 @@ S12–S13 (activation intent), S16, S17.
 Deliverable (tests): `InstantPlayerTests/Features/MediaList/MediaListViewModelTests.swift` (new).
 **Covers:** S1, S2, S5, S12, S17, S18, S14.
 
-- [ ] **4.1** Load `swift-security` + `swift-performance` before editing.
-- [ ] **4.2** §9.2 rows (injected seam doubles — the E2-S3 house pattern; no UI, no window): toggle
+- [x] **4.1** Load `swift-security` + `swift-performance` before editing.
+- [x] **4.2** §9.2 rows (injected seam doubles — the E2-S3 house pattern; no UI, no window): toggle
   flips presentation only and leaves selection untouched (S5, S18); `apply(collection:)` with a new
   snapshot resets selection, the same snapshot does not (S18); the highlight projection is
   read-only — selection equality asserted across highlight changes (S17); activation emits the right
   `MediaItem.ID` intent and never mutates selection (S12); activation of the already-current item
   emits **no** `moveTo`/`startPlayback`/`restart()` (§4, §5.3) while a different item does; toggling
   presentation never touches the playback session (§5.3).
-- [ ] **4.3** §9.4 parity rows (S1, S2; product R34–R36 parity): rows == `collection.items` — same
+- [x] **4.3** §9.4 parity rows (S1, S2; product R34–R36 parity): rows == `collection.items` — same
   count, same order, same names; a mixed fixture folder shows no non-media rows; no row gains,
   drops, or reorders after `apply` (S2's honest snapshot).
-- [ ] **4.4** **Done:** full gate green. Commit:
+- [x] **4.4** **Done:** full gate green. Commit:
   `test(e5-s1): task 4 — list view-model, lifetime, and parity tests`.
 
 ## Task 5 — Key-command routing: ⌘L + list rows `[P]` · design §5.1, §9.3
