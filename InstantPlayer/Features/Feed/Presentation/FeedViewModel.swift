@@ -5,7 +5,8 @@
 //  Feed Presentation view model — the house pattern (E1-S3, design §3.7 —
 //  R3, R4; E2-S1, design §4 — S5–S7; E2-S2, design §5.1–§5.2, §5.5, §6.2,
 //  §7 — S1, S4–S6, S9, S12, S13, S16; E2-S3, design §3, §6, §7 — S1–S11,
-//  S14–S16; E3-S1, design §3, §4, §5, §7 — S1–S17).
+//  S14–S16; E3-S1, design §3, §4, §5, §7 — S1–S17; E3-S2, design §3, §5 —
+//  the speed policy, S1–S18).
 //
 
 import Foundation
@@ -79,6 +80,12 @@ nonisolated struct PlaybackControlBarModel: Equatable {
     /// Visibility (S3): `true` while mouse activity keeps the bar up;
     /// `false` at rest. Keyboard seek never sets it (S3(b)).
     let isVisible: Bool
+
+    /// The selected playback speed (E3-S2 design §5, S4): the badge's
+    /// ≠ 1× rule and the menu's checkmark render from this value alone.
+    /// It never affects the model's non-`nil` rule (the settled current
+    /// video's live player page, unchanged from E3-S1).
+    let speed: MediaPlaybackSpeed
 }
 
 /// The only presentation-state holder (D8): owns the `FeedState` machine,
@@ -94,7 +101,13 @@ nonisolated struct PlaybackControlBarModel: Equatable {
 /// (E3-S1 design §5): the drag state machine (S5–S8), the commit seeks
 /// (S2, S9–S11), the seek guard matrix (S12), clamping + end handover
 /// (S13, S14), the bar-visibility + idle policy (S3, S4), and the
-/// time-display state (design §3). `@MainActor
+/// time-display state (design §3). Since E3-S2 it is also the
+/// playback-speed policy owner (E3-S2 design §3, §5): the app-session
+/// selected speed (S8, S9 — nothing persisted; it resets only at
+/// relaunch), the menu + keyboard entry points over one guard matrix
+/// (S16), the pure ladder step with end clamps (S5–S7), the install
+/// re-apply and start-at-speed ordering (S12), and preservation across
+/// every seek and the loop (S13, S14). `@MainActor
 /// @Observable final class` per the house pattern (R3, R4).
 ///
 /// Last-wins supersede (E2-S1 design §3.1, §4, §7.4): an entry action
@@ -142,6 +155,17 @@ final class FeedViewModel {
     private var previewTasks: [MediaItem.ID: Task<Void, Never>] = [:]
 
     // MARK: Playback state (E2-S3 design §3, §6, §7)
+
+    /// The app-session selected speed (E3-S2 design §3, S8, S9): written
+    /// only by user input (menu selection, key step), read by every
+    /// start, the badge, and the menu. Deliberately **not** cleared by
+    /// `stopPlayback`, `adopt` (a newly opened folder), or the welcome
+    /// transition — it carries across paging, revisits, and newly opened
+    /// folders until changed (S8); it resets only at relaunch by object
+    /// lifetime (RootView's one `FeedViewModel` per run, D18) and nothing
+    /// is persisted (S9). The deliberate asymmetry with positions
+    /// (E3-S1 S15) stands: position restarts, speed carries.
+    private(set) var selectedSpeed: MediaPlaybackSpeed = .normal
 
     /// The current playback session handle — the ONLY holder (D8): `nil`
     /// whenever no video is current or starting. Stopped synchronously on
@@ -410,6 +434,101 @@ final class FeedViewModel {
         togglePlayback()
     }
 
+    // MARK: Playback speed policy (E3-S2 design §3, §5 — S1–S18 policy)
+
+    /// The menu route (E3-S2 S1): the drilled per-page selection (`FeedPageActions.speedSelected`,
+    /// the item id captured at the drill site). Applies the selection
+    /// through the shared core; a selection counts as pointer-independent
+    /// activity — the bar refreshes visible and the 3 s idle countdown
+    /// restarts (design §4, the `scrubEnded` precedent).
+    func selectSpeed(_ speed: MediaPlaybackSpeed, itemID: MediaItem.ID) {
+        applySpeedSelection(speed, itemID: itemID, countsAsActivity: true)
+    }
+
+    /// The `[` route (E3-S2 S5): one preset down the ladder — the pure
+    /// `stepped` move handed to the shared core. No item id: the route is
+    /// app-level and resolves to `currentItemID`, exactly like `stepSeek`.
+    /// A keyboard step never shows the bar (approved F1).
+    func stepSpeedDownByKeyboard() {
+        guard let id = currentItemID else { return }
+        applySpeedSelection(Self.stepped(selectedSpeed, up: false), itemID: id, countsAsActivity: false)
+    }
+
+    /// The `]` route (E3-S2 S5): one preset up — `stepSpeedDownByKeyboard`'s
+    /// mirror. Auto-repeat arrives as repeated calls (S6) and clamps
+    /// idempotently at the ladder ends (S7).
+    func stepSpeedUpByKeyboard() {
+        guard let id = currentItemID else { return }
+        applySpeedSelection(Self.stepped(selectedSpeed, up: true), itemID: id, countsAsActivity: false)
+    }
+
+    /// One pure ladder move (E3-S2 S5–S7, design §5): walks
+    /// `MediaPlaybackSpeed.allCases` (declaration order = ladder order) by
+    /// one and **clamps at the ends** — 0.25× and 2× are ladder ends and
+    /// the ladder never wraps. Pure and unit-testable without hardware.
+    nonisolated static func stepped(_ speed: MediaPlaybackSpeed, up: Bool) -> MediaPlaybackSpeed {
+        let ladder = MediaPlaybackSpeed.allCases
+        guard let index = ladder.firstIndex(of: speed) else { return speed }
+        let next = index + (up ? 1 : -1)
+        guard ladder.indices.contains(next) else { return speed } // clamp (S7 — no wrap)
+        return ladder[next]
+    }
+
+    /// The shared speed-selection core (E3-S2 design §5): run the guard
+    /// matrix; then update the app-session selection; command the live
+    /// handle when one exists (a still-starting video has none — the
+    /// install re-apply governs that session, approved F2); refresh the
+    /// bar model. A keyboard step leaves the bar exactly as found (F1 —
+    /// chrome is demand-driven on mouse movement); a menu selection
+    /// refreshes the bar visible and restarts the 3 s idle countdown
+    /// (design §4). State neutrality (S10): never touches
+    /// `isPlaybackPaused`, `displayedPosition`, or the index — a speed
+    /// input can never toggle play/pause, move the playhead, or advance
+    /// the feed. The seek paths never call this, so no scrub, track
+    /// click, keyboard seek, or end handover can reset the speed (S13).
+    private func applySpeedSelection(
+        _ speed: MediaPlaybackSpeed,
+        itemID: MediaItem.ID,
+        countsAsActivity: Bool
+    ) {
+        guard speedGuard(itemID: itemID) else { return } // S16 — quiet consumed no-op
+        selectedSpeed = speed
+        playback?.setPlaybackSpeed(speed) // applied/remembered by the session (design §2)
+        if countsAsActivity {
+            restartIdleCountdown() // design §4: a selection re-arms the countdown
+            refreshControlBar(visible: true)
+        } else {
+            refreshControlBar(visible: controlBarModel?.isVisible ?? false) // F1
+        }
+    }
+
+    /// The speed guard matrix (E3-S2 S16, design §5's table) as one
+    /// decision: speed is a property of the settled current video —
+    /// non-current pages, pages while a paging gesture is in flight,
+    /// image pages, and items in the neutral unavailable state (including
+    /// sticky playback failure) consume the input quietly: no sound, no
+    /// visual change, no error, never beep (S16, D28). Deliberately
+    /// different from `seekGuard` where the approved spec says so: **no
+    /// duration and no live handle are required** (speed is selection
+    /// state, not a position operation) — a still-starting video accepts
+    /// input as session state (approved F2; applied at install), and a
+    /// mid-scrub drag is **remembered** (S10's approved composition note:
+    /// the gesture-scoped pause makes it S11's paused path — unlike seek,
+    /// which consumes mid-drag). The view is never consulted.
+    private func speedGuard(itemID: MediaItem.ID) -> Bool {
+        guard itemID == currentItemID else { return false } // non-current page (S16)
+        guard gestureStartIndex == nil else { return false } // paging gesture in flight (S16)
+        guard case let .folderOpen(collection) = state,
+              let item = collection.items.first(where: { $0.id == itemID })
+        else {
+            return false // no open feed / unknown id (S16; welcome passes through at route level)
+        }
+        guard item.kind == .video else { return false } // image page — no playback semantics (S16)
+        guard displayStates[itemID] != .unavailable else { return false } // neutral unavailable (S16)
+        guard !playbackFailedItemIDs.contains(itemID) else { return false } // sticky playback failure (S16)
+        return true
+    }
+
     // MARK: Scrub & seek policy (E3-S1 design §4, §5 — S1–S15)
 
     /// Frozen constants (design §4, §5; spec S2, S3).
@@ -622,7 +741,8 @@ final class FeedViewModel {
             elapsed: displayedPosition,
             duration: duration,
             scrubFraction: duration > 0 ? displayedPosition / duration : 0,
-            isVisible: visible
+            isVisible: visible,
+            speed: selectedSpeed
         )
     }
 
@@ -729,8 +849,15 @@ final class FeedViewModel {
         stopPlayback()
         playbackItemID = item.id
         let generation = latestEntryGeneration
+        // Start-at-speed (E3-S2 S12, design §3): the rate is chosen *with*
+        // the play call — the selection captured here seeds the session's
+        // first and only start call (`playImmediately(atRate:)`), so no 1×
+        // beat exists to observe and the parameter adds zero work to the
+        // asset-load path. A selection made while the asset is still
+        // loading is covered by the install re-apply (approved F2).
+        let startSpeed = selectedSpeed
         playbackStartTask = Task { [weak self] in
-            let handle = await self?.mediaPlayerService.startPlayback(for: item, at: .normal)
+            let handle = await self?.mediaPlayerService.startPlayback(for: item, at: startSpeed)
             guard !Task.isCancelled else {
                 handle?.stop() // superseded mid-start: never install, never leak
                 return
@@ -762,6 +889,12 @@ final class FeedViewModel {
         playback = handle
         isPlaybackPaused = false // fresh sessions auto-play (S1)
         displayedPosition = 0 // a fresh session starts at the beginning (S15 — nothing carried)
+        // Install re-apply (E3-S2 design §3, S12; approved F2): one
+        // synchronous statement before the event/clock loops attach — a
+        // selection made while this session's asset was still loading
+        // governs the session it landed on (S8: the selection applies to
+        // every subsequently viewed video).
+        handle.setPlaybackSpeed(selectedSpeed)
         playbackEventTask = Task { [weak self] in
             for await event in handle.events {
                 guard let self else { return }
@@ -800,6 +933,8 @@ final class FeedViewModel {
         // displayed position, the tick suppression, and the bar die with
         // the session — a drag on a stopping session cannot survive it,
         // and the bar is structurally absent without a live player page.
+        // The selected speed deliberately does NOT die with the session
+        // (E3-S2 S8: app-session state — it carries until changed).
         isScrubbing = false
         wasPlayingBeforeDrag = false
         displayedPosition = 0

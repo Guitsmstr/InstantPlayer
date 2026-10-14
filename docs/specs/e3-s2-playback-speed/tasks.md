@@ -182,14 +182,14 @@ existing tests updated to compile in the same commit if signatures move) — inc
 `PlaybackControlBarModel` (`speed: MediaPlaybackSpeed` alongside the E3-S1 fields; no separate file
 appears in the design §1 inventory).
 
-- [ ] **3.1** Load `swift-security` + `swift-performance` before editing.
-- [ ] **3.2** Ownership per design §3 (S8, S9): `private(set) var selectedSpeed: MediaPlaybackSpeed =
+- [x] **3.1** Load `swift-security` + `swift-performance` before editing.
+- [x] **3.2** Ownership per design §3 (S8, S9): `private(set) var selectedSpeed: MediaPlaybackSpeed =
   .normal` — **app-session state**, written only by user input (menu selection, key step), read by
   every start, the badge, and the menu. Not cleared by `stopPlayback`, `adopt` (a newly opened
   folder), or the welcome transition; it resets only at relaunch by object lifetime (RootView's one
   `FeedViewModel` per run, D18) — nothing is persisted. The deliberate asymmetry with positions
   stands: position restarts, speed carries (E3-S1 S15 ↔ S8).
-- [ ] **3.3** Entry points per design §5 — `selectSpeed(_ speed: MediaPlaybackSpeed, itemID:
+- [x] **3.3** Entry points per design §5 — `selectSpeed(_ speed: MediaPlaybackSpeed, itemID:
   MediaItem.ID)` (the menu route) and `stepSpeedDownByKeyboard()` / `stepSpeedUpByKeyboard()` (the
   `[`/`]` routes: no item id — resolve to `currentItemID`, exactly like `stepSeek`) converging on one
   shared core: run the guard (3.5); then `selectedSpeed = speed`; if a live handle exists,
@@ -198,12 +198,12 @@ appears in the design §1 inventory).
   restarts the 3 s idle countdown (the `scrubEnded` precedent, design §4). Never touches
   `isPlaybackPaused`, `displayedPosition`, or the index (S10's state neutrality — a speed step can
   never toggle play/pause).
-- [ ] **3.4** Stepping per design §5 (S5–S7): `nonisolated static func stepped(_ speed:
+- [x] **3.4** Stepping per design §5 (S5–S7): `nonisolated static func stepped(_ speed:
   MediaPlaybackSpeed, up: Bool) -> MediaPlaybackSpeed` — one pure function walking
   `MediaPlaybackSpeed.allCases` by one and **clamping at the ends** (0.25× and 2× are ladder ends;
   the ladder never wraps). The keyboard routes compute `stepped(selectedSpeed, up:)` and hand the
   result to the shared core; auto-repeat arrives as repeated calls and clamps idempotently.
-- [ ] **3.5** Guard matrix per design §5's table (S16 + the approved readings) as one unit-tested
+- [x] **3.5** Guard matrix per design §5's table (S16 + the approved readings) as one unit-tested
   decision surface — every row: settled current video playing → applied in the same turn (S10);
   settled current video paused (frozen frame, parked at an end) → remembered (S11); speed input
   while a scrub drag is in flight → **remembered** (S10's approved composition note — unlike seek,
@@ -213,18 +213,18 @@ appears in the design §1 inventory).
   **consumed no-op** (spy records nothing; no sound, no visual change, no error, never beep); no open
   feed → keys pass through at route level (D28 unchanged). The guard needs **no duration and no live
   handle** (unlike `seekGuard`); the view is never consulted.
-- [ ] **3.6** Preservation per design §5 (S13, S14): the seek paths (`scrubChanged`/`scrubEnded`/
+- [x] **3.6** Preservation per design §5 (S13, S14): the seek paths (`scrubChanged`/`scrubEnded`/
   `seekFromTrackClick`/`stepSeek`/`commitExactSeek`/`endHandover`) never call `setPlaybackSpeed` and
   never write `selectedSpeed` — no scrub, track click, keyboard seek, or end handover can reset the
   speed; `.reachedEnd` → `handle.restart()` preserves it structurally (task 2's mapping).
-- [ ] **3.7** Start-at-speed ordering per design §3 (S12): `startPlayback(for:at: selectedSpeed)` on
+- [x] **3.7** Start-at-speed ordering per design §3 (S12): `startPlayback(for:at: selectedSpeed)` on
   auto-play and on the revisit restart; `install` re-applies `handle.setPlaybackSpeed(selectedSpeed)`
   as one synchronous statement before the event/clock loops attach — so a mid-load selection governs
   the session it landed on (approved F2's window).
-- [ ] **3.8** `refreshControlBar` per design §5 (S4): carries `speed: selectedSpeed` into
+- [x] **3.8** `refreshControlBar` per design §5 (S4): carries `speed: selectedSpeed` into
   `PlaybackControlBarModel`; the model stays non-`nil` exactly under E3-S1's rule (the settled
   current video's live player page) and `speed` never affects that rule.
-- [ ] **3.9** Full gate (update existing `FeedViewModelTests` compile breaks in this same commit —
+- [x] **3.9** Full gate (update existing `FeedViewModelTests` compile breaks in this same commit —
   minimal fixes; the full policy suite is task 7). Fix, tick; commit:
   `feat(e3-s2): task 3 — speed policy in the feed view model`.
 
