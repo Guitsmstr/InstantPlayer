@@ -48,8 +48,8 @@ pattern) recorded from its tooling output file, never from memory. Budgets: **�
 typical (≤ 1080p clips), ≤ 500 ms p95 atypical heavy media**; drag-preview issuance is
 synchronous in the same main-actor turn (design §8(1)'s ≤ 16 ms bound — an O(1) dispatch, not a
 timed claim). Fixture: 1280×720, 60 frames @ 30 fps (the typical ≤ 1080p case). Measured
-landing (issue → landed frame within one frame duration), fresh full-gate run on the
-post-review code:
+landing (issue → landed frame within one frame duration), quoted from one recorded full-gate
+run on the post-review code:
 
 ```
 e3-s1 frame-exact landing budget, measured from tooling
@@ -65,7 +65,12 @@ measure iteration (target 1.25s): 0.1 ms
 measure iteration (target 1.5s): 6.4 ms
 ```
 
-Raw numbers against the budget: the largest recorded landing is **6.4 ms** against the 300 ms
+Raw numbers against the budget — with the tooling's honesty limit stated: the quoted block is
+**one recorded run**; the scratch file it comes from is truncated and rewritten by every
+full-gate run (the landing test resets it at test start and appends per measurement), so the
+per-line values vary run to run (≈0–6.4 ms observed across runs) and are not independently
+reproducible. The stable claim is budget compliance: the largest landing recorded in any run
+is ≈ **6.4 ms** against the 300 ms
 typical budget (roughly 2 % of it — no landing comes near it), and the atypical 500 ms budget is
 functional-review/Instruments territory (long-GOP/heavy media — design §2's accepted honesty
 limit), not claimed from this fixture. Unit-asserted, each against its test: the cadence ceiling
