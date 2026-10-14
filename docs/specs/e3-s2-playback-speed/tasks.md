@@ -316,7 +316,7 @@ pins land with the table, the e3-s1 task-8 precedent).
   to the guard matrix (which no-ops quietly on ineligible states — S16; never beep — D28), because
   passing through would re-expose them to the unhandled-key path; no open feed → `.passThrough`;
   auto-repeat = repeated steps (S6 — the D22/D34 parity: the route ignores `isRepeat`, one step per
-  keyDown); ⌘/⌥/⌃ → `.passThrough`; ⇧ alone does not not modify (⇧[` steps down like `[). 123/124,
+  keyDown); ⌘/⌥/⌃ → `.passThrough`; ⇧ alone does not modify (`⇧[` steps down like `[`). 123/124,
   125/126, space (49), and the paging/modifier rows are behavior-frozen and stay green —
   `nonArrowKeysPassThrough` (key code 0) is unaffected. **Recorded contract change:** 33/30
   previously fell to the default `passThrough` row — the frozen table's discipline means the change
