@@ -8,16 +8,19 @@
   at once, by name, and mark the items a later action (zip, move, reveal, trash — E5-S2) should act
   on. This story lands the second of product R37's two views — the **list** — and the **selection**
   model it feeds; it lands no file operations at all.
-- **What "list view & selection" means end to end.** (Settled interview answers 1–2, bound — no
-  re-litigation.) The list view shows **every media item of the opened collection by file name, in
+- **What "list view & selection" means end to end.** (Settled interview answers 1–2 plus the binding clarification answers
+  on the list's opening state and the selection's lifetime (S17, S18) — bound, no re-litigation.) The list view shows **every media item of the opened collection by file name, in
   the current ordering** (product R27). It is reached and left by a **keyboard toggle (proposed:
   ⌘L) and an on-screen button in the main window**; both flip between list and feed **in the same
-  single window** (settled answer 1; product R37). In the list, a **single click only sets the
+  single window** (settled answer 1; product R37). When the list view opens, it scrolls to and
+  highlights the feed's current item — a position highlight that does not count as or modify the
+  selection (binding answer 1; S17). In the list, a **single click only sets the
   selection**; **double-click or Enter on a focused row activates the row**, switching back to the
   feed positioned on that item (settled answer 2). **Multi-select follows standard macOS
   conventions** — ⌘-click toggles membership, ⇧-click extends from an anchor, arrow keys (⇧-arrow)
   move (extend) the selection (settled answer 2). The selection is **one ad-hoc group, never
-  persisted** (product R29): nothing is written to disk, no albums or tags exist (product non-goal
+  persisted** (product R29): it survives list↔feed switches within the same opened folder and resets
+  only when a new folder is opened (binding answer 2; S18); nothing is written to disk, no albums or tags exist (product non-goal
   "Persistent albums/tags").
 - **Product requirements carried.** product R27–R29 (list view & operations) from
   [docs/spec.md](../../spec.md) — cited below as `product R#`, never renumbered or restated as new
@@ -27,14 +30,14 @@
   is the collection's contract), product R17 (never modify media files — display-only listing), and
   product R16 (cross-cutting responsiveness) as this story's share via S15, per the coverage note in
   [docs/backlog.md](../../backlog.md). Story-scoped requirements (derivations and refinements) are
-  numbered **S1…S16** in this file only.
+  numbered **S1…S18** in this file only.
 - **Pillars.** Both pillars are engaged. **RNF-02 (performance):** the list is a long list over a
   folder that may hold hundreds or thousands of items — opening it, scrolling it, changing the
   selection, and switching views must never stall the interface (S15); numeric budgets are this
   story's design-phase output, which loads the `swift-performance` skill per the pillar rule (D5).
   **RNF-04 (security):** the list is **display-only** — file names are read from the already-open
   security-scoped session of the collection (D19) with no new access paths, nothing is written to
-  disk (product R17; S14), and the selection is session state only (S11); the design loads the
+  disk (product R17; S14), and the selection is session state only (S11, S18); the design loads the
   `swift-security` skill.
 - **UI-test mandate (R14 of E1-S2) — decision: flows ARE NOT affected.** Same decision and same
   reasoning as E3-S1/E3-S2's: with no media open, launch-visible behavior is unchanged — the welcome
@@ -51,7 +54,8 @@
   only, native formats only — product R34–R36); the single `Window` scene and close-quits lifecycle
   (D18, E2-S2 S7–S8); replace-in-place on a new open (E2-S2 S9); the feed's paging and chrome-free
   viewport (E2-S2 S4–S6, S14 — untouched here); the feed's current-item positioning contract (E2-S1
-  `startIndex`, E2-S2 S9 — row activation lands on it); the quiet no-op input guard (D28); and
+  `startIndex`, E2-S2 S9 — row activation lands on it, and the list's opening position anchors to it
+  (S17)); the quiet no-op input guard (D28); and
   display-time fail-safe for stale items (E2-S2 S12–S13). **Seam for E5-S2:** R28's "list operations
   shall act on that selection" — this story defines the current selection as the single seam
   operations will act on (S6, S11); the operations themselves (product R30–R33) are non-goals below.
@@ -74,7 +78,7 @@
 
 ## Story requirements (EARS)
 
-Numbering is story-local: **S1…S16** for this story only. Product requirements are cited as
+Numbering is story-local: **S1…S18** for this story only. Product requirements are cited as
 `product R#` ([docs/spec.md](../../spec.md)) and are never renumbered here. Requirements that merely
 anchor product text cite it; requirements that refine or derive add a short derivation note.
 
@@ -129,10 +133,18 @@ collection, no change to close-quits (E2-S2 S8) or replace-in-place (E2-S2 S9) s
 side of the switch is unchanged — its paging, letterboxing, and chrome-free viewport (E2-S2) stand
 as written, and the arrow keys keep their feed meanings while the feed is shown.
 
-*Ambiguity recorded (S5's neighborhood):* `[NEEDS CLARIFICATION: when the list view opens, shall the
-feed's current item be pre-selected and/or scrolled into view in the list, or shall the list open
-with no selection at its start position?]` — settled answers cover neither the initial list position
-nor the initial selection on switch.
+- **S17:** WHEN the view is switched to the list view and the feed has a current item
+  THE SYSTEM SHALL scroll the list to that item's row and highlight it — and that highlight SHALL NOT
+  count as or modify the current selection
+
+*Derivation (S17):* binding stakeholder answer 1, resolving the ambiguity formerly recorded under
+S5: the list's opening state is anchored to the feed's current item so the user never loses their
+place (US2). The highlight is a position marker, not a selection: it is applied without any
+selection action and changes no selection state — S6–S10 remain the only ways the selection is set,
+toggled, extended, moved, or cleared. Consistency (S2): the highlighted row is the snapshot row of
+the feed's current item and, like every other row, never moves on its own; the highlight follows
+that row wherever the snapshot places it and goes away when a new folder's snapshot replaces the
+list (S18).
 
 ### Selection (product R28, R29 — settled answer 2)
 
@@ -177,18 +189,28 @@ at the approval gate.
 
 - **S11:** WHEN a multi-selection exists
   THE SYSTEM SHALL treat it as one ad-hoc group for the next operation and SHALL NOT persist groups
-  or tags — nothing about the selection survives the session (product R29)
+  or tags — nothing about the selection survives past the opened folder (product R29; its
+  in-session lifetime is fixed by S18)
 
 *Derivation (S11):* product R29 and the product non-goal "Persistent albums/tags" make the selection
-ephemeral by contract: it is in-memory session state of the open collection, written nowhere (S14),
-restored never. Within the session the selection is the single seam E5-S2's operations (product
-R30–R33) will act on (R28) — one selection concept, not per-operation scratch state.
+ephemeral by contract: it is in-memory session state of the open collection, written nowhere (S14)
+and never restored across relaunch; its lifetime within the session is fixed by S18. The selection
+is the single seam E5-S2's operations (product R30–R33) will act on (R28) — one selection concept,
+not per-operation scratch state.
 
-*Ambiguity recorded (S11's scope):* `[NEEDS CLARIFICATION: does the current selection survive a
-switch between the list and the feed within the same opened collection, or is it cleared when the
-list view is left?]` — "ad-hoc, never persisted" bounds the selection's lifetime against relaunch
-and new collections, but the settled answers do not say whether an in-session view switch preserves
-it.
+- **S18:** WHEN the user switches between the list view and the feed within the same opened folder
+  THE SYSTEM SHALL keep the current selection unchanged; the selection SHALL reset only when a new
+  folder is opened, and SHALL NOT be persisted to disk (product R29)
+
+*Derivation (S18):* binding stakeholder answer 2, resolving the ambiguity formerly recorded under
+S11: the selection's lifetime is the opened folder, not the presented view. Ordinary switches
+(S3–S5) and activation switches (S12–S13) preserve it — returning to the list shows the same group
+still selected, and the S17 highlight never touches it. Opening a new folder (E2-S2 S9
+replace-in-place) rebuilds the collection snapshot and resets the selection with it — consistent
+with S2: the old rows the selection referred to are replaced wholesale by the new snapshot's rows
+and never carried over, so no selection outlives the rows it referred to. Nothing here loosens
+product R29: the selection stays in-memory state of the opened folder, written nowhere and never
+restored across relaunch (S14).
 
 ### Row activation (settled answer 2)
 
@@ -199,8 +221,9 @@ it.
 *Derivation (S12):* "positioned on that item" is the inherited feed-positioning contract (E2-S1's
 `startIndex` entry contract, E2-S2 S9's positioning principle) applied to activation: the feed opens
 on the double-clicked item, whatever the selection around it. Activation is a navigation action, not
-a selection action — it does not replace the selection model (S6); what it does to the selection
-across the switch is the open question under S11.
+a selection action — it does not replace the selection model (S6), and the selection around it
+survives the switch untouched (S18); the S17 highlight on the list's later re-opening is likewise
+not a selection change.
 
 - **S13:** WHEN a row in the list has keyboard focus and the user presses Enter
   THE SYSTEM SHALL switch to the feed positioned on that item (settled answer 2)
@@ -283,9 +306,9 @@ as this story's own:
 | Product requirement | Story outcome | Verified by |
 |---|---|---|
 | R27 (list every item by file name, current ordering) | S1 — snapshot-order rows, file names, exactly the collected items; S2 — honest snapshot, no self-reordering | unit tests (list model: contents, order, filtering parity with the collection) + functional review (mixed folder, order matches the feed's) |
-| R28 (selection; operations act on it) | S6–S9 — single click sets, ⌘-click toggles, ⇧-click extends, arrows move/extend; S11 — the one selection seam for E5-S2 | unit tests (selection state machine: set/toggle/extend/move, boundaries) + functional review (Finder-familiar gestures) |
-| R29 (ad-hoc group, nothing persisted) | S11 — one ephemeral group per session; S14 — nothing written | unit tests (selection state is in-memory only) + functional review (no artifacts on disk after selecting) |
-| R37 (single window shows feed and list) — context; completed here, not claimed as E5-S1's assignment | S3–S5 — ⌘L and the on-screen button flip views in the same window | functional review (toggle both ways, same window, same collection) |
+| R28 (selection; operations act on it) | S6–S9 — single click sets, ⌘-click toggles, ⇧-click extends, arrows move/extend; S11 — the one selection seam for E5-S2; S18 — lifetime is the opened folder, view switches preserve it | unit tests (selection state machine: set/toggle/extend/move, boundaries) + functional review (Finder-familiar gestures) |
+| R29 (ad-hoc group, nothing persisted) | S11, S18 — one ephemeral group per opened folder, reset on a new folder open; S14 — nothing written | unit tests (selection state is in-memory only) + functional review (no artifacts on disk after selecting) |
+| R37 (single window shows feed and list) — context; completed here, not claimed as E5-S1's assignment | S3–S5, S17 — ⌘L and the on-screen button flip views in the same window; the list opens anchored to the feed's current item | functional review (toggle both ways, same window, same collection) |
 | R9–R10 (keyboard-first) — context | S3 (shortcut toggle), S9 (arrow-key selection), S13 (Enter activation) | functional review (keyboard-only round trip: open list, select, activate) |
 | R34–R36 (format filtering) — inherited collection contract, not claimed | S1 — the list shows exactly the collected items, no more, no fewer | unit tests (list/collection parity) + functional review (non-media files absent) |
 | R16 (smooth & responsive) — cross-cutting share via S15, not claimed | S15 — open/scroll/select/switch stall-free at large collection sizes | validator performance review (RNF-02; numeric budgets from this story's design) + functional review (large folder stays fluid) |
@@ -297,21 +320,27 @@ as this story's own:
   responsiveness note S15; product R17 appears only as the inherited no-regression contract S14).
 - [x] The selection seam is explicit and testable: one current selection (S6), Finder-standard
   multi-select mechanics (S7–S9), empty-click clearing (S10), one ad-hoc group never persisted
-  (S11) — and the spec claims no operation on it (non-goals: E5-S2's R30–R33).
+  (S11, S18) — and the spec claims no operation on it (non-goals: E5-S2's R30–R33).
 - [x] Snapshot honesty is explicit (S2): the list neither invents live sync (E4-S2) nor breaks on
   stale rows.
 - [x] Gate evidence is recorded from tooling per conventions: `./scripts/validate.sh --json
   <tmp>/gate.json`, quoted verbatim in the story's evidence; the converge run keeps the default gate
   scope (UI-test mandate decision in Story context: flows are not affected).
-- [ ] The two `[NEEDS CLARIFICATION]` markers (selection lifetime across view switches; list's
-  initial selection/position on switch — under S5 and S11) are resolved before approval.
+- [x] The two `[NEEDS CLARIFICATION]` markers (selection lifetime across view switches; list's
+  initial selection/position on switch — under S5 and S11) are resolved — by binding stakeholder
+  answers, now normative as S17 (list opens scrolled to and highlighting the feed's current item,
+  without that highlight counting as or modifying the selection) and S18 (the selection survives
+  list↔feed switches within the same opened folder, resets only when a new folder is opened, and is
+  never persisted — product R29).
 - [ ] Stakeholder functional review in the running app (`./scripts/app.sh run`) covers: the list
   showing every item of a mixed folder by file name in the feed's order with non-media files absent;
   ⌘L and the on-screen button both toggling between list and feed in the same window; a single click
   selecting without activating; ⌘-click toggling membership; ⇧-click extending from the anchor;
   arrow keys moving and ⇧-arrows extending the selection with clamping at both ends; a click on empty
   space clearing the selection; double-click and Enter each switching to the feed positioned on that
-  item; large folders scrolling, selecting, and switching without stalls; and the media files
+  item; the list opening scrolled to and highlighting the feed's current item without that highlight
+  counting as or modifying the selection; the selection surviving list↔feed switches and resetting
+  when a new folder is opened; large folders scrolling, selecting, and switching without stalls; and the media files
   byte-identical on disk after all of the above (this is a UI story — functional review is part of
   the done gate).
 - [ ] This spec passes the stakeholder approval gate.
