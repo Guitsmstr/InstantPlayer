@@ -381,7 +381,7 @@ docs commit once the code it documents has landed (tasks 1–7). **This task nee
 outside `docs/specs/`** (the design could not write this file — its §13 records the permission
 boundary and reports it to the coordinator; this task-phase deliverable is exactly that list).
 
-- [ ] **8.1** Update `docs/architecture.md` exactly per design §13: (1) **§3 source tree** —
+- [x] **8.1** Update `docs/architecture.md` exactly per design §13: (1) **§3 source tree** —
   re-annotate `Features/Feed/Domain/MediaPlayback.swift` (gains `setPlaybackSpeed(_:)`;
   seek/resume/restart doc evolution), `Domain/MediaPlayerService.swift` (`startPlayback(for:at:)`),
   `Data/AVMediaPlayback.swift` (per-session speed + rate mapping), `Data/AVMediaPlayerService.swift`
@@ -401,8 +401,8 @@ boundary and reports it to the coordinator; this task-phase deliverable is exact
   changes. (3) **§8 evolution note:** **no new actor** — D8's trigger is unmet again (the per-session
   speed is one field on the existing `@MainActor` `AVMediaPlayback` conformance; nothing crosses
   isolation); the `@MainActor`-seam pattern of D25 carries unchanged.
-- [ ] **8.2** Internal links must resolve (the gate checks them) — link only to existing files.
-- [ ] **8.3** Stage, then gate `./scripts/validate.sh --staged`; fix; tick; commit:
+- [x] **8.2** Internal links must resolve (the gate checks them) — link only to existing files.
+- [x] **8.3** Stage, then gate `./scripts/validate.sh --staged`; fix; tick; commit:
   `docs(e3-s2): task 8 — architecture reference updates`.
 
 ## Task 9 — ADR batch `[P]` · design §11
