@@ -4,7 +4,8 @@
 //
 //  Feed Data — one live playback session (E2-S3, design §2, §4, §5 —
 //  S5–S11, S14; E3-S1, design §2, §3 — the seek mechanism and the
-//  periodic clock bridge, S1–S2, S5–S7, S17).
+//  periodic clock bridge, S1–S2, S5–S7, S17; E3-S2, design §2, §3 — the
+//  rate mapping and the per-session selected speed, S10–S14).
 //
 
 import AppKit
@@ -34,6 +35,14 @@ final class AVMediaPlayback: MediaPlayback {
     /// internals. Never touched outside this Data conformance.
     let player: AVPlayer
     let playerItem: AVPlayerItem
+
+    /// The session's selected speed (E3-S2 design §2): seeded by
+    /// `startPlayback(for:at:)` and updated only by `setPlaybackSpeed` —
+    /// the session-local copy of the view model's app-session selection.
+    /// It dies with the session (a fresh session is seeded again); no
+    /// rate read ever crosses the seam (the frozen seam carries no
+    /// state-query members — the `seekDispatchCount` precedent).
+    private var selectedSpeed: MediaPlaybackSpeed
 
     /// The session-owned `AVPlayerLayer` — created here, hosted by the
     /// view `makeDisplayView()` vends (design §4). `resizeAspect`
@@ -97,9 +106,10 @@ final class AVMediaPlayback: MediaPlayback {
     /// `makeDisplayView()` after `stop()` returns nothing usable).
     private var isStopped = false
 
-    init(player: AVPlayer, playerItem: AVPlayerItem) {
+    init(player: AVPlayer, playerItem: AVPlayerItem, selectedSpeed: MediaPlaybackSpeed) {
         self.player = player
         self.playerItem = playerItem
+        self.selectedSpeed = selectedSpeed
         playerLayer = AVPlayerLayer(player: player)
         playerLayer.videoGravity = .resizeAspect
         (events, continuation) = AsyncStream.makeStream(of: MediaPlaybackEvent.self)
@@ -207,10 +217,30 @@ final class AVMediaPlayback: MediaPlayback {
     /// coalesced) and `.exact` supersedes and dispatches immediately — the
     /// split is now **dispatch policy, not landing slack** (the
     /// functional-review converge amendment: both modes land frame-exact).
-    /// Never changes rate (S10).
+    /// Never changes the *selected* speed (S13 — a playing video keeps
+    /// its pace across a seek; the rate is never written here).
     func seek(to seconds: TimeInterval, tolerance: MediaSeekTolerance) {
         guard !isStopped else { return }
         seekScheduler.seek(to: seconds, tolerance: tolerance)
+    }
+
+    /// Changes the session's playback speed (E3-S2 design §2, S10, S11):
+    /// the selection is remembered first, then — only when the session is
+    /// playing (`player.rate != 0`) — one O(1) position-preserving rate
+    /// write in this same main-actor turn (no restart, no seek, no
+    /// play/pause change). When paused (rate 0 — the frozen frame, the
+    /// gesture-scoped scrub pause, a frame parked at either end) the
+    /// write is skipped and the frozen frame stands; the selection is
+    /// what the next `resume()` plays at. `player.rate != 0` ⇔ playing is
+    /// exact here: the ladder's slowest preset is 0.25. The conformance
+    /// reads the player's own state — no view-model pause flag crosses
+    /// the seam.
+    func setPlaybackSpeed(_ speed: MediaPlaybackSpeed) {
+        guard !isStopped else { return }
+        selectedSpeed = speed
+        if player.rate != 0 {
+            player.rate = speed.rawValue
+        }
     }
 
     func pause() {
@@ -221,20 +251,26 @@ final class AVMediaPlayback: MediaPlayback {
 
     func resume() {
         guard !isStopped else { return }
-        // Resumes from the current position. A session parked exactly at
-        // its end (loop support: `actionAtItemEnd = .none`) plays zero
-        // frames, emits `.reachedEnd`, and loops per S11 — no special
-        // case (design §5).
-        player.play()
+        // Plays at the session's selected speed (E3-S2 S11, S14): a plain
+        // rate write from the current position. `play()` is never called —
+        // it is a rate-1.0 write (design §0 fact 1) and would silently
+        // reset a 2× session. A session parked exactly at its end (loop
+        // support: `actionAtItemEnd = .none`) plays zero frames, emits
+        // `.reachedEnd`, and loops per S11 — no special case (design §5).
+        player.rate = selectedSpeed.rawValue
     }
 
     func restart() {
         guard !isStopped else { return }
-        // Seek-to-zero-and-play (S11's mechanism, design §5): an honest
-        // restart of the same session — not a gapless cycle; the loop
-        // *policy* lives in the view model.
+        // Seek-to-zero-then-rate (S11's mechanism, E3-S2 S14, design §5):
+        // an honest restart of the same session — not a gapless cycle; the
+        // loop *policy* lives in the view model. Seek-then-rate ordering
+        // is safe without completion plumbing (design §0 fact 1: a pending
+        // seek lands before the following rate applies). The rate write is
+        // at the session's selected speed — `play()` is never called (it
+        // is a rate-1.0 write and would break S14 structurally).
         player.seek(to: .zero)
-        player.play()
+        player.rate = selectedSpeed.rawValue
     }
 
     func stop() {

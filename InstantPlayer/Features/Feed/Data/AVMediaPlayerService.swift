@@ -3,7 +3,9 @@
 //  InstantPlayer
 //
 //  Feed Data real conformance for the player seam
-//  (E2-S3, design §1.2, §2, §3 — S1–S3, S9, S10, S14, S15).
+//  (E2-S3, design §1.2, §2, §3 — S1–S3, S9, S10, S14, S15;
+//  E3-S2, design §2, §3 — the pitch pin and the start-at-speed play call,
+//  S12, S15).
 //
 
 import AVFoundation
@@ -46,7 +48,7 @@ final class AVMediaPlayerService: MediaPlayerService {
         "AVMediaPlayerService"
     }
 
-    func startPlayback(for item: MediaItem) async -> MediaPlayback? {
+    func startPlayback(for item: MediaItem, at speed: MediaPlaybackSpeed) async -> MediaPlayback? {
         // Supersede + tear down any previous session first — exactly one
         // live player, biting synchronously in this same main-actor turn
         // (design §3, §8(3)).
@@ -63,19 +65,36 @@ final class AVMediaPlayerService: MediaPlayerService {
         guard (try? await asset.load(.isPlayable)) == true else { return nil }
 
         let playerItem = AVPlayerItem(asset: asset)
+        // Pitch pin (E3-S2 S15, design §2): the explicit
+        // highest-quality time-pitch algorithm, set at item creation —
+        // before any audio renders — so voices and music keep their pitch
+        // at 0.25× and 2× alike. Never the OS default: S15 is a visible
+        // contract and an OS default is not a contract (design §0 fact 2).
+        playerItem.audioTimePitchAlgorithm = .spectral
+
         let player = AVPlayer(playerItem: playerItem)
         // Loop support parks the item at its end (design §0.2, §5): the
         // end notification + the view model's `restart()` (seek-to-zero-
-        // and-play) do the looping — the policy lives in the view model.
+        // then-rate) do the looping — the policy lives in the view model.
         player.actionAtItemEnd = .none
 
-        let session = AVMediaPlayback(player: player, playerItem: playerItem)
+        // The session is seeded with the caller's selected speed (design
+        // §3): its `resume()`/`restart()` and its first rate are governed
+        // by this copy, updated only by `setPlaybackSpeed`.
+        let session = AVMediaPlayback(
+            player: player,
+            playerItem: playerItem,
+            selectedSpeed: speed
+        )
         currentSession = session
-        // Start now, without the player's waiting policy (design §0.1 —
-        // local files wait for nothing; `automaticallyWaitsToMinimizeStall
-        // ing` is network machinery). Audio unmuted: `isMuted`/`volume`
-        // are never touched (S3 — app-level volume is E3-S3).
-        player.playImmediately(atRate: 1)
+        // Start at the selected speed, without the player's waiting
+        // policy (design §0.1 — local files wait for nothing;
+        // `automaticallyWaitsToMinimizeStalling` is network machinery):
+        // this is the session's first and only start call, so the rate is
+        // part of "ready to play" — no 1× beat exists to observe (E3-S2
+        // S12). Audio unmuted: `isMuted`/`volume` are never touched (S3 —
+        // app-level volume is E3-S3).
+        player.playImmediately(atRate: speed.rawValue)
         return session
     }
 }

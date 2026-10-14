@@ -20,7 +20,7 @@ private final class ProbeMediaPlayerService: MediaPlayerService {
 
     /// This double exists only for the wiring probes (case 4/5) — the
     /// session member is a canned `nil`, never called by those tests.
-    func startPlayback(for _: MediaItem) async -> MediaPlayback? {
+    func startPlayback(for _: MediaItem, at _: MediaPlaybackSpeed) async -> MediaPlayback? {
         nil
     }
 }

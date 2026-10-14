@@ -3,7 +3,8 @@
 //  InstantPlayer
 //
 //  Feed Domain player seam (E1-S3, design §3.5 — R2, R10, R11;
-//  E2-S3, design §2 — S1–S3, S9, S10, S14, S15).
+//  E2-S3, design §2 — S1–S3, S9, S10, S14, S15; E3-S2, design §2 — the
+//  `at speed:` start parameter, S12).
 //
 
 /// Player service seam (R11): Presentation and Domain reach playback only
@@ -21,18 +22,21 @@
 /// calls. Conformances are `@MainActor` classes (design §1.2).
 @MainActor
 protocol MediaPlayerService: AnyObject {
-    /// Starts a playback session for `item` (S1, S3): supersedes and tears
-    /// down any previous session — exactly one live player (design §3,
-    /// §8(3)); awaits the asset being loadable/playable (AVFoundation-
-    /// internal I/O — never the main thread, design §8(6)); starts playing
-    /// with audio unmuted (the conformance never touches `isMuted`/
-    /// `volume` — S3; app-level volume is E3-S3).
+    /// Starts a playback session for `item` **playing at `speed`** (S1,
+    /// S3; E3-S2 S12, approved reading F3 — the initial play call *is* at
+    /// that rate: the rate is part of "ready to play", no 1× beat exists
+    /// to observe): supersedes and tears down any previous session —
+    /// exactly one live player (design §3, §8(3)); awaits the asset being
+    /// loadable/playable (AVFoundation-internal I/O — never the main
+    /// thread, design §8(6)); starts playing with audio unmuted (the
+    /// conformance never touches `isMuted`/`volume` — S3; app-level
+    /// volume is E3-S3).
     ///
     /// Returns the opaque session handle, or `nil` — the unified failure
     /// answer: a vanished file (S15), a mislabeled/undecodable file (S14,
     /// D20's honest declared-type contract), or an unplayable asset — the
     /// same `nil` precedent as `MediaPreviewService`.
-    func startPlayback(for item: MediaItem) async -> MediaPlayback?
+    func startPlayback(for item: MediaItem, at speed: MediaPlaybackSpeed) async -> MediaPlayback?
 
     /// Wiring probe — same contract as MediaFolderRepository.wiringProbe().
     func wiringProbe() async -> String

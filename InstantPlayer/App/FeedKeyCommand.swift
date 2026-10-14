@@ -5,7 +5,8 @@
 //  App-owned feed-key routing decision (E2-S2 round 4 — evidence §8 —
 //  S5; coordinator-ratified amendment to design §5.3's delivery
 //  mechanism, D22; extended into a feed-key router in E2-S3 — design §6;
-//  E3-S1, design §6 — S2, S9: the keyboard seek rows).
+//  E3-S1, design §6 — S2, S9: the keyboard seek rows; E3-S2, design §6 —
+//  S5–S7: the keyboard speed rows).
 //
 
 import AppKit
@@ -43,6 +44,16 @@ enum FeedKeyCommand: Equatable {
     /// Seek +5 s (E3-S1 S2, design §6) — `seekBackward`'s mirror.
     case seekForward
 
+    /// Step one preset down the speed ladder (E3-S2 S5, design §6) —
+    /// always consumed with an open feed; the view model's guard matrix
+    /// decides (ineligible states consume and no-op quietly, never beep —
+    /// S16, D28). Auto-repeat = repeated steps (S6, the D22/D34 parity);
+    /// ladder-end repeats clamp idempotently (S7).
+    case speedDown
+
+    /// Step one preset up — `speedDown`'s mirror.
+    case speedUp
+
     /// Consume the event and do nothing (E2-S3 design §6 — space
     /// auto-repeat: a held space must not flap play/pause).
     case ignore
@@ -74,6 +85,14 @@ enum FeedKeyCommand: Equatable {
     ///   repeat = repeated steps (S9, paging's parity); ⇧ alone does not
     ///   modify. A deliberate contract change: 123/124 previously passed
     ///   through (the recorded consequence, design §10.1).
+    /// - E3-S2 (design §6 — S5–S7): the plain `[`/`]` keys (33/30) are
+    ///   the keyboard speed rows — with a feed open they are **always
+    ///   consumed** and routed to the guard matrix (the seek rows'
+    ///   shape, D28's beep lesson); auto-repeat = repeated steps (S6,
+    ///   the D22/D34 parity); ⇧ alone does not modify (⇧[` steps down
+    ///   like `[`). A deliberate contract change: 33/30 previously fell
+    ///   to the default pass-through row (the recorded consequence,
+    ///   D38, pinned by new tests).
     static func route(
         keyCode: UInt16,
         modifiers: NSEvent.ModifierFlags,
@@ -94,6 +113,10 @@ enum FeedKeyCommand: Equatable {
             return .seekBackward
         case Self.rightArrowKeyCode:
             return .seekForward
+        case Self.leftBracketKeyCode:
+            return .speedDown
+        case Self.rightBracketKeyCode:
+            return .speedUp
         default:
             return .passThrough
         }
@@ -102,9 +125,14 @@ enum FeedKeyCommand: Equatable {
     /// Hardware key codes (`NSEvent.keyCode`): space = 49, down = 125,
     /// up = 126, left = 123, right = 124 — the seek rows landed with
     /// E3-S1 (design §6); raw key codes stay deliberate and test-pinned.
+    /// E3-S2 (design §6, §0 fact 3 — verified against HIToolbox
+    /// `Events.h` in the pinned SDK): `[` = `kVK_ANSI_LeftBracket` =
+    /// 0x21 = 33, `]` = `kVK_ANSI_RightBracket` = 0x1E = 30.
     private static let spaceKeyCode: UInt16 = 49
     private static let downArrowKeyCode: UInt16 = 125
     private static let upArrowKeyCode: UInt16 = 126
     private static let leftArrowKeyCode: UInt16 = 123
     private static let rightArrowKeyCode: UInt16 = 124
+    private static let leftBracketKeyCode: UInt16 = 33
+    private static let rightBracketKeyCode: UInt16 = 30
 }

@@ -36,8 +36,10 @@ import SwiftUI
 /// page — structurally absent on every other page, S4/S12) and an
 /// actions value whose closures capture the item id into the view
 /// model's §5 entry points. No App-level mouse monitor (D28), no focus
-/// handling. No state of its own, no Data imports (R2), no I/O in `body`
-/// (RNF-02 — the behavior's id map is one O(n) pass over the same
+/// handling. E3-S2 (design §7) drills the speed closure the same way —
+/// `selectSpeed(_:itemID:)` with the page's item id captured at the
+/// drill site. No state of its own, no Data imports (R2), no I/O in
+/// `body` (RNF-02 — the behavior's id map is one O(n) pass over the same
 /// snapshot `ForEach` already iterates).
 struct FeedView: View {
     let viewModel: FeedViewModel
@@ -82,13 +84,16 @@ struct FeedView: View {
                         // closure captures the item id and routes into
                         // the view model's guarded §5 entry points —
                         // ineligible states consume and no-op quietly
-                        // (S12, D28).
+                        // (S12, D28). E3-S2 adds the speed closure (the
+                        // tap-closure pattern): it captures the item id
+                        // into the guarded `selectSpeed(_:itemID:)`.
                         actions: FeedPageActions(
                             scrubBegan: { viewModel.beginScrub(itemID: item.id) },
                             scrubChanged: { viewModel.scrubChanged(itemID: item.id, fraction: $0) },
                             scrubEnded: { viewModel.scrubEnded(itemID: item.id, fraction: $0) },
                             trackClick: { viewModel.seekFromTrackClick(itemID: item.id, fraction: $0) },
-                            mouseMoved: { viewModel.noteMouseMoved(itemID: item.id) }
+                            mouseMoved: { viewModel.noteMouseMoved(itemID: item.id) },
+                            speedSelected: { viewModel.selectSpeed($0, itemID: item.id) }
                         )
                     )
                     // The page IS the viewport (design §5.1) — resize

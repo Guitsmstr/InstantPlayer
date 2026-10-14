@@ -4,7 +4,8 @@
 //
 //  Feed Data stub for the player seam (E1-S3, design §3.6 — R2;
 //  E2-S3, design §2 — stub session handles, task 1.5; E3-S1, design §2 —
-//  the stub handle grows the seek members, task 1.3).
+//  the stub handle grows the seek members, task 1.3; E3-S2, design §2 —
+//  the stub grows the speed members, task 1.5).
 //
 
 import AppKit
@@ -32,9 +33,13 @@ final class StubMediaPlayerService: MediaPlayerService {
     /// Canned answer (design §2 contract shape): a fresh inert stub handle
     /// for every call. Never fails — the seam's `nil` is reserved for real
     /// failure (S14, S15) and a stub has none; never emits events; never
-    /// touches media.
-    func startPlayback(for _: MediaItem) async -> MediaPlayback? {
-        StubMediaPlayback()
+    /// touches media. The `at:` start speed (E3-S2 task 1.5) is recorded
+    /// for wiring tests — recording is the stub's whole speed behavior.
+    private(set) var startSpeeds: [MediaPlaybackSpeed] = []
+
+    func startPlayback(for _: MediaItem, at speed: MediaPlaybackSpeed) async -> MediaPlayback? {
+        startSpeeds.append(speed)
+        return StubMediaPlayback()
     }
 }
 
@@ -45,10 +50,14 @@ final class StubMediaPlayerService: MediaPlayerService {
 /// `duration`, a `timeUpdates` stream that also finishes on `stop()`, and
 /// seeks that are recorded and reflected into the position feed (the
 /// `timeUpdates` ticks consumers map into displayed position) — still
-/// zero I/O, no AVFoundation. Inert on purpose: with this stub bound, no
-/// display state ever reaches `.player`, so the feed keeps showing posters.
+/// zero I/O, no AVFoundation. E3-S2 (task 1.5) grows the speed record.
+/// Internal (no longer `private`) on purpose: the stub-wiring rows read
+/// the recorded speed selections through `@testable` (task 4.4 — the
+/// composition's wiring assertions). Inert on purpose: with this stub
+/// bound, no display state ever reaches `.player`, so the feed keeps
+/// showing posters.
 @MainActor
-private final class StubMediaPlayback: MediaPlayback {
+final class StubMediaPlayback: MediaPlayback {
     /// Canned non-zero duration (task 1.3): large enough for wiring
     /// consumers to map fractions, never derived from media (zero I/O).
     let duration: TimeInterval = 90
@@ -65,12 +74,24 @@ private final class StubMediaPlayback: MediaPlayback {
     /// the stub's whole seek behavior — no I/O, no player state.
     private(set) var seeks: [(seconds: TimeInterval, tolerance: MediaSeekTolerance)] = []
 
+    /// Recorded speed selections (E3-S2 task 1.5): every `setPlaybackSpeed`
+    /// call, in call order — the stub's observable speed state (it has no
+    /// player to re-pace, so the selection's reflection is the record
+    /// itself). Zero I/O, no AVFoundation.
+    private(set) var speedSelections: [MediaPlaybackSpeed] = []
+
     init() {
         (events, continuation) = AsyncStream.makeStream(of: MediaPlaybackEvent.self)
         (timeUpdates, timeUpdatesContinuation) = AsyncStream.makeStream(of: TimeInterval.self)
     }
 
     func pause() {}
+
+    /// Records the selection (E3-S2 task 1.5) — the stub's whole speed
+    /// behavior; there is no player rate to write.
+    func setPlaybackSpeed(_ speed: MediaPlaybackSpeed) {
+        speedSelections.append(speed)
+    }
 
     func resume() {}
 

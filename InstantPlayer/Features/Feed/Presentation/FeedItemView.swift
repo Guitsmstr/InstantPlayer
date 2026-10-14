@@ -5,24 +5,29 @@
 //  Feed Presentation — one feed page cell (E2-S2, design §2, §7 —
 //  S2, S3, S12–S14; E2-S3, design §4, §6 — S6–S8: the player surface,
 //  the whole-page tap target; E3-S1, design §4, §7 — S3, S11: the bar
-//  overlay split).
+//  overlay split; E3-S2, design §4, §7 — S1, S3: the speed drill).
 //
 
 import AppKit
 import SwiftUI
 
 /// The per-page overlay actions (E3-S1 design §7): scrub begin/change/
-/// end, the track click, and mouse-moved — each closure is captured with
-/// the page's item id at the drill site (`FeedView`, the `onTap`
-/// precedent of E2-S3 §6) and routes into the view model's guarded entry
-/// points (design §5 — the guard matrix decides there, never here). The
-/// cell never sees the item.
+/// end, the track click, mouse-moved, and — since E3-S2 — the speed-menu
+/// selection — each closure is captured with the page's item id at the
+/// drill site (`FeedView`, the `onTap` precedent of E2-S3 §6) and routes
+/// into the view model's guarded entry points (design §5 — the guard
+/// matrix decides there, never here). The cell never sees the item.
 struct FeedPageActions {
     let scrubBegan: () -> Void
     let scrubChanged: (Double) -> Void
     let scrubEnded: (Double) -> Void
     let trackClick: (Double) -> Void
     let mouseMoved: () -> Void
+
+    /// The speed-menu selection (E3-S2 design §6): routes to the view
+    /// model's guarded `selectSpeed(_:itemID:)` — the item id is captured
+    /// at the drill site.
+    let speedSelected: (MediaPlaybackSpeed) -> Void
 }
 
 /// One feed page (E2-S2 design §2, §7; E2-S3 design §4, §6): a pure
@@ -152,7 +157,8 @@ struct FeedItemView: View {
                         onScrubBegan: actions.scrubBegan,
                         onScrubChanged: actions.scrubChanged,
                         onScrubEnded: actions.scrubEnded,
-                        onTrackClick: actions.trackClick
+                        onTrackClick: actions.trackClick,
+                        onSpeedSelected: actions.speedSelected
                     )
                     .opacity(model.isVisible ? 1 : 0)
                     .allowsHitTesting(model.isVisible)
