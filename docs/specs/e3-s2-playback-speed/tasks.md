@@ -338,39 +338,39 @@ Deliverable (code): `InstantPlayerTests/Features/Feed/FeedViewModelTests.swift` 
 design §10.1 rows (injected seam doubles: spy `MediaPlayerService` + scripted handle — the E2-S3
 §10.1 pattern; no UI, no window, no AVFoundation).
 
-- [ ] **7.1** Load `swift-security` + `swift-performance` before editing.
-- [ ] **7.2** Preset ladder (S2): `MediaPlaybackSpeed` has exactly the five cases at
+- [x] **7.1** Load `swift-security` + `swift-performance` before editing.
+- [x] **7.2** Preset ladder (S2): `MediaPlaybackSpeed` has exactly the five cases at
   0.25/0.5/1/1.5/2 — nothing else exists to select.
-- [ ] **7.3** Stepping + clamping (S5–S7): up/down walks the ladder; at 2× an up-step stays 2×, at
+- [x] **7.3** Stepping + clamping (S5–S7): up/down walks the ladder; at 2× an up-step stays 2×, at
   0.25× a down-step stays 0.25× — never wraps; the pure `stepped(_:up:)` pinned directly.
-- [ ] **7.4** Hold-to-repeat (S6): repeated route calls = repeated steps (the auto-repeat parity
+- [x] **7.4** Hold-to-repeat (S6): repeated route calls = repeated steps (the auto-repeat parity
   test, `seekAutoRepeatStillSteps`' sibling), clamping idempotently at the ends.
-- [ ] **7.5** Guard matrix (S16): the design §5 table as tests — non-current, mid-gesture, image,
+- [x] **7.5** Guard matrix (S16): the design §5 table as tests — non-current, mid-gesture, image,
   unavailable, welcome all consumed no-ops (spy records nothing, `selectedSpeed` unchanged).
-- [ ] **7.6** Mid-drag input (S10's approved composition note): a speed input during a scrub drag is
+- [x] **7.6** Mid-drag input (S10's approved composition note): a speed input during a scrub drag is
   remembered (state changes, handle command issued) and plays at the drag's `resume()` — the
   opposite of the seek matrix's consume row, asserted side by side.
-- [ ] **7.7** Mid-start input (approved F2): a selection while `startPlayback` is in flight updates
+- [x] **7.7** Mid-start input (approved F2): a selection while `startPlayback` is in flight updates
   session state and is re-applied at install (the scripted handle records `setPlaybackSpeed` in
   `install`).
-- [ ] **7.8** Start-at-speed ordering (S12): `startPlayback` receives the current `selectedSpeed` on
+- [x] **7.8** Start-at-speed ordering (S12): `startPlayback` receives the current `selectedSpeed` on
   auto-play and on revisit; install re-applies; a fresh session at 2× has no intermediate state
   where 1× is requested (spy's call log).
-- [ ] **7.9** Carry semantics (S8, S9): speed survives `stopPlayback`, paging, revisit, a newly
+- [x] **7.9** Carry semantics (S8, S9): speed survives `stopPlayback`, paging, revisit, a newly
   opened folder (`handle(entryAction:)` → `adopt`) and the welcome round-trip; a brand-new
   `FeedViewModel` starts at `.normal` (S9 — the relaunch boundary).
-- [ ] **7.10** Seek preservation (S13): scrub/track click/±5 s/`commitExactSeek`/`endHandover` never
+- [x] **7.10** Seek preservation (S13): scrub/track click/±5 s/`commitExactSeek`/`endHandover` never
   call `setPlaybackSpeed` and never change `selectedSpeed`.
-- [ ] **7.11** Loop preservation (S14): `.reachedEnd` → `restart()` leaves `selectedSpeed` untouched;
+- [x] **7.11** Loop preservation (S14): `.reachedEnd` → `restart()` leaves `selectedSpeed` untouched;
   the scripted handle's restart is at the selection.
-- [ ] **7.12** Badge rule (S4): `controlBarModel.speed` tracks `selectedSpeed`; the ≠ 1× rule is the
+- [x] **7.12** Badge rule (S4): `controlBarModel.speed` tracks `selectedSpeed`; the ≠ 1× rule is the
   binder's single comparison — pinned via `speedText` (task 5's formatter — the exact five strings)
   + model assertions.
-- [ ] **7.13** State neutrality (S10): every speed input leaves `isPlaybackPaused`,
+- [x] **7.13** State neutrality (S10): every speed input leaves `isPlaybackPaused`,
   `displayedPosition`, and the index observable-unchanged.
-- [ ] **7.14** Idle/menu interplay (design §4): a menu selection refreshes the bar visible and
+- [x] **7.14** Idle/menu interplay (design §4): a menu selection refreshes the bar visible and
   restarts the 3 s countdown (the `scrubEnded`-style policy test with injected `now`).
-- [ ] **7.15** Full gate — green. Fix, tick; commit:
+- [x] **7.15** Full gate — green. Fix, tick; commit:
   `test(e3-s2): task 7 — speed policy tests`.
 
 ## Task 8 — Architecture reference updates `[P]` · design §13

@@ -2311,6 +2311,529 @@ struct FeedViewModelTests {
         #expect(viewModel.displayedPosition == 0, "the displayed position resets (S15)")
         #expect(viewModel.controlBarModel == nil, "the departed page has no bar (S12)")
     }
+
+    // MARK: Playback speed policy (E3-S2 design §10.1 — S1–S18 policy)
+
+    /// Preset ladder (S2): `MediaPlaybackSpeed` has exactly the five cases
+    /// at 0.25/0.5/1/1.5/2, in ladder order — nothing else exists to
+    /// select.
+    @Test func presetLadderIsExactlyFiveCases() {
+        #expect(
+            MediaPlaybackSpeed.allCases == [.quarter, .half, .normal, .oneAndHalf, .double],
+            "the ladder is exactly the five presets, declaration order = ladder order (S2)"
+        )
+        #expect(MediaPlaybackSpeed.quarter.rawValue == 0.25)
+        #expect(MediaPlaybackSpeed.half.rawValue == 0.5)
+        #expect(MediaPlaybackSpeed.normal.rawValue == 1.0)
+        #expect(MediaPlaybackSpeed.oneAndHalf.rawValue == 1.5)
+        #expect(MediaPlaybackSpeed.double.rawValue == 2.0)
+    }
+
+    /// Stepping + clamping (S5–S7): the pure `stepped(_:up:)` pinned
+    /// directly — one rung per move, clamping at both ends, never wraps.
+    @Test func steppedWalksTheLadderAndClampsAtBothEnds() {
+        #expect(FeedViewModel.stepped(.quarter, up: true) == .half, "one rung up (S5)")
+        #expect(FeedViewModel.stepped(.half, up: true) == .normal)
+        #expect(FeedViewModel.stepped(.normal, up: true) == .oneAndHalf)
+        #expect(FeedViewModel.stepped(.oneAndHalf, up: true) == .double)
+        #expect(
+            FeedViewModel.stepped(.double, up: true) == .double,
+            "at 2× an up-step stays 2× — the ladder never wraps (S7)"
+        )
+        #expect(FeedViewModel.stepped(.double, up: false) == .oneAndHalf, "one rung down (S5)")
+        #expect(FeedViewModel.stepped(.oneAndHalf, up: false) == .normal)
+        #expect(FeedViewModel.stepped(.normal, up: false) == .half)
+        #expect(FeedViewModel.stepped(.half, up: false) == .quarter)
+        #expect(
+            FeedViewModel.stepped(.quarter, up: false) == .quarter,
+            "at 0.25× a down-step stays 0.25× — the ladder never wraps (S7)"
+        )
+    }
+
+    /// Hold-to-repeat (S6): repeated route calls are repeated steps (the
+    /// auto-repeat parity, `seekAutoRepeatStillSteps`' view-model
+    /// sibling), clamping idempotently at the ends — each repeat is still
+    /// a real command (the clamp makes it a no-op only in effect).
+    @Test func keyboardStepsRepeatAndClampIdempotently() async {
+        let clock = ManualClock()
+        let handle = ScriptedMediaPlayback()
+        let (viewModel, _, _) = await Self.arrangeSeekRow(handle: handle, duration: 100, clock: clock)
+
+        viewModel.stepSpeedUpByKeyboard()
+        viewModel.stepSpeedUpByKeyboard()
+        viewModel.stepSpeedUpByKeyboard()
+        viewModel.stepSpeedUpByKeyboard()
+        #expect(viewModel.selectedSpeed == .double, "three rungs up, then clamped at 2× (S6, S7)")
+
+        viewModel.stepSpeedDownByKeyboard()
+        viewModel.stepSpeedDownByKeyboard()
+        viewModel.stepSpeedDownByKeyboard()
+        viewModel.stepSpeedDownByKeyboard()
+        viewModel.stepSpeedDownByKeyboard()
+        #expect(viewModel.selectedSpeed == .quarter, "three rungs down, then clamped at 0.25× (S6, S7)")
+        #expect(
+            handle.speedCommands
+                == [.normal, .oneAndHalf, .double, .double, .double, .oneAndHalf, .normal, .half, .quarter, .quarter],
+            "every repeat is a real command through the shared core (S6 — no backlog, no state skip)"
+        )
+    }
+
+    /// Guard matrix (S16): speed input on a non-current page, mid-gesture,
+    /// on an image page, on the neutral unavailable state, and with no
+    /// open feed are all consumed no-ops — the spy records nothing and
+    /// `selectedSpeed` is unchanged.
+    @Test func speedInputsOnIneligibleStatesAreQuietNoOps() async {
+        // Non-current page (menu route with the departed page's id).
+        let clock = ManualClock()
+        let handle = ScriptedMediaPlayback()
+        let (viewModel, _, collection) = await Self.arrangeSeekRow(
+            handle: handle, duration: 100, clock: clock, itemCount: 2
+        )
+        let departed = collection.items[0]
+        viewModel.pageForward() // item 1 becomes current (its own start)
+        viewModel.selectSpeed(.double, itemID: departed.id)
+        #expect(viewModel.selectedSpeed == .normal, "non-current speed input is a consumed no-op (S16)")
+
+        // Mid-gesture (the keyboard route resolves to the current item;
+        // the paging guard consumes).
+        viewModel.scrollGestureDidStart()
+        viewModel.stepSpeedUpByKeyboard()
+        #expect(viewModel.selectedSpeed == .normal, "mid-gesture speed input is a consumed no-op (S16)")
+        viewModel.scrollGestureDidSettle()
+
+        // Image page (no playback semantics — S16).
+        let folder = Self.uniqueFolder("speed-image")
+        let image = Self.makeItem(folder, named: "pic.png", kind: .image)
+        let imageCollection = Self.makeCollection(folderURL: folder, items: [image], startIndex: 0)
+        let imageModel = FeedViewModel(
+            mediaPlayerService: ScriptedMediaPlayerService(),
+            mediaFolderRepository: ScriptedMediaFolderRepository(results: [imageCollection]),
+            mediaPreviewService: StubMediaPreviewService(),
+            now: { clock.time }
+        )
+        await imageModel.handle(entryAction: EntryAction(enteredURL: folder))
+        imageModel.selectSpeed(.double, itemID: image.id)
+        imageModel.stepSpeedUpByKeyboard()
+        #expect(imageModel.selectedSpeed == .normal, "an image page has no speed semantics (S16)")
+
+        // Neutral unavailable state (sticky playback failure — S16).
+        let brokenFolder = Self.uniqueFolder("speed-unavailable")
+        let broken = Self.makeItem(brokenFolder, named: "broken.mp4", kind: .video)
+        let brokenCollection = Self.makeCollection(folderURL: brokenFolder, items: [broken], startIndex: 0)
+        let brokenModel = FeedViewModel(
+            mediaPlayerService: ScriptedMediaPlayerService(answers: [nil]),
+            mediaFolderRepository: ScriptedMediaFolderRepository(results: [brokenCollection]),
+            mediaPreviewService: StubMediaPreviewService(),
+            now: { clock.time }
+        )
+        await brokenModel.handle(entryAction: EntryAction(enteredURL: brokenFolder))
+        let failed = await Self.waitFor(
+            { brokenModel.displayStates[broken.id] == .unavailable },
+            "arrange: the item must reach the sticky unavailable state"
+        )
+        guard failed else { return }
+        brokenModel.selectSpeed(.double, itemID: broken.id)
+        brokenModel.stepSpeedUpByKeyboard()
+        #expect(brokenModel.selectedSpeed == .normal, "the unavailable state consumes quietly (S16)")
+
+        // No open feed (welcome) — the route resolves to a nil current
+        // item and the view model does nothing (route-level pass-through
+        // is the frozen table's, D28).
+        let fresh = FeedViewModel(
+            mediaPlayerService: ScriptedMediaPlayerService(),
+            mediaFolderRepository: ScriptedMediaFolderRepository(results: []),
+            mediaPreviewService: StubMediaPreviewService(),
+            now: { clock.time }
+        )
+        fresh.stepSpeedUpByKeyboard()
+        #expect(fresh.selectedSpeed == .normal, "no open feed — nothing to step (D28)")
+    }
+
+    /// Mid-drag input (S10's approved composition note): a speed input
+    /// during a scrub drag is **remembered** — state changes, the handle
+    /// command is issued (the conformance skips the rate write while the
+    /// drag's gesture-scoped pause holds) — and plays at the drag's
+    /// `resume()`. The opposite of the seek matrix's consume row.
+    @Test func speedInputDuringAScrubDragIsRememberedAndAppliesOnResume() async {
+        let clock = ManualClock()
+        let handle = ScriptedMediaPlayback()
+        let (viewModel, _, collection) = await Self.arrangeSeekRow(handle: handle, duration: 100, clock: clock)
+        let item = collection.items[0]
+
+        viewModel.beginScrub(itemID: item.id) // gesture-scoped pause (S5)
+        viewModel.scrubChanged(itemID: item.id, fraction: 0.5)
+
+        viewModel.stepSpeedUpByKeyboard()
+        #expect(
+            viewModel.selectedSpeed == .oneAndHalf,
+            "mid-drag speed input is remembered, not consumed (S10's composition note)"
+        )
+        #expect(
+            handle.speedCommands == [.normal, .oneAndHalf],
+            "the handle command is issued (the paused conformance remembers it — design §2)"
+        )
+
+        viewModel.scrubEnded(itemID: item.id, fraction: 0.5)
+        #expect(
+            handle.resumeCount == 1,
+            "was-playing → the drag's resume is the first observable moment of the new speed (S11)"
+        )
+    }
+
+    /// Mid-start input (approved F2): a selection while `startPlayback` is
+    /// still in flight is accepted as session state and re-applied at
+    /// install — the scripted handle records `setPlaybackSpeed` in
+    /// `install` (the honesty limit: the start itself still carries the
+    /// then-current selection).
+    @Test func speedInputWhileStillStartingIsAcceptedAndReappliedAtInstall() async {
+        let folder = Self.uniqueFolder("speed-midstart")
+        let item = Self.makeItem(folder, named: "a.mp4", kind: .video)
+        let collection = Self.makeCollection(folderURL: folder, items: [item], startIndex: 0)
+        let handle = ScriptedMediaPlayback()
+        let players = ScriptedMediaPlayerService(answers: [handle], holdingFirstCall: true)
+        let clock = ManualClock()
+        let viewModel = FeedViewModel(
+            mediaPlayerService: players,
+            mediaFolderRepository: ScriptedMediaFolderRepository(results: [collection]),
+            mediaPreviewService: StubMediaPreviewService(),
+            now: { clock.time }
+        )
+        await viewModel.handle(entryAction: EntryAction(enteredURL: folder))
+
+        let parked = await Self.waitFor(
+            { players.isHoldingFirstCall },
+            "the start must park on the gate (the still-starting window)"
+        )
+        guard parked else { return }
+
+        viewModel.selectSpeed(.double, itemID: item.id)
+        #expect(
+            viewModel.selectedSpeed == .double,
+            "a starting video is none of S16's ineligible rows — the input is accepted (F2)"
+        )
+
+        players.releaseFirstCall(with: handle)
+        let installed = await Self.waitFor(
+            { handle.speedCommands == [.double] },
+            "the install re-apply must govern the session it landed on (F2, design §3)"
+        )
+        guard installed else { return }
+        #expect(
+            players.startSpeeds == [.normal],
+            "honesty limit: the start itself carries the then-current selection (design §3)"
+        )
+    }
+
+    /// Start-at-speed ordering (S12): `startPlayback` receives the current
+    /// `selectedSpeed` on auto-play and on revisit; the install re-apply
+    /// lands; a fresh session at 2× has no intermediate state where 1× is
+    /// requested (the spy's call log).
+    @Test func startAtSpeedOrderingOnAutoPlayAndRevisit() async {
+        let folder = Self.uniqueFolder("speed-start")
+        let item0 = Self.makeItem(folder, named: "a.mp4", kind: .video)
+        let item1 = Self.makeItem(folder, named: "b.mp4", kind: .video)
+        let collection = Self.makeCollection(folderURL: folder, items: [item0, item1], startIndex: 0)
+        let handle0 = ScriptedMediaPlayback()
+        let handle1 = ScriptedMediaPlayback()
+        let handle2 = ScriptedMediaPlayback()
+        let players = ScriptedMediaPlayerService(answers: [handle0, handle1, handle2])
+        let clock = ManualClock()
+        let viewModel = FeedViewModel(
+            mediaPlayerService: players,
+            mediaFolderRepository: ScriptedMediaFolderRepository(results: [collection]),
+            mediaPreviewService: StubMediaPreviewService(),
+            now: { clock.time }
+        )
+        await viewModel.handle(entryAction: EntryAction(enteredURL: folder))
+
+        let opened = await Self.waitFor(
+            { players.calls == [item0] },
+            "arrange: the opening video must start"
+        )
+        guard opened else { return }
+        #expect(
+            players.startSpeeds == [.normal] && handle0.speedCommands == [.normal],
+            "a fresh view model starts at 1× — the start and the install re-apply agree (S9, S12)"
+        )
+
+        viewModel.selectSpeed(.double, itemID: item0.id)
+        #expect(handle0.speedCommands == [.normal, .double], "the selection reaches the live session (S10)")
+
+        viewModel.pageForward()
+        let forward = await Self.waitFor(
+            { players.calls == [item0, item1] },
+            "paging away must start the new current video"
+        )
+        guard forward else { return }
+        #expect(
+            players.startSpeeds == [.normal, .double],
+            "the selection carries to the next video's start (S8, S12)"
+        )
+        #expect(
+            handle1.speedCommands == [.double],
+            "a fresh 2× session has no intermediate 1× request — the re-apply matches the start (S12)"
+        )
+
+        viewModel.pageBackward()
+        let back = await Self.waitFor(
+            { players.calls == [item0, item1, item0] },
+            "the revisit must start a fresh session (S10)"
+        )
+        guard back else { return }
+        #expect(players.startSpeeds == [.normal, .double, .double], "the revisit restarts at speed (S12)")
+        #expect(handle2.speedCommands == [.double], "the revisited session installs at the selection (S12)")
+    }
+
+    /// Carry semantics (S8, S9): the selection survives `stopPlayback`
+    /// (paging), the welcome round-trip, and a newly opened folder
+    /// (`adopt`); a brand-new view model starts at `.normal` (the
+    /// relaunch boundary).
+    @Test func selectedSpeedCarriesUntilChangedAndResetsOnlyAtRelaunch() async {
+        let folderA = Self.uniqueFolder("carry-a")
+        let itemA = Self.makeItem(folderA, named: "a.mp4", kind: .video)
+        let collectionA = Self.makeCollection(folderURL: folderA, items: [itemA], startIndex: 0)
+        let folderB = Self.uniqueFolder("carry-b")
+        let itemB = Self.makeItem(folderB, named: "b.mp4", kind: .video)
+        let collectionB = Self.makeCollection(folderURL: folderB, items: [itemB], startIndex: 0)
+        let handleA = ScriptedMediaPlayback()
+        let handleB = ScriptedMediaPlayback()
+        let players = ScriptedMediaPlayerService(answers: [handleA, handleB])
+        let clock = ManualClock()
+        let viewModel = FeedViewModel(
+            mediaPlayerService: players,
+            mediaFolderRepository: ScriptedMediaFolderRepository(results: [collectionA, nil, collectionB]),
+            mediaPreviewService: StubMediaPreviewService(),
+            now: { clock.time }
+        )
+        await viewModel.handle(entryAction: EntryAction(enteredURL: folderA))
+
+        let opened = await Self.waitFor(
+            { players.calls == [itemA] },
+            "arrange: the first folder must start its video"
+        )
+        guard opened else { return }
+        viewModel.selectSpeed(.double, itemID: itemA.id)
+        #expect(viewModel.selectedSpeed == .double)
+
+        // Welcome round-trip (stopPlayback + discard — nothing clears it).
+        await viewModel.handle(entryAction: EntryAction(enteredURL: Self.uniqueFolder("empty")))
+        guard case .welcome = viewModel.state else {
+            Issue.record("arrange: the no-media entry must return to welcome")
+            return
+        }
+        #expect(
+            viewModel.selectedSpeed == .double,
+            "the welcome transition never clears the selection (S8)"
+        )
+
+        // A newly opened folder (`adopt` — the reset-everything path).
+        await viewModel.handle(entryAction: EntryAction(enteredURL: folderB))
+        let adopted = await Self.waitFor(
+            { players.calls == [itemA, itemB] },
+            "arrange: the new folder must start its video"
+        )
+        guard adopted else { return }
+        #expect(
+            viewModel.selectedSpeed == .double,
+            "a newly opened folder never clears the selection (S8)"
+        )
+        #expect(
+            players.startSpeeds == [.normal, .double],
+            "the adopted collection starts at the carried selection (S8, S12)"
+        )
+
+        // The relaunch boundary: a brand-new view model starts at 1×.
+        let fresh = FeedViewModel(
+            mediaPlayerService: ScriptedMediaPlayerService(),
+            mediaFolderRepository: ScriptedMediaFolderRepository(results: []),
+            mediaPreviewService: StubMediaPreviewService(),
+            now: { clock.time }
+        )
+        #expect(fresh.selectedSpeed == .normal, "nothing is persisted — relaunch starts at 1× (S9)")
+    }
+
+    /// Seek preservation (S13): scrub, track click, ±5 s steps, and the
+    /// end handover never call `setPlaybackSpeed` and never change
+    /// `selectedSpeed`.
+    @Test func seekPathsNeverTouchTheSelectedSpeed() async {
+        let clock = ManualClock()
+        let handle = ScriptedMediaPlayback()
+        let (viewModel, _, collection) = await Self.arrangeSeekRow(handle: handle, duration: 100, clock: clock)
+        let item = collection.items[0]
+
+        viewModel.selectSpeed(.double, itemID: item.id)
+        let afterSelection = handle.speedCommands
+
+        viewModel.beginScrub(itemID: item.id)
+        viewModel.scrubChanged(itemID: item.id, fraction: 0.25)
+        viewModel.scrubEnded(itemID: item.id, fraction: 0.25)
+        viewModel.seekFromTrackClick(itemID: item.id, fraction: 0.4)
+        viewModel.seekForwardByKeyboard()
+        viewModel.seekBackwardByKeyboard()
+        viewModel.seekFromTrackClick(itemID: item.id, fraction: 1.0) // the end handover
+
+        #expect(
+            handle.speedCommands == afterSelection,
+            "no seek path ever issues a speed command (S13)"
+        )
+        #expect(
+            viewModel.selectedSpeed == .double,
+            "no scrub, track click, keyboard seek, or end handover resets the speed (S13)"
+        )
+        #expect(handle.restartCount == 1, "arrange proof: the end handover ran (S14's restart path)")
+    }
+
+    /// Loop preservation (S14): `.reachedEnd` → `restart()` leaves
+    /// `selectedSpeed` untouched — the restart is at the selection
+    /// (task 2's mapping), so a 2× batch loops at 2× without re-selection.
+    @Test func loopRestartPreservesTheSelectedSpeed() async {
+        let clock = ManualClock()
+        let handle = ScriptedMediaPlayback()
+        let (viewModel, _, collection) = await Self.arrangeSeekRow(handle: handle, duration: 100, clock: clock)
+        let item = collection.items[0]
+
+        viewModel.selectSpeed(.double, itemID: item.id)
+        let afterSelection = handle.speedCommands
+
+        handle.emit(.reachedEnd)
+        let restarted = await Self.waitFor(
+            { handle.restartCount == 1 },
+            "the loop must restart the same handle (S14)"
+        )
+        guard restarted else { return }
+        #expect(viewModel.selectedSpeed == .double, "the loop preserves the selection (S14)")
+        #expect(handle.speedCommands == afterSelection, "the restart path issues no speed command (S14)")
+        #expect(viewModel.currentIndex == 0, "the index is never touched by speed or loop (R15)")
+    }
+
+    /// Badge rule (S4): `controlBarModel.speed` tracks `selectedSpeed`,
+    /// and the ≠ 1× rule is the binder's single comparison — pinned via
+    /// `speedText` (the exact five strings) + model assertions.
+    @Test func barModelSpeedTracksTheSelectionAndSpeedTextIsPinned() async {
+        #expect(PlaybackControlBarView.speedText(.quarter) == "0.25×", "the pinned display strings (S4)")
+        #expect(PlaybackControlBarView.speedText(.half) == "0.5×")
+        #expect(PlaybackControlBarView.speedText(.normal) == "1×")
+        #expect(PlaybackControlBarView.speedText(.oneAndHalf) == "1.5×")
+        #expect(PlaybackControlBarView.speedText(.double) == "2×")
+
+        let clock = ManualClock()
+        let handle = ScriptedMediaPlayback()
+        let (viewModel, _, collection) = await Self.arrangeSeekRow(handle: handle, duration: 100, clock: clock)
+        let item = collection.items[0]
+
+        #expect(
+            viewModel.controlBarModel?.speed == .normal,
+            "the bar model carries the selection from install (design §5)"
+        )
+
+        viewModel.selectSpeed(.double, itemID: item.id)
+        #expect(
+            viewModel.controlBarModel?.speed == .double,
+            "the model's speed tracks the selection — the binder's ≠ 1× comparison is the whole rule (S4)"
+        )
+        #expect(
+            viewModel.controlBarModel?.isVisible == true,
+            "a menu selection refreshes the bar visible (design §4 — asserted fully in the idle row)"
+        )
+
+        viewModel.stepSpeedDownByKeyboard()
+        #expect(
+            viewModel.controlBarModel?.speed == .oneAndHalf,
+            "a keyboard step updates the model too (F1's visibility rule is separate)"
+        )
+    }
+
+    /// State neutrality (S10): every speed input leaves `isPlaybackPaused`,
+    /// `displayedPosition`, and the index observable-unchanged — a speed
+    /// step can never toggle play/pause.
+    @Test func speedInputsAreStateNeutral() async {
+        let clock = ManualClock()
+        let handle = ScriptedMediaPlayback()
+        let (viewModel, _, collection) = await Self.arrangeSeekRow(handle: handle, duration: 100, clock: clock)
+        let item = collection.items[0]
+
+        let positionBefore = viewModel.displayedPosition
+        let indexBefore = viewModel.currentIndex
+
+        viewModel.selectSpeed(.double, itemID: item.id)
+        viewModel.stepSpeedDownByKeyboard()
+        viewModel.stepSpeedUpByKeyboard()
+
+        #expect(viewModel.displayedPosition == positionBefore, "speed never moves the playhead (S10)")
+        #expect(viewModel.currentIndex == indexBefore, "speed never advances the feed (R15)")
+
+        // The play/pause axis: the fresh session auto-plays and the speed
+        // inputs never flipped it — the first toggle must PAUSE (a flipped
+        // state would have resumed).
+        viewModel.togglePlayback()
+        #expect(
+            handle.pauseCount == 1 && handle.resumeCount == 0,
+            "the speed inputs left isPlaybackPaused untouched — the first toggle pauses (S10)"
+        )
+    }
+
+    /// Idle/menu interplay (design §4): a menu selection refreshes the bar
+    /// visible and restarts the 3 s countdown (the `scrubEnded` precedent,
+    /// with injected `now`); a keyboard step leaves the bar as found (F1).
+    /// The restart proof: the bar survives past the pre-selection deadline
+    /// (the selection's re-arm cancelled it — the generation guard), and
+    /// the hide lands only after the *restarted* deadline. The machinery's
+    /// `Task.sleep` is wall-clock, so the final hide is awaited with a
+    /// real-time bounded poll (the spin helper cannot span a real sleep).
+    @Test func menuSelectionRearmsTheIdleCountdownAndStepsLeaveTheBarAsFound() async {
+        let clock = ManualClock()
+        let handle = ScriptedMediaPlayback()
+        let (viewModel, _, collection) = await Self.arrangeSeekRow(handle: handle, duration: 100, clock: clock)
+        let item = collection.items[0]
+
+        // F1: a keyboard step never shows the bar.
+        viewModel.stepSpeedUpByKeyboard()
+        #expect(
+            viewModel.controlBarModel?.isVisible == false,
+            "a keyboard step never shows the bar (F1 — chrome is demand-driven on mouse movement)"
+        )
+
+        viewModel.noteMouseMoved(itemID: item.id) // deadline = 1000 + 3
+        #expect(viewModel.controlBarModel?.isVisible == true, "arrange: movement shows the bar (S3)")
+
+        // A menu selection counts as activity: visible again + countdown
+        // restarted (deadline = 1002 + 3).
+        clock.time += 2
+        viewModel.selectSpeed(.double, itemID: item.id)
+        #expect(
+            viewModel.controlBarModel?.isVisible == true,
+            "a menu selection refreshes the bar visible (design §4)"
+        )
+
+        // Past the PRE-selection deadline (1003) but inside the restarted
+        // window: the bar still stands — the old deadline is gone, the
+        // selection's re-arm owns the countdown (design §4).
+        clock.time += 2
+        for _ in 0 ..< 50 {
+            await Task.yield()
+        }
+        #expect(
+            viewModel.controlBarModel?.isVisible == true,
+            "past the pre-selection deadline the bar still stands — the countdown restarted (design §4)"
+        )
+
+        // Past the restarted deadline: the wake hides (real-time bounded
+        // poll — the task's sleep is wall-clock).
+        clock.time += 2
+        var hiddenAgain = false
+        let pollDeadline = Date().addingTimeInterval(5)
+        while Date() < pollDeadline {
+            if viewModel.controlBarModel?.isVisible == false {
+                hiddenAgain = true
+                break
+            }
+            try? await Task.sleep(for: .milliseconds(20))
+        }
+        #expect(
+            hiddenAgain,
+            "the restarted 3 s deadline must hide the bar (design §4)"
+        )
+    }
 }
 
 /// The injected clock the scrub/seek rows drive (task 3's `now`): tests
@@ -2480,6 +3003,11 @@ private final class ScriptedMediaPlayerService: MediaPlayerService {
     private var firstCallGate: CheckedContinuation<MediaPlayback?, Never>?
     private(set) var calls: [MediaItem] = []
 
+    /// Recorded start speeds (E3-S2 task 7.8's spy extension): the `at:`
+    /// parameter of every `startPlayback` call, in call order — the
+    /// start-at-speed ordering rows assert against this record.
+    private(set) var startSpeeds: [MediaPlaybackSpeed] = []
+
     init(answers: [MediaPlayback?] = [], holdingFirstCall: Bool = false) {
         self.answers = answers
         holdFirstCall = holdingFirstCall
@@ -2501,8 +3029,9 @@ private final class ScriptedMediaPlayerService: MediaPlayerService {
         "ScriptedMediaPlayerService"
     }
 
-    func startPlayback(for item: MediaItem, at _: MediaPlaybackSpeed) async -> MediaPlayback? {
+    func startPlayback(for item: MediaItem, at speed: MediaPlaybackSpeed) async -> MediaPlayback? {
         calls.append(item)
+        startSpeeds.append(speed)
         if calls.count == 1, holdFirstCall {
             return await withCheckedContinuation { (continuation: CheckedContinuation<MediaPlayback?, Never>) in
                 firstCallGate = continuation
