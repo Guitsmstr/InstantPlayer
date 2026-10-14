@@ -20,6 +20,18 @@ import XCTest
 /// internals (the D25 unmuted-start route, since the frozen seam carries
 /// no state-query members). Suites are `@MainActor`: the conformance is
 /// MainActor-isolated (E2-S3 design §1.2).
+///
+/// `.serialized` on purpose (the review fix for the E2-S2 preview-budget
+/// gate flake): these rows are independent, but each writes an
+/// audio+video fixture and hosts a real `AVPlayer` in a window — run
+/// concurrently they stack seven encoders and seven players/windows on
+/// the machine at once, which is exactly the load under which the
+/// parallel-runner `MediaPreviewPerformanceTests` p95 decode budget
+/// (another runner process, measured in the same window) grew a heavy
+/// tail. One fixture encode + one session + one window at a time keeps
+/// this suite's footprint at the pre-story level; every row still pins
+/// the same contract.
+@Suite(.serialized)
 @MainActor
 struct AVMediaPlaybackSpeedTests {
     private let fixture = MediaFixture()
@@ -119,6 +131,7 @@ struct AVMediaPlaybackSpeedTests {
     /// holds through the first frame.
     @Test func startAtDoubleBeginsAtRateTwo() async throws {
         let (handle, session) = try await makeSpeedClip(at: .double, waitForReady: false)
+        defer { handle.stop(); windowHost.close() }
         #expect(
             session.player.rate == 2,
             "the start call is at the selected speed — no 1× beat (S12, design §3 ordering)"
@@ -132,7 +145,8 @@ struct AVMediaPlaybackSpeedTests {
     /// `audioTimePitchAlgorithm == .spectral` — never the OS default (an
     /// OS default is not a contract, design §0 fact 2).
     @Test func audioTimePitchAlgorithmIsPinnedSpectralAtCreation() async throws {
-        let (_, session) = try await makeSpeedClip(at: .normal)
+        let (handle, session) = try await makeSpeedClip(at: .normal)
+        defer { handle.stop(); windowHost.close() }
         #expect(
             session.playerItem.audioTimePitchAlgorithm == .spectral,
             "the pitch pin is explicit at item creation, before any audio renders (S15)"
@@ -148,6 +162,7 @@ struct AVMediaPlaybackSpeedTests {
     /// own thread between the reads).
     @Test func speedChangeWhilePlayingIsAnInTurnRateWrite() async throws {
         let (handle, session) = try await makeSpeedClip(at: .normal)
+        defer { handle.stop(); windowHost.close() }
         let before = session.player.currentTime().seconds
         session.setPlaybackSpeed(.double)
         #expect(session.player.rate == 2, "the rate write bites in the same turn (S10)")
@@ -163,6 +178,7 @@ struct AVMediaPlaybackSpeedTests {
     /// at the remembered selection.
     @Test func speedChangeWhilePausedIsRememberedAndAppliesOnResume() async throws {
         let (handle, session) = try await makeSpeedClip(at: .normal)
+        defer { handle.stop(); windowHost.close() }
         handle.pause()
         #expect(session.player.rate == 0, "arrange: pause is the rate-0 write (design §8(2))")
         session.setPlaybackSpeed(.double)
@@ -178,6 +194,7 @@ struct AVMediaPlaybackSpeedTests {
     /// seek-then-rate ordering) — a 2× batch loops at 2×.
     @Test func restartPlaysAtTheSelectedSpeed() async throws {
         let (handle, session) = try await makeSpeedClip(at: .double)
+        defer { handle.stop(); windowHost.close() }
         handle.restart()
         #expect(session.player.rate == 2, "the restart plays at the selection (S14)")
         let landed = await waitForLanding(session, near: 0, within: 0.2)
@@ -189,6 +206,7 @@ struct AVMediaPlaybackSpeedTests {
     /// seek lands at the requested point.
     @Test func seekLeavesTheSelectedSpeedUntouched() async throws {
         let (handle, session) = try await makeSpeedClip(at: .double)
+        defer { handle.stop(); windowHost.close() }
         session.seek(to: 0.5, tolerance: .exact)
         let landed = await waitForLanding(session, near: 0.5, within: 1.0 / 30.0)
         #expect(landed, "the seek must land at the requested point (S7)")
@@ -204,6 +222,7 @@ struct AVMediaPlaybackSpeedTests {
     /// pending at any speed: silent, item detached, synchronously.
     @Test func stopSilencesTheSessionAtAnySpeed() async throws {
         let (handle, session) = try await makeSpeedClip(at: .double)
+        defer { windowHost.close() }
         handle.stop()
         #expect(session.player.rate == 0, "stop is silent — no rate work pending (design §3 brace 1)")
         #expect(session.player.currentItem == nil, "the item is detached (design §2)")

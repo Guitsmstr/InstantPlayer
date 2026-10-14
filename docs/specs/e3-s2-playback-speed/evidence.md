@@ -30,8 +30,9 @@ evidence (functional review, validator PASS, closure) is **not** recorded here. 
 SwiftLint and SwiftFormat read `pass`/`ok`; the full gate is green on the story's final code.
 (One earlier evidence run of the same gate failed on
 `MediaPreviewPerformanceTests.testDisplayBudgetThroughPreviewSeam` — E2-S2's preview budget, a
-load-sensitive p95-over-20 catch in an untouched file; see §8 item 3. It passed on the re-run
-quoted above and in every other gate run of this story.)
+load-sensitive p95-over-20 catch in an untouched file; see §8 item 3 and, post-review, §8 item 8
+for the diagnosis and the in-scope fix. It passed on the re-run quoted above and in several other
+gate runs of this story.)
 
 ## 2 · UI-test mandate (task 10.4; R14 of E1-S2)
 
@@ -280,6 +281,35 @@ evidence is supporting material, never the approval:
    unchanged within the full gate of 10.3" is recorded precisely instead: the default gate does
    not run the UI-test target, so §2 quotes the last recorded green launch-test run (E2-S3), the
    launch-path-untouched diff, and the §1 gate — no claim is made beyond what tooling showed.
+8. **Review (post-converge-validator): the E2-S2 preview-budget flake — diagnosis and the in-scope
+   fix.** The validator/coordinator hit repeated gate failures on
+   `MediaPreviewPerformanceTests.testDisplayBudgetThroughPreviewSeam` (E2-S2's ≤ 300 ms p95 over
+   20 cold passes; its files have an empty diff vs `main`). Diagnosis from tooling:
+   (a) the gate runs each XCTest perf class in its **own parallel runner process** — the preview
+   test runs alone in its process, so same-process interference is ruled out; (b) this story
+   added a fourth runner (`AVMediaPlaybackSpeedPerformanceTests`) and a Swift Testing seam suite
+   whose tests originally ran **concurrently**, each with an AAC+H264 fixture encode and a real
+   `AVPlayer` in a window — landing exactly on the preview test's measured cold-pass window;
+   (c) this run's samples show the mechanism: steady-state (warm) decodes are stable at
+   197.7–203.5 ms, while **cold-phase** samples spike to ~360 ms — and today's typical cold
+   decode (~200 ms) sits far above the historical recorded reference (163.9–188.7 ms in E2-S2's
+   evidence), i.e. the machine is currently ~10–30% slower than on the day the budget was
+   recorded, leaving only ~1.5× headroom that concurrent runner load consumes. **In-scope fix
+   landed** (review commit): the speed seam suite is now `@Suite(.serialized)` (one fixture
+   encode + one session + one window at a time — its rows measured 0.000–2 s, vs 1–2 s each
+   before) and every seam test now releases its session and window explicitly
+   (`handle.stop()`/`windowHost.close()`), so this suite's contribution to the contention window
+   is reduced to the pre-story level and its own rows are deterministic. **What this fix does not
+   do:** it does not make the preview budget deterministic again — the remaining contributors
+   (the pre-existing suites' cold-phase load, the machine's current ~10–30% slowdown, and the
+   budget's ~1.5× typical headroom) are outside this story's scope: the budget semantics
+   (N = 20, one allowed exceedance), the preview test, the preview service, and the gate
+   configuration are all frozen (E2-S2/E2-S3 ratified; the hard constraint of this review).
+   **Escalated to the coordinator/stakeholder with options:** re-record the budget on a
+   thermally neutral machine or with reduced gate parallelism (E2-S2 owner), add a
+   budget-reference refresh mechanism, or accept the documented intermittent flake with the
+   two-consecutive-green-gates convergence protocol. No production code, no preview code, no
+   gate configuration, and no budget semantics were touched.
 
 No other deviation from the approved design exists: signatures, budgets, the bar form, the route
 table, and the file inventory match the design §1–§13 as approved.
