@@ -504,33 +504,33 @@ in this file.
 
 Ticked by task 10, each backed by quoted tooling evidence:
 
-- [ ] **AC1 · product R14 / S1, S2, S5–S7** — both invocations land on the exact five-preset ladder:
+- [x] **AC1 · product R14 / S1, S2, S5–S7** — both invocations land on the exact five-preset ladder:
   the bar's speed menu selects any preset, and `[`/`]` step one preset per press (hold-to-repeat)
   with clamping at 0.25× and 2× and no wrap — covered by the policy suite (ladder, `stepped` pins,
   repeat parity, boundary clamps) + functional review.
-- [ ] **AC2 · S8, S9, S12** — session scope and starts: the selection carries across paging,
+- [x] **AC2 · S8, S9, S12** — session scope and starts: the selection carries across paging,
   revisits, and newly opened folders until changed; a relaunch starts at 1× (nothing persisted);
   every start — auto-play, revisit restart, loop — begins at the selected speed from the first frame
   with no 1× flash and no added wait (policy suite + seam suite ordering pins + functional review).
-- [ ] **AC3 · S3, S4 (+ S1's carve-out)** — the bar is the four E3-S1 elements plus the speed control
+- [x] **AC3 · S3, S4 (+ S1's carve-out)** — the bar is the four E3-S1 elements plus the speed control
   and the speed badge (badge iff ≠ 1×, identifying the selection); the cluster is a hit-test island,
   so clicks and drags on the speed surface never toggle play/pause, scrub, or page; keyboard steps
   never show the bar (approved F1) — policy/badge-rule tests + functional review.
-- [ ] **AC4 · S10, S11, S13, S14, S16 (+ S10's composition note, approved F2)** — application rules:
+- [x] **AC4 · S10, S11, S13, S14, S16 (+ S10's composition note, approved F2)** — application rules:
   immediate rate change while playing (position and play/pause untouched), remembered while paused,
   mid-scrub-drag, and mid-start (applied at install); no seek or loop restart resets the speed; the
   full guard matrix is unit-tested row by row — quiet consumed no-ops, never beep.
-- [ ] **AC5 · S15, S17, S9 / product R17 · RNF-04** — pitch-corrected audio pinned `.spectral` at item
+- [x] **AC5 · S15, S17, S9 / product R17 · RNF-04** — pitch-corrected audio pinned `.spectral` at item
   creation (seam suite); read-only speed walked: no rewrite/export/reader/writer, no sidecars or
   derived files, no speed preference at rest, no new access paths (D19 session not re-derived);
   **no entitlement/plist/pbxproj diff** (D21 audit: empty diff + unchanged `codesign` output
   quoted); design §9.1 review table walked; media files byte-identical on disk after review.
-- [ ] **AC6 · S18 / product R16 share · RNF-02** — responsiveness budgets measured and recorded from
+- [x] **AC6 · S18 / product R16 share · RNF-02** — responsiveness budgets measured and recorded from
   tooling (rate change issued in the same main-actor turn ≤ 16 ms; pace change ≤ 100 ms p95; start
   path adds zero work; rapid stepping O(1) and backlog-free); zero added launch cost (no `Timer`/run-
   loop sources — the one re-arm call site; `testLaunchPerformance` intact); speed changes fluid in
   functional review.
-- [ ] **AC7 · R14 (E1-S2) decision + evidence & coverage** — the UI-test-mandate decision recorded
+- [x] **AC7 · R14 (E1-S2) decision + evidence & coverage** — the UI-test-mandate decision recorded
   (default gate scope, no `--uitests` obligation, with the honest caveat); full gate `--json` quoted
   verbatim (lint/format `pass`); the S1–S18 + product R-map walk recorded; the three ADRs in
   `docs/decisions.md` house format with design §11 titles; the design §13 `docs/architecture.md`
