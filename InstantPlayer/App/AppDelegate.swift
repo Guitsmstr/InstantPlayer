@@ -5,7 +5,8 @@
 //  App-owned window lifecycle policy (E2-S2, design §6.1 — S8) and
 //  feed-key delivery (E2-S2 round 4 — S5; coordinator-ratified design
 //  §5.3 amendment, D22; extended into a feed-key router in E2-S3 —
-//  design §6 — S5; E3-S1, design §6 — S2: the two seek cases).
+//  design §6 — S5; E3-S1, design §6 — S2: the two seek cases; E3-S2,
+//  design §6 — S5: the two speed cases).
 //
 
 import AppKit
@@ -78,6 +79,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 return nil
             case .seekForward:
                 dependencies.activeFeedModel?.seekForwardByKeyboard()
+                return nil
+            case .speedDown:
+                // E3-S2 (design §6): routed into the unchanged view-model
+                // step method; the guard matrix decides, so ineligible
+                // states consume and no-op quietly (S16, D28).
+                dependencies.activeFeedModel?.stepSpeedDownByKeyboard()
+                return nil
+            case .speedUp:
+                dependencies.activeFeedModel?.stepSpeedUpByKeyboard()
                 return nil
             case .ignore:
                 // Consumed and ignored — space auto-repeat (no flap).

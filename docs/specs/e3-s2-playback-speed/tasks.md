@@ -309,8 +309,8 @@ Deliverable (code): `InstantPlayer/App/FeedKeyCommand.swift`, `InstantPlayer/App
 (monitor switch), `InstantPlayerTests/App/FeedKeyCommandTests.swift` (updated — the table's contract
 pins land with the table, the e3-s1 task-8 precedent).
 
-- [ ] **6.1** Load `swift-security` + `swift-performance` before editing.
-- [ ] **6.2** Route table per design §6 — the frozen table gains exactly two cases and two rows:
+- [x] **6.1** Load `swift-security` + `swift-performance` before editing.
+- [x] **6.2** Route table per design §6 — the frozen table gains exactly two cases and two rows:
   `[` (keyCode **33**) → `.speedDown`, `]` (keyCode **30**) → `.speedUp` (codes verified against
   HIToolbox `Events.h`, design §0 fact 3). With an open feed both are **always consumed** and routed
   to the guard matrix (which no-ops quietly on ineligible states — S16; never beep — D28), because
@@ -321,15 +321,15 @@ pins land with the table, the e3-s1 task-8 precedent).
   `nonArrowKeysPassThrough` (key code 0) is unaffected. **Recorded contract change:** 33/30
   previously fell to the default `passThrough` row — the frozen table's discipline means the change
   is recorded (D38) and pinned by new tests.
-- [ ] **6.3** `AppDelegate` monitor switch gains the two cases → the view model's
+- [x] **6.3** `AppDelegate` monitor switch gains the two cases → the view model's
   `stepSpeedDownByKeyboard()` / `stepSpeedUpByKeyboard()` (task 3's unchanged `@MainActor` methods;
   the guard matrix decides, so ineligible states consume and no-op quietly). Existing cases and the
   `hasOpenFeed` derivation unchanged.
-- [ ] **6.4** `FeedKeyCommandTests` per design §10.1: 33 → `.speedDown`, 30 → `.speedUp` with
+- [x] **6.4** `FeedKeyCommandTests` per design §10.1: 33 → `.speedDown`, 30 → `.speedUp` with
   auto-repeat parity (`arrowAutoRepeatStillPages`/`seekAutoRepeatStillSteps`' sibling); ⌘/⌥/⌃-modified
   pass through; ⇧ alone steps; welcome passes through; **no existing pin changes** (33/30 previously
   hit the default row — the recorded consequence is new rows plus new pins).
-- [ ] **6.5** Full gate. Fix, tick; commit:
+- [x] **6.5** Full gate. Fix, tick; commit:
   `feat(e3-s2): task 6 — keyboard speed rows on the feed key router`.
 
 ## Task 7 — Policy suite: `FeedViewModel` speed rows · design §10.1

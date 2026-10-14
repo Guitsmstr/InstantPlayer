@@ -14,8 +14,8 @@ import Testing
 /// (house pattern, `AppDependenciesTests`). The decision table is pure —
 /// no `NSEvent` instances, no UI (design §10.1 pattern). Key codes are
 /// the hardware `NSEvent.keyCode` values: 125 = ↓, 126 = ↑, 123 = ←,
-/// 124 = →, 49 = space, 0 = A — pinned here so the table cannot drift
-/// from the hardware.
+/// 124 = →, 49 = space, 33 = `[`, 30 = `]`, 0 = A — pinned here so the
+/// table cannot drift from the hardware.
 @MainActor
 struct FeedKeyCommandTests {
     /// Plain ↓ with a feed open → page forward (S5).
@@ -438,6 +438,149 @@ struct FeedKeyCommandTests {
                 isRepeat: true,
                 hasOpenFeed: true
             ) == .pageBackward
+        )
+    }
+
+    // MARK: Speed routing (E3-S2 design §6 — S5–S7, D38's recorded change)
+
+    /// The bracket speed keys with a feed open (E3-S2 design §6 — S5; the
+    /// recorded contract change: `[`/`]` 33/30 previously fell to the
+    /// default pass-through row — D38; the table's discipline means the
+    /// change is recorded and pinned): plain `[` steps down, plain `]`
+    /// steps up.
+    @Test func plainBracketKeysStepSpeedWhenFeedIsOpen() {
+        #expect(
+            FeedKeyCommand.route(
+                keyCode: 33,
+                modifiers: [],
+                isRepeat: false,
+                hasOpenFeed: true
+            ) == .speedDown
+        )
+        #expect(
+            FeedKeyCommand.route(
+                keyCode: 30,
+                modifiers: [],
+                isRepeat: false,
+                hasOpenFeed: true
+            ) == .speedUp
+        )
+    }
+
+    /// Speed-key auto-repeat = repeated steps (S6 — paging's and seek's
+    /// repeat parity, `arrowAutoRepeatStillPages`/
+    /// `seekAutoRepeatStillSteps`' sibling): a held `[`/`]` steps once
+    /// per keyDown.
+    @Test func speedKeyAutoRepeatStillSteps() {
+        #expect(
+            FeedKeyCommand.route(
+                keyCode: 33,
+                modifiers: [],
+                isRepeat: true,
+                hasOpenFeed: true
+            ) == .speedDown
+        )
+        #expect(
+            FeedKeyCommand.route(
+                keyCode: 30,
+                modifiers: [],
+                isRepeat: true,
+                hasOpenFeed: true
+            ) == .speedUp
+        )
+    }
+
+    /// ⇧ alone is not a command modifier for the speed keys either —
+    /// ⇧[` steps down like `[ (the frozen table's ⇧ policy; on a US
+    /// layout these would type braces, but v1 has no text input).
+    @Test func shiftAloneStillStepsSpeed() {
+        #expect(
+            FeedKeyCommand.route(
+                keyCode: 33,
+                modifiers: [.shift],
+                isRepeat: false,
+                hasOpenFeed: true
+            ) == .speedDown
+        )
+        #expect(
+            FeedKeyCommand.route(
+                keyCode: 30,
+                modifiers: [.shift],
+                isRepeat: false,
+                hasOpenFeed: true
+            ) == .speedUp
+        )
+    }
+
+    /// Real bracket keyDown events carry system flags — those are not
+    /// command modifiers and must still step (the arrow-flags regression
+    /// pin's speed counterpart).
+    @Test func systemSpeedFlagsStillStep() {
+        #expect(
+            FeedKeyCommand.route(
+                keyCode: 33,
+                modifiers: [.function, .numericPad],
+                isRepeat: false,
+                hasOpenFeed: true
+            ) == .speedDown
+        )
+        #expect(
+            FeedKeyCommand.route(
+                keyCode: 30,
+                modifiers: [.function, .numericPad],
+                isRepeat: false,
+                hasOpenFeed: true
+            ) == .speedUp
+        )
+    }
+
+    /// ⌘/⌥/⌃-modified speed keys pass through — system shortcuts are
+    /// never robbed (design §6's speed rows, the paging modifier columns).
+    @Test func commandModifiedSpeedKeysPassThrough() {
+        let commandModifiers: [NSEvent.ModifierFlags] = [
+            [.command],
+            [.option],
+            [.control],
+            [.command, .option, .control],
+        ]
+        for modifiers in commandModifiers {
+            #expect(
+                FeedKeyCommand.route(
+                    keyCode: 33,
+                    modifiers: modifiers,
+                    isRepeat: false,
+                    hasOpenFeed: true
+                ) == .passThrough
+            )
+            #expect(
+                FeedKeyCommand.route(
+                    keyCode: 30,
+                    modifiers: modifiers,
+                    isRepeat: false,
+                    hasOpenFeed: true
+                ) == .passThrough
+            )
+        }
+    }
+
+    /// Welcome: the speed keys pass through like every key — no feed, no
+    /// feed commands (D28 unchanged; the no-open-feed column).
+    @Test func welcomePassesSpeedKeysThrough() {
+        #expect(
+            FeedKeyCommand.route(
+                keyCode: 33,
+                modifiers: [],
+                isRepeat: false,
+                hasOpenFeed: false
+            ) == .passThrough
+        )
+        #expect(
+            FeedKeyCommand.route(
+                keyCode: 30,
+                modifiers: [],
+                isRepeat: true,
+                hasOpenFeed: false
+            ) == .passThrough
         )
     }
 }
