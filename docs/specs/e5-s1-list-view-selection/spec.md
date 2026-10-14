@@ -114,8 +114,8 @@ the feed's contract, and the list's row is the file name itself, which requires 
 
 *Derivation (S3):* settled answer 1 delegates the concrete shortcut to this spec; **⌘L** is proposed
 as the mnemonic ("L" for list) toggle. Invocation delivery is design detail (D28's precedent). The
-stakeholder can veto this proposal at the approval gate; the toggle's existence and behavior are
-settled regardless of the final key.
+stakeholder confirmed this proposal (binding answer 2 — the ⌘L veto point is closed); the toggle's
+existence and behavior were settled regardless of the final key.
 
 - **S4:** WHEN the user clicks the on-screen view-toggle button in the main window
   THE SYSTEM SHALL perform the same switch between the list view and the feed (settled answer 1)
@@ -184,8 +184,8 @@ selection is the standard macOS behavior and is not re-specified here.
 
 *Derivation (S10):* recorded as a reading of settled answer 2's "standard macOS conventions" — the
 enumerated mechanisms (S7–S9) name the multi-select gestures, and empty-click-to-clear is the same
-Finder-native selection behavior the answer adopts wholesale. The stakeholder can veto this reading
-at the approval gate.
+Finder-native selection behavior the answer adopts wholesale. The stakeholder confirmed this reading
+(binding answer 3 — the S10 veto point is closed).
 
 - **S11:** WHEN a multi-selection exists
   THE SYSTEM SHALL treat it as one ad-hoc group for the next operation and SHALL NOT persist groups
@@ -223,7 +223,9 @@ restored across relaunch (S14).
 on the double-clicked item, whatever the selection around it. Activation is a navigation action, not
 a selection action — it does not replace the selection model (S6), and the selection around it
 survives the switch untouched (S18); the S17 highlight on the list's later re-opening is likewise
-not a selection change.
+not a selection change. Consistency with playback continuation (binding answer 1; design §5.3):
+activating the row the feed is already on flips presentation only — it restarts neither the item's
+playback nor its position.
 
 - **S13:** WHEN a row in the list has keyboard focus and the user presses Enter
   THE SYSTEM SHALL switch to the feed positioned on that item (settled answer 2)

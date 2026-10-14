@@ -13,10 +13,10 @@ implementer and the validator load them before touching this code (D5).
 Scope reminder: this story ends at "the list shows the snapshot's names, the selection works like
 Finder's, the two views flip". No file operations (E5-S2 — zip/move/reveal/trash, product R30–R33);
 no ordering modes (E4-S1); no live folder sync (E4-S2 — the list is honestly a snapshot, S2); no
-playback controls in rows; no persistence of anything (S11, S14, S18). One
-`[NEEDS CLARIFICATION]` marker exists in this design (§5.3 — playback across a view switch; a
-question the spec does not answer); every other decision below is made and traceable to S-/product-R
-numbers.
+playback controls in rows; no persistence of anything (S11, S14, S18). No `[NEEDS CLARIFICATION]` markers exist in this design — §5.3's playback-across-a-view-switch
+question is resolved by a binding stakeholder answer (playback continues; no teardown), and the two
+spec-level veto points (⌘L as the toggle key, empty-click-clears) are stakeholder-confirmed. Every
+decision below is made and traceable to S-/product-R numbers.
 
 ## 0 · Platform and toolchain facts this design is built on
 
@@ -132,6 +132,10 @@ nonisolated struct MediaListSelection {
 | ⇧-↑ / ⇧-↓ | lead moves one row (clamped); selection = range anchor…lead | S9 |
 | Click on empty space | `clear()` — no rows selected, anchor/lead dropped | S10 |
 
+Both spec-level stakeholder veto points are now **confirmed** (binding answers 2–3) and closed:
+⌘L stands as the toggle key (§5.1) and empty-click-to-clear stands as the S10 reading above —
+neither is an open proposal anymore.
+
 All ops are O(1) except range ops (O(range), rendering-lazy anyway); membership checks are O(1)
 (`Set`). Arrow auto-repeat is repeated `move`/`extend` calls — the boundary clamp keeps repeats
 idempotent (the D38 repeat-parity pattern). ⇧-click's replace-with-range semantics and anchor
@@ -169,6 +173,13 @@ selection consistency together).
   R as the feed's current item without touching selection (S17).
 - **S13 — Enter:** the keyboard twin — Enter (key code 36; keypad Enter 76) activates the
   **lead** row (the selection machine's keyboard-focus row, §3). Same outcome, same positioning.
+- **Activation on the already-current item never restarts playback (binding answer 1, §5.3):** if
+  the activated row R is the feed's current item, activation is a pure presentation flip — `RootView`
+  calls `present(.feed)` only and never `moveTo(itemID:)`, `startPlayback`, or `restart()`; the live
+  session (playing or paused) continues at its exact position. Only activating a **different** row
+  runs the inherited positioning contract, where the feed's ordinary arrive-on-item semantics apply
+  unchanged. This keeps the input-delivery decision (§5.1) and the playback-continuation decision
+  (§5.3) consistent: no activation path may restart playback that the switch deliberately kept alive.
 - **Cross-feature mediation:** `MediaListViewModel` never references `FeedViewModel` (features are
   peers); the activation callback is injected at composition (`RootView` binds it to
   `moveTo(itemID:)` + `present(.feed)`), keeping D7's dependency rule intact.
@@ -200,8 +211,8 @@ the new commands to the registered `activeListModel` (the weak `activeFeedModel`
 pattern, D10). Auto-repeat on the list arrows = repeated moves (D38 parity; the boundary clamp is
 idempotent). **Alternative considered:** `.keyboardShortcut("l", modifiers: .command)` on the toggle
 button — rejected for consistency and testability (the D22 lesson favors the monitor; one routing
-table keeps all keyboard behavior in one testable place). ⌘L itself is the spec's *proposed* key —
-the stakeholder may veto it at approval; only the key code changes, not this design.
+table keeps all keyboard behavior in one testable place). ⌘L is **confirmed** by the stakeholder (binding answer 2 — the spec's proposed key stands, the veto
+point is closed); no fallback key is planned.
 
 ### 5.2 The on-screen button (S4)
 
@@ -214,9 +225,27 @@ one standard label flipping with state ("List" / "Feed" with the corresponding s
 detail left to implementation within these bounds. **Flagged for the ADR plan (§10):** extending
 the demand-driven strip is a deliberate, minor extension of the chrome policy.
 
-### 5.3 Playback across a view switch — open question
+### 5.3 Playback across a view switch — decided (binding stakeholder answer 1)
 
-`[NEEDS CLARIFICATION: when the user switches to the list while a video is playing, does playback stop (the feed view leaves the hierarchy and the existing E2-S3 teardown-on-disappear contract applies, with D25's restart-on-revisit on return), or does playback continue audibly over the list (S5's "the switch changes only which of the two views is presented" read literally)?]` The spec answers neither. The design isolates the choice to one policy point (the feed view's mount/teardown behavior at the switch in `RootView`), so both answers are one small change; the **default assumption for planning is the inherited contract (teardown on disappear, restart on revisit)** because it alters no shipped feed behavior — but it is not decided here.
+**Playback CONTINUES across the list↔feed switch.** While the list is shown, audio keeps playing;
+video decode may idle since the display surface is hidden — but there is **no teardown**: the
+playback session (`MediaPlayback`, D25) is untouched. Returning to the feed shows the same item at
+the same position, still playing (paused stays paused). Concretely, a list↔feed switch is **neither a
+teardown point nor a revisit**: E2-S3's teardown-on-disappear / stop-on-away path is not entered, and
+D25's restart-on-revisit does not fire — no `stop()`, no `startPlayback`, no `restart()` on any such
+switch. This is S5's "the switch changes only which of the two views is presented" read literally,
+and it keeps S5's "no feed contract altered" honest at the session level too.
+
+Consistency consequences, already folded into §4 and §5.1: while the list is presented the feed's
+input rows are not routed (the never-compete rule), so playback runs on without feed keys reaching
+it; Enter/double-click activation of the **already-current** row is a presentation flip only — no
+`moveTo`, no restart (§4); activating a **different** row is a real item change and keeps the
+inherited positioning/auto-play contract. The isolation point is the same as before — `RootView`'s
+switch policy (§6.1) — now specified to keep the session alive across the switch instead of tearing
+it down. **Alternatives considered:** the inherited E2-S3 contract (teardown on disappear + D25's
+restart-on-revisit on return — the former planning default), rejected by the stakeholder because it
+silently restarts a playing clip on every view flip; pausing on switch-to-list, rejected for the same
+reason (the answer keeps playback running). Recorded for the ADR plan (§10) as its own entry.
 
 ## 6 · Composition, wiring & the future seams (D10)
 
@@ -226,7 +255,8 @@ the demand-driven strip is a deliberate, minor extension of the chrome policy.
 the instance weakly as `activeListModel` for the key monitor. `RootView` owns three routings: each
 new `MediaCollection` (the funnel is the existing entry route — `handle(entryAction:)` completion)
 → `MediaListViewModel.apply(collection:)` (the S18 reset point); row activation →
-`FeedViewModel.moveTo(itemID:)` (§4); presentation state → which feature view is mounted (§1.1).
+`FeedViewModel.moveTo(itemID:)` (§4); presentation state → which feature view is mounted (§1.1) — the playback session lives below this
+switch and survives it (§5.3).
 The list model receives the feed's `currentItemID` as a read-only value for the S17 highlight.
 Launch cost stays exactly at the sanctioned allocations — the list model is created on demand with
 the folder-open state, nothing runs at launch (§7).
@@ -355,7 +385,9 @@ One `MediaListViewModel`: toggle flips presentation only and leaves selection un
 `apply(collection:)` with a new snapshot resets selection; the same snapshot does not (S18);
 the S17 highlight projection is read-only — asserting selection equality across highlight changes
 proves S17 mechanically; activation emits the right `MediaItem.ID` intent and does not mutate
-selection (S12).
+selection (S12); activation of the already-current item emits **no** `moveTo` intent and never calls
+`startPlayback`/`restart()` (§4, §5.3), while activation of a different item does emit it; toggling
+presentation never touches the playback session (§5.3).
 
 ### 9.3 Routing table (unit — key codes test-pinned)
 
@@ -376,7 +408,9 @@ The spec's acceptance list is the checklist: mixed folder listed by name in the 
 and the button toggling both ways in the same window; click/⌘-click/⇧-click/arrows/empty-click
 selection; double-click and Enter landing on the item in the feed; the S17 opening highlight that
 is not a selection; selection survival across switches and reset on a new folder; large folders
-fluid; media files byte-identical afterwards (S14).
+fluid; media files byte-identical afterwards (S14); switching to the list mid-playback keeping the
+audio playing and returning to the feed landing on the same item at the same position, still playing
+(§5.3); and activating the already-current row not restarting its playback (§4).
 
 ## 10 · ADR plan (continuing after D38)
 
@@ -391,8 +425,11 @@ Candidates for the converge ADRs (the coordinator records them in
   Domain machine and the root-owned presentation switch (§1.1, §3).
 - **D41 (planned, minor) — Chrome policy extension:** the view-toggle button rides the demand-driven
   overlay strip on the feed and a minimal top bar in the list (§5.2).
-- Watch item: the §5.3 playback-across-switch answer, once the stakeholder decides it, is a product
-  behavior decision worth its own ADR entry (or a line in D40).
+- **D42 (planned) — Playback continues across the list↔feed switch (§5.3):** the presentation
+  switch is neither a teardown point nor a D25 revisit — the session survives the hidden surface,
+  same item and position on return, and activation of the already-current row is presentation-only
+  (no restart). The former planning default (teardown-on-disappear + restart-on-revisit) is rejected
+  by the stakeholder.
 
 ## 11 · Alternatives considered
 
@@ -424,8 +461,8 @@ Candidates for the converge ADRs (the coordinator records them in
    `App/` rows note the list-model factory and the extended router. An outdated reference is a
    defect.
 2. **⌘L is claimed from the pass-through set** — a deliberate input-contract change (like E3-S1's
-   123/124 and E3-S2's 33/30), test-pinned; if the stakeholder vetoes the key at approval, one
-   constant and its tests move (§5.1).
+   123/124 and E3-S2's 33/30), test-pinned; the key is stakeholder-confirmed (binding answer 2), so
+   the veto fallback is closed — the consequence stands as recorded (§5.1).
 3. **Perf risk — very large folders (§7):** 50k+ direct children stress SwiftUI lazy-stack
    diff/layout on first mount. Budgets (§7(1)(2)) are the tripwire; the fallback is the
    `NSTableView` bridge of §11 under D40. The 10k `measure` test keeps the regression deterministic.
@@ -433,8 +470,9 @@ Candidates for the converge ADRs (the coordinator records them in
    list open (S17) must be proven in the first functional spike; if macOS 26 misbehaves as focus
    did in D22's rounds, the fallback is `List`'s programmatic selection or the §11 bridge — escalate
    early rather than shipping an unpositioned list.
-5. **The §5.3 open question must be answered before implementation touches the switch** — it is the
-   only behavior this design does not decide.
+5. **§5.3 is decided (binding answer 1): playback continues across the switch** — implementation
+   must keep the session alive at the switch and obey §4's no-restart rule for activation on the
+   already-current row; nothing in this design is left undecided.
 6. **E5-S2 inherits a clean seam** (§6.2) and its own security delta (read-write entitlement,
    D16's never-rewrite guard, confirmation UX) — none of it leaks into this story's diff.
 
@@ -446,15 +484,15 @@ Candidates for the converge ADRs (the coordinator records them in
 | S2 | Immutable rows per snapshot; stale rows stay; no self-reordering | §2, §6.3 |
 | S3 | ⌘L row on the App-owned router → `togglePresentation()` | §5.1 |
 | S4 | `ViewToggleControl` in both views over the one toggle method | §5.2 |
-| S5 | Root-owned presentation switch; feed contracts untouched; one presented view | §1.1, §5.1 |
+| S5 | Root-owned presentation switch; feed contracts untouched; one presented view; playback continues across the switch — no teardown, no restart | §1.1, §5.1, §5.3 |
 | S6 | `select(_:)` — sets selection, never activates | §3.1 |
 | S7 | `toggle(_:)` — membership flip, rest preserved | §3.1 |
 | S8 | `extend(to:over:)` — anchor…target range, anchor kept | §3.1 |
 | S9 | `move`/`extend` arrows via the router rows; clamp, no wrap | §3.1, §5.1 |
 | S10 | `clear()` on empty-space click | §3.1 |
 | S11 | One `MediaListSelection` value = the E5-S2 seam; ephemeral | §3.2, §6.2 |
-| S12 | Double-click → `activate` intent → `moveTo(itemID:)` + feed | §4 |
-| S13 | Enter (36/76) activates the lead row — same path as S12 | §4, §5.1 |
+| S12 | Double-click → `activate` intent → `moveTo(itemID:)` + feed; current-item row = presentation-only, never restarts playback | §4, §5.3 |
+| S13 | Enter (36/76) activates the lead row — same path as S12, same no-restart rule | §4, §5.1, §5.3 |
 | S14 | Display-only snapshot values; zero writes; empty Data layer | §1.1, §8 |
 | S15 | Budgets: 100/300 ms switch, 16 ms selection, 60 fps scroll, 10k `measure` | §7 |
 | S16 | List/toggle only in folder-open; welcome untouched | §2, §5.1 |
