@@ -139,6 +139,9 @@ enum MediaFixtureError: Error {
     case imageContextUnavailable
     case imageDestinationUnavailable
     case encodeFailed
+    case audioFormatUnavailable
+    case audioBlockBufferUnavailable
+    case audioSampleBufferUnavailable
 }
 
 // MARK: - Real-bytes fixtures (E2-S2 design §10.2)
@@ -375,6 +378,254 @@ extension MediaFixture {
     ) async throws -> URL {
         let url = (folder ?? root).appending(path: name)
         try await Self.writeShortMP4(
+            to: url,
+            pixelWidth: pixelWidth,
+            pixelHeight: pixelHeight,
+            frameCount: frameCount,
+            fps: fps
+        )
+        return url
+    }
+}
+
+// MARK: - Short multi-frame clip with an audio track (E3-S2 design §10.2)
+
+extension MediaFixture {
+    /// Writes a tiny real multi-frame H.264 MP4 **with an AAC audio track**
+    /// at `url` (E3-S2 design §10.2's fixture pattern: the pitch-pin rows
+    /// need a session whose item really carries audio, so the pinned
+    /// `audioTimePitchAlgorithm` is the algorithm that will render).
+    /// Video frames are solid colors as in `writeShortMP4`; the audio
+    /// track is silence — constant 16-bit mono PCM chunks appended to an
+    /// AAC-encoding input (each track is chronological on its own;
+    /// `AVAssetWriter` re-interleaves at finish). Same retry discipline as
+    /// `writeShortMP4` (the gate runs test classes in parallel processes).
+    /// `nonisolated`: the AVAssetWriter work runs off the main thread.
+    nonisolated static func writeShortMP4WithAudio(
+        to url: URL,
+        pixelWidth: Int,
+        pixelHeight: Int,
+        frameCount: Int = 6,
+        fps: Int32 = 30
+    ) async throws {
+        var attempts = 0
+        while true {
+            attempts += 1
+            do {
+                try await writeShortMP4WithAudioAttempt(
+                    to: url,
+                    pixelWidth: pixelWidth,
+                    pixelHeight: pixelHeight,
+                    frameCount: frameCount,
+                    fps: fps
+                )
+                return
+            } catch {
+                // The AAC encoder contends harder than the video one under
+                // the gate's parallel load (two encoders per attempt), so a
+                // wider retry budget than `writeShortMP4`'s is warranted.
+                guard attempts < 5 else { throw error }
+                try? await Task.sleep(for: .milliseconds(250))
+            }
+        }
+    }
+
+    /// One encode attempt: the `writeShortMP4Attempt` builder shape plus
+    /// the audio input and its silence chunks.
+    private nonisolated static func writeShortMP4WithAudioAttempt(
+        to url: URL,
+        pixelWidth: Int,
+        pixelHeight: Int,
+        frameCount: Int,
+        fps: Int32
+    ) async throws {
+        try? FileManager.default.removeItem(at: url)
+        let writer = try AVAssetWriter(outputURL: url, fileType: .mp4)
+        let settings: [String: Any] = [
+            AVVideoCodecKey: AVVideoCodecType.h264,
+            AVVideoWidthKey: pixelWidth,
+            AVVideoHeightKey: pixelHeight,
+        ]
+        let input = AVAssetWriterInput(mediaType: .video, outputSettings: settings)
+        let adaptor = AVAssetWriterInputPixelBufferAdaptor(
+            assetWriterInput: input,
+            sourcePixelBufferAttributes: [
+                kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA,
+                kCVPixelBufferWidthKey as String: pixelWidth,
+                kCVPixelBufferHeightKey as String: pixelHeight,
+            ]
+        )
+        // The audio track: AAC, mono, 44.1 kHz — fed by constant PCM
+        // silence chunks (the honest carrier for the pitch pin's item).
+        let audioInput = AVAssetWriterInput(
+            mediaType: .audio,
+            outputSettings: [
+                AVFormatIDKey: kAudioFormatMPEG4AAC,
+                AVSampleRateKey: 44100,
+                AVNumberOfChannelsKey: 1,
+                AVEncoderBitRateKey: 64000,
+            ]
+        )
+        writer.add(input)
+        writer.add(audioInput)
+        guard writer.startWriting() else { throw MediaFixtureError.encodeFailed }
+        writer.startSession(atSourceTime: .zero)
+        defer {
+            input.markAsFinished()
+            audioInput.markAsFinished()
+        }
+
+        guard let pool = adaptor.pixelBufferPool else { throw MediaFixtureError.pixelBufferPoolUnavailable }
+        for frame in 0 ..< frameCount {
+            var pooled: CVPixelBuffer?
+            guard CVPixelBufferPoolCreatePixelBuffer(kCFAllocatorDefault, pool, &pooled) == kCVReturnSuccess,
+                  let buffer = pooled else { throw MediaFixtureError.pixelBufferUnavailable }
+            try fill(buffer, pixelWidth: pixelWidth, pixelHeight: pixelHeight)
+
+            var waits = 0
+            while input.isReadyForMoreMediaData == false {
+                usleep(1000)
+                waits += 1
+                if waits > 2000 {
+                    throw MediaFixtureError.encoderNotReady
+                }
+            }
+            let time = CMTime(value: CMTimeValue(frame), timescale: fps)
+            guard adaptor.append(buffer, withPresentationTime: time) else { throw MediaFixtureError.sampleAppendFailed }
+        }
+
+        // The silence chunks: 0.1 s each, covering the clip's whole video
+        // duration (audio at least as long as video — the track exists and
+        // renders for the clip's life).
+        let sampleRate = 44100
+        let chunkFrames = 4410
+        let totalAudioFrames = Int((Double(frameCount) / Double(fps)) * Double(sampleRate))
+        let format = try audioFormatDescription()
+        var chunk = 0
+        while chunk * chunkFrames < totalAudioFrames {
+            let buffer = try silenceSampleBuffer(
+                format: format,
+                chunkFrames: chunkFrames,
+                startFrame: chunk * chunkFrames,
+                sampleRate: sampleRate
+            )
+            var waits = 0
+            while audioInput.isReadyForMoreMediaData == false {
+                usleep(1000)
+                waits += 1
+                if waits > 2000 {
+                    throw MediaFixtureError.encoderNotReady
+                }
+            }
+            guard audioInput.append(buffer) else { throw MediaFixtureError.sampleAppendFailed }
+            chunk += 1
+        }
+
+        // Both tracks cover the same duration by construction — the
+        // video end time is the session end.
+        writer.endSession(atSourceTime: CMTime(value: CMTimeValue(frameCount), timescale: fps))
+        await writer.finishWriting()
+        guard writer.status == .completed else { throw MediaFixtureError.encodeFailed }
+    }
+
+    /// The PCM source format the silence chunks describe (16-bit signed
+    /// mono at `sampleRate` Hz, packed — the AAC input's feed format).
+    private nonisolated static func audioFormatDescription() throws -> CMAudioFormatDescription {
+        var asbd = AudioStreamBasicDescription(
+            mSampleRate: 44100,
+            mFormatID: kAudioFormatLinearPCM,
+            mFormatFlags: kAudioFormatFlagIsSignedInteger | kAudioFormatFlagIsPacked,
+            mBytesPerPacket: 2,
+            mFramesPerPacket: 1,
+            mBytesPerFrame: 2,
+            mChannelsPerFrame: 1,
+            mBitsPerChannel: 16,
+            mReserved: 0
+        )
+        var format: CMAudioFormatDescription?
+        let status = CMAudioFormatDescriptionCreate(
+            allocator: kCFAllocatorDefault,
+            asbd: &asbd,
+            layoutSize: 0,
+            layout: nil,
+            magicCookieSize: 0,
+            magicCookie: nil,
+            extensions: nil,
+            formatDescriptionOut: &format
+        )
+        guard status == noErr, let format else { throw MediaFixtureError.audioFormatUnavailable }
+        return format
+    }
+
+    /// One chunk of 16-bit silence as a ready `CMSampleBuffer` at the
+    /// chunk's presentation time.
+    private nonisolated static func silenceSampleBuffer(
+        format: CMAudioFormatDescription,
+        chunkFrames: Int,
+        startFrame: Int,
+        sampleRate: Int
+    ) throws -> CMSampleBuffer {
+        let totalBytes = chunkFrames * 2
+        var blockBuffer: CMBlockBuffer?
+        let createStatus = CMBlockBufferCreateWithMemoryBlock(
+            allocator: kCFAllocatorDefault,
+            memoryBlock: nil,
+            blockLength: totalBytes,
+            blockAllocator: nil,
+            customBlockSource: nil,
+            offsetToData: 0,
+            dataLength: totalBytes,
+            flags: 0,
+            blockBufferOut: &blockBuffer
+        )
+        guard createStatus == kCMBlockBufferNoErr, let blockBuffer else {
+            throw MediaFixtureError.audioBlockBufferUnavailable
+        }
+        var zeros = [UInt8](repeating: 0, count: totalBytes)
+        let fillStatus = CMBlockBufferReplaceDataBytes(
+            with: &zeros,
+            blockBuffer: blockBuffer,
+            offsetIntoDestination: 0,
+            dataLength: totalBytes
+        )
+        guard fillStatus == kCMBlockBufferNoErr else {
+            throw MediaFixtureError.audioBlockBufferUnavailable
+        }
+        var sampleBuffer: CMSampleBuffer?
+        let sampleStatus = CMAudioSampleBufferCreateWithPacketDescriptions(
+            allocator: kCFAllocatorDefault,
+            dataBuffer: blockBuffer,
+            dataReady: true,
+            makeDataReadyCallback: nil,
+            refcon: nil,
+            formatDescription: format,
+            sampleCount: chunkFrames,
+            presentationTimeStamp: CMTime(
+                value: CMTimeValue(startFrame),
+                timescale: CMTimeScale(sampleRate)
+            ),
+            packetDescriptions: nil,
+            sampleBufferOut: &sampleBuffer
+        )
+        guard sampleStatus == noErr, let sampleBuffer else {
+            throw MediaFixtureError.audioSampleBufferUnavailable
+        }
+        return sampleBuffer
+    }
+
+    /// Instance convenience: a real short multi-frame MP4 **with an audio
+    /// track** named `name` inside the fixture tree.
+    @discardableResult
+    func writeShortMP4WithAudio(
+        named name: String = "clip-audio.mp4",
+        pixelWidth: Int = 64,
+        pixelHeight: Int = 32,
+        frameCount: Int = 6,
+        fps: Int32 = 30,
+        into folder: URL? = nil
+    ) async throws -> URL {
+        let url = (folder ?? root).appending(path: name)
+        try await Self.writeShortMP4WithAudio(
             to: url,
             pixelWidth: pixelWidth,
             pixelHeight: pixelHeight,

@@ -235,12 +235,12 @@ sibling of `AVMediaPlaybackSeekTests.swift`), `InstantPlayerTests/Features/Feed/
 (extended if needed — design §10.2's fixture pattern: short multi-frame MP4 **with an audio track**,
 throwaway temp folders), stub-wiring rows.
 
-- [ ] **4.1** Load `swift-security` + `swift-performance` before editing.
-- [ ] **4.2** Frameworks per house pattern: Swift Testing (`@testable import InstantPlayer`, `@Test`
+- [x] **4.1** Load `swift-security` + `swift-performance` before editing.
+- [x] **4.2** Frameworks per house pattern: Swift Testing (`@testable import InstantPlayer`, `@Test`
   + `#expect`) for the suites; the two design §8 perf cases use XCTest `measure` exactly as the
   design names them — the one deliberate exception (the D25 run-loop-pumped, `nonisolated` test
   pattern; a semaphore bridge would deadlock the `@MainActor` seam).
-- [ ] **4.3** Conformance rows per design §10.2 (the real `AVMediaPlayback`/`AVMediaPlayerService`):
+- [x] **4.3** Conformance rows per design §10.2 (the real `AVMediaPlayback`/`AVMediaPlayerService`):
   `startPlayback(for:at: .double)` begins with `player.rate == 2` (the §3 ordering pin — via
   `@testable` internals, the unmuted-start precedent of D25); `setPlaybackSpeed` while playing
   changes `player.rate` in-turn and leaves `currentTime` unmoved (S10); while paused leaves rate 0
@@ -248,15 +248,15 @@ throwaway temp folders), stub-wiring rows.
   `seek` leaves the selection untouched (S13); `playerItem.audioTimePitchAlgorithm == .spectral` at
   creation (S15 — the explicit pin, never the default); `stop()` leaves no rate work pending (E2-S3
   §10.2 patterns carry).
-- [ ] **4.4** Stub/wiring rows per design §10.2: `StubMediaPlayerService`/stub handle record the
+- [x] **4.4** Stub/wiring rows per design §10.2: `StubMediaPlayerService`/stub handle record the
   `at:` parameter and `setPlaybackSpeed` calls (house pattern) — asserted for the composition's
   wiring.
-- [ ] **4.5** Perf cases per design §10.2 / §8(1) / §8(3): the command→rate-write `measure` (the
+- [x] **4.5** Perf cases per design §10.2 / §8(1) / §8(3): the command→rate-write `measure` (the
   selection is issued in the same main-actor turn — ≤ 16 ms; pace-change observability ≤ 100 ms p95
   as reviewed) and the step-path `measure` (a step is one O(1) ladder move + one O(1) observable
   write + one synchronous rate write; end-of-ladder repeats clamp idempotently). Measured numbers are
   recorded in task 10 **from tooling, never from memory**.
-- [ ] **4.6** Full gate — the tests run and must be green. Fix, tick; commit:
+- [x] **4.6** Full gate — the tests run and must be green. Fix, tick; commit:
   `test(e3-s2): task 4 — playback-seam speed tests`.
 
 ## Task 5 — Bar surface: speed menu + badge + cluster island + drill `[P]` · design §4, §7
