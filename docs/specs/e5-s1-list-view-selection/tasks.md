@@ -226,11 +226,11 @@ presentation switch, the snapshot funnel (S18's reset point), and the activation
 Deliverable (code): `InstantPlayer/App/AppDependencies.swift` (factory),
 `InstantPlayer/App/RootView.swift`. **Covers:** S3, S5, S12, S13, S17, S18.
 
-- [ ] **6.1** Load `swift-security` + `swift-performance` before editing.
-- [ ] **6.2** `AppDependencies.makeMediaListViewModel()` — the allocation-only factory (D10)
+- [x] **6.1** Load `swift-security` + `swift-performance` before editing.
+- [x] **6.2** `AppDependencies.makeMediaListViewModel()` — the allocation-only factory (D10)
   recording the instance weakly as `activeListModel` for the key monitor. Nothing runs at launch
   (§7(6) — the list model is created with the folder-open state; `testLaunchPerformance` intact).
-- [ ] **6.3** `RootView`'s three routings per design §6.1: each new `MediaCollection` (the existing
+- [x] **6.3** `RootView`'s three routings per design §6.1: each new `MediaCollection` (the existing
   `handle(entryAction:)` completion funnel) → `apply(collection:)` (the S18 reset point); row
   activation → `FeedViewModel.moveTo(itemID:)` + presentation to the feed — **except** activation of
   the feed's current item: a pure presentation flip, never `moveTo`/`startPlayback`/`restart()`
@@ -238,9 +238,9 @@ Deliverable (code): `InstantPlayer/App/AppDependencies.swift` (factory),
   playback session alive below the switch (§5.3 — a switch is neither teardown nor revisit; no
   `stop()`/`startPlayback`/`restart()` on any list↔feed switch). The list model receives
   `currentItemID` as a read-only value (S17).
-- [ ] **6.4** Feed untouched (standing rule 8) and welcome untouched (S16) — structural, not a
+- [x] **6.4** Feed untouched (standing rule 8) and welcome untouched (S16) — structural, not a
   review promise.
-- [ ] **6.5** **Done:** full gate green; in the running app (`./scripts/app.sh run`) switching to
+- [x] **6.5** **Done:** full gate green; in the running app (`./scripts/app.sh run`) switching to
   the list mid-playback keeps the audio playing and returning to the feed lands on the same item at
   the same position, still playing (the §9.5 first observation). Commit:
   `feat(e5-s1): task 6 — composition wiring for the list view`.

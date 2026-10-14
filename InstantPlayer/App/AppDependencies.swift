@@ -84,4 +84,21 @@ final class AppDependencies {
         }
         return viewModel
     }
+
+    /// Feature factory (E5-S1 design §6.1): the list model is constructed
+    /// only here, on demand with the folder-open state — nothing runs at
+    /// launch (design §7(6); `testLaunchPerformance` stays the guard). The
+    /// instance is recorded weakly as `activeListModel` for the App-owned
+    /// key monitor (the `activeFeedModel` registration pattern above —
+    /// record-once, so transient factory calls never steal the
+    /// registration). It holds no seams of its own: the list reads the
+    /// in-memory snapshot and leaves through the injected activation
+    /// callback (design §4 — D7 keeps the model free of `FeedViewModel`).
+    func makeMediaListViewModel() -> MediaListViewModel {
+        let viewModel = MediaListViewModel()
+        if activeListModel == nil {
+            activeListModel = viewModel
+        }
+        return viewModel
+    }
 }
