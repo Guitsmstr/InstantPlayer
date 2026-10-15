@@ -45,10 +45,10 @@ InstantPlayer/
 ├── Assets.xcassets                                  template asset catalog (unchanged)
 ├── App/                                             composition root (D10)
 │   ├── InstantPlayerApp.swift                       @main entry + `Window` scene wiring
-│   ├── AppDelegate.swift                            close-quits policy (S8) + feed-key monitor (S5); E3-S1 adds the two seek cases (S2); E3-S2 adds the two speed cases (S5)
-│   ├── FeedKeyCommand.swift                         pure feed-key routing decision — arrows, space, and the ←/→ seek rows (S5; E3-S1 design §6); E3-S2 adds the `[`/`]` speed rows (S5, S6)
-│   ├── AppDependencies.swift                        the binding container
-│   └── RootView.swift                               App-owned root view (owns the entry modifiers)
+│   ├── AppDelegate.swift                            close-quits policy (S8) + feed-key monitor (S5); E3-S1 adds the two seek cases (S2); E3-S2 adds the two speed cases (S5); E5-S1 dispatches the list rows to the registered `activeListModel` (S3, S9, S13)
+│   ├── FeedKeyCommand.swift                         pure feed-key routing decision — arrows, space, and the ←/→ seek rows (S5; E3-S1 design §6); E3-S2 adds the `[`/`]` speed rows (S5, S6); E5-S1 adds the ⌘L toggle row (keyCode 37) and the list rows (arrows, ⇧-arrows, Enter, quiet no-ops) (S3, S9, S13)
+│   ├── AppDependencies.swift                        the binding container; E5-S1 adds `makeMediaListViewModel()` + the weak `activeListModel` registration (D10)
+│   └── RootView.swift                               App-owned root view (owns the entry modifiers); E5-S1 owns the presentation switch, the snapshot funnel (`apply(collection:)` — the S18 reset point), and row-activation mediation (S5, S12, S13, S18)
 ├── Config/                                          project config (partial plist + entitlements)
 │   ├── Info.plist                                   `CFBundleDocumentTypes` (partial plist, merged)
 │   └── InstantPlayer.entitlements                   the four read-only keys (D19)
@@ -63,37 +63,47 @@ InstantPlayer/
 │   ├── Extensions/Extensions.md                     reserved — placement rules only
 │   └── Utilities/Utilities.md                       reserved — placement rules only
 └── Features/
-    └── Feed/                                        the one shipped feature shell (D7)
+    ├── Feed/                                        the one shipped feature shell (D7); effectively untouched in E5-S1 — the list consumes `MediaCollection`, `FeedViewModel.currentItemID`, and `FeedViewModel.moveTo(itemID:)` as shipped, with only the sanctioned demand-signal presentation extension for the floating toggle over image pages (design §5.2, task 7b)
+    │   ├── Domain/
+    │   │   ├── MediaPlayerService.swift             player seam — `startPlayback(for:at:)` + `wiringProbe()` (feature-owned protocol); E3-S2 seeds the start speed
+    │   │   ├── MediaPlayback.swift                  opaque playback-session handle — event stream, pause/resume/restart/stop, display view; E3-S1 adds the seek seam (`duration`, `timeUpdates`, `seek(to:tolerance:)` + `MediaSeekTolerance`); E3-S2 adds `setPlaybackSpeed(_:)` and evolves the seek/resume/restart docs
+    │   │   ├── MediaPlaybackSpeed.swift             speed ladder value — five presets, Foundation-only (S2, S5–S7; E3-S2)
+    │   │   ├── MediaPlaybackEvent.swift             playback event — readyForDisplay / reachedEnd / failed
+    │   │   ├── MediaPreviewService.swift            preview seam (feature-owned protocol)
+    │   │   └── MediaPreview.swift                   preview value — display bytes + pixel size (S2, S3)
+    │   ├── Data/
+    │   │   ├── StubMediaPlayerService.swift         player-seam stub conformance — stub playback handles (wiring tests); E3-S2 grows the `at:` parameter and records speed commands
+    │   │   ├── StubMediaFolderRepository.swift      folder-seam stub conformance
+    │   │   ├── StubMediaPreviewService.swift        preview-seam stub conformance
+    │   │   ├── MediaTypeClassifier.swift            UTType media rule + junk exclusions (S11, S12)
+    │   │   ├── SecurityScopedMediaFolderRepository.swift real folder-seam conformance — the D8 actor (scoped session)
+    │   │   ├── AVMediaPlayerService.swift           real player-seam conformance — @MainActor, one live AVPlayer, supersedes on re-start, failure → nil; E3-S2 pins `audioTimePitchAlgorithm` (S15) and seeds `playImmediately(atRate:)` with the start speed
+    │   │   ├── AVMediaPlayback.swift                one playback session — AVPlayer + item, observation → event stream, loop support (`restart()`), the layer-hosting display view; E3-S1 adds the seek mechanism (scheduler-routed, tolerance → CMTime) + the 10 Hz periodic clock bridge; E3-S2 adds the per-session selected speed and the position-preserving `AVPlayer.rate` mapping
+    │   │   ├── SeekScheduler.swift                  the pure latest-wins seek-dispatch state machine — conformance-internal, no AVFoundation (S6, S7; E3-S1 design §2)
+    │   │   └── AVMediaPreviewService.swift          real preview-seam conformance — the D8 actor (preview cache + coalescing)
+    │   └── Presentation/
+    │       ├── FeedState.swift                      welcome ↔ folderOpen(MediaCollection) (S5–S7)
+    │       ├── FeedViewModel.swift                  @MainActor @Observable view model — the paging + playback policy state machine (settle-gated auto-play, toggles/guards, stop-on-away, loop, sticky failure); E3-S1 adds the scrub & seek policy (drag machine S5–S8, guard matrix S12, clamping + end handover S13–S14, bar visibility + 3 s idle S3, time display) + `PlaybackControlBarModel`; E3-S2 adds the speed policy (`selectedSpeed` session state, the §5 guard rows S16, the `stepped(_:up:)` core) and `PlaybackControlBarModel.speed` (S4); E5-S1 adds the image-page demand signal for the floating toggle (design §5.2, task 7b)
+    │       ├── FeedView.swift                       dumb binder view — welcome or the paging feed; drills the per-page tap closure; E3-S1 drills the per-page bar model + actions (design §7); E3-S2 drills the per-page speed closure (design §6/§7)
+    │       ├── FeedItemView.swift                   one feed page — poster, player surface, or unavailable state; the tap target (S2–S4, S6–S8, S12–S14); E3-S1 splits the player page into tap-surface + bar-overlay siblings (S11's carve-out); E3-S2 adds `FeedPageActions.speedSelected`; E5-S1 mounts the floating toggle on the image page's demand signal (design §5.2, task 7b)
+    │       ├── PlaybackControlBarView.swift         the overlay control bar (E3-S1 design §4) — dumb binder: progress track, scrubber thumb, elapsed/duration labels; gestures report fractions (S3, S5–S7, S11); E3-S2 adds the speed `Menu`, the ≠1× badge, and the cluster's consumed drag island (S1, S3, S4)
+    │       ├── PlayerSurfaceView.swift              NSViewRepresentable wrap of the handle's display-ready view — AppKit only, a wrap not processing (S8); E3-S1 adds the mouse-move tracking area + coordinator-held closure (S3)
+    │       └── WelcomeView.swift                    drop-target welcome surface (S5)
+    └── MediaList/                                   the MediaList feature shell created by E5-S1 (D7; architecture §6 walkthrough)
         ├── Domain/
-        │   ├── MediaPlayerService.swift             player seam — `startPlayback(for:at:)` + `wiringProbe()` (feature-owned protocol); E3-S2 seeds the start speed
-        │   ├── MediaPlayback.swift                  opaque playback-session handle — event stream, pause/resume/restart/stop, display view; E3-S1 adds the seek seam (`duration`, `timeUpdates`, `seek(to:tolerance:)` + `MediaSeekTolerance`); E3-S2 adds `setPlaybackSpeed(_:)` and evolves the seek/resume/restart docs
-        │   ├── MediaPlaybackSpeed.swift             speed ladder value — five presets, Foundation-only (S2, S5–S7; E3-S2)
-        │   ├── MediaPlaybackEvent.swift             playback event — readyForDisplay / reachedEnd / failed
-        │   ├── MediaPreviewService.swift            preview seam (feature-owned protocol)
-        │   └── MediaPreview.swift                   preview value — display bytes + pixel size (S2, S3)
+        │   └── MediaListSelection.swift             pure selection state machine — set / toggle / range-extend / move / extend-move / clear; anchor + lead rows (S6–S11, S18)
         ├── Data/
-        │   ├── StubMediaPlayerService.swift         player-seam stub conformance — stub playback handles (wiring tests); E3-S2 grows the `at:` parameter and records speed commands
-        │   ├── StubMediaFolderRepository.swift      folder-seam stub conformance
-        │   ├── StubMediaPreviewService.swift        preview-seam stub conformance
-        │   ├── MediaTypeClassifier.swift            UTType media rule + junk exclusions (S11, S12)
-        │   ├── SecurityScopedMediaFolderRepository.swift real folder-seam conformance — the D8 actor (scoped session)
-        │   ├── AVMediaPlayerService.swift           real player-seam conformance — @MainActor, one live AVPlayer, supersedes on re-start, failure → nil; E3-S2 pins `audioTimePitchAlgorithm` (S15) and seeds `playImmediately(atRate:)` with the start speed
-        │   ├── AVMediaPlayback.swift                one playback session — AVPlayer + item, observation → event stream, loop support (`restart()`), the layer-hosting display view; E3-S1 adds the seek mechanism (scheduler-routed, tolerance → CMTime) + the 10 Hz periodic clock bridge; E3-S2 adds the per-session selected speed and the position-preserving `AVPlayer.rate` mapping
-        │   ├── SeekScheduler.swift                  the pure latest-wins seek-dispatch state machine — conformance-internal, no AVFoundation (S6, S7; E3-S1 design §2)
-        │   └── AVMediaPreviewService.swift          real preview-seam conformance — the D8 actor (preview cache + coalescing)
+        │   └── Data.md                              placement note only — deliberately empty (the list performs no I/O this story; E5-S2 lands the operations seam's conformances here)
         └── Presentation/
-            ├── FeedState.swift                      welcome ↔ folderOpen(MediaCollection) (S5–S7)
-            ├── FeedViewModel.swift                  @MainActor @Observable view model — the paging + playback policy state machine (settle-gated auto-play, toggles/guards, stop-on-away, loop, sticky failure); E3-S1 adds the scrub & seek policy (drag machine S5–S8, guard matrix S12, clamping + end handover S13–S14, bar visibility + 3 s idle S3, time display) + `PlaybackControlBarModel`; E3-S2 adds the speed policy (`selectedSpeed` session state, the §5 guard rows S16, the `stepped(_:up:)` core) and `PlaybackControlBarModel.speed` (S4)
-            ├── FeedView.swift                       dumb binder view — welcome or the paging feed; drills the per-page tap closure; E3-S1 drills the per-page bar model + actions (design §7); E3-S2 drills the per-page speed closure (design §6/§7)
-            ├── FeedItemView.swift                   one feed page — poster, player surface, or unavailable state; the tap target (S2–S4, S6–S8, S12–S14); E3-S1 splits the player page into tap-surface + bar-overlay siblings (S11's carve-out); E3-S2 adds `FeedPageActions.speedSelected`
-            ├── PlaybackControlBarView.swift         the overlay control bar (E3-S1 design §4) — dumb binder: progress track, scrubber thumb, elapsed/duration labels; gestures report fractions (S3, S5–S7, S11); E3-S2 adds the speed `Menu`, the ≠1× badge, and the cluster's consumed drag island (S1, S3, S4)
-            ├── PlayerSurfaceView.swift              NSViewRepresentable wrap of the handle's display-ready view — AppKit only, a wrap not processing (S8); E3-S1 adds the mouse-move tracking area + coordinator-held closure (S3)
-            └── WelcomeView.swift                    drop-target welcome surface (S5)
+            ├── MediaListViewModel.swift             @MainActor @Observable owner of the selection value, the presented-view toggle, the applied snapshot, and the activation intent (S3–S13, S17, S18)
+            ├── MediaListView.swift                  lazy list surface — one row per snapshot item in snapshot order (S1, S2, S15)
+            ├── MediaListRowView.swift               one row — file name + selection / position-highlight styling (S1, S6, S17)
+            └── ViewToggleControl.swift              floating toggle button in both presented views — the one `togglePresentation()` binding (S4; design §5.2)
 ```
 
-- **Reserved:** `Features/MediaList/` does not exist yet — the first MediaList story
-  creates it with the same three layers (D7). The location is reserved; nothing else
-  may claim the name.
+- **MediaList (created in E5-S1):** `Features/MediaList/` now ships with the same
+  three layers (D7); its Data layer is deliberately empty this story (placement note
+  only). The location is claimed; nothing else may take the name.
 - **Core placement rules (R7):** code goes to `Core/` only when **more than one
   feature** needs it — `Core/Protocols` for shared seam protocols, `Core/Models` for
   cross-feature value types, `Core/Extensions` for cross-cutting type extensions,
@@ -136,7 +146,13 @@ InstantPlayer/
   (S3: four → six elements) and the seek-contract evolution (S13: "a seek never
   changes the *selected* speed"; S14: the loop preserves it) — are documentation-
   level evolutions of E3-S1 contracts, carried into the section-3 tree
-  annotations. (4)
+  annotations; **E5-S1 check-3 verdict, recorded so this check does not look
+  overlooked: no wording change** — the MediaList feature reaches no framework
+  capability (its Data layer is deliberately empty, §3) and no new kind crosses a
+  seam (the selection machine is Foundation-only over `Set`/`Array`; rows project
+  the already-resident `MediaCollection` name values; the cross-feature inputs
+  `MediaCollection`, `FeedViewModel.currentItemID`, and `moveTo(itemID:)` are
+  existing Core/Domain contracts). (4)
   every new Core file cites its ≥2 consumers in the
   story's design; (5) the story's wiring tests still pass the composition-root
   end-to-end probe.
@@ -239,7 +255,11 @@ Both pillars are non-negotiable (D5); each story touching them loads its skill
   existing event bridges; E3-S2 ships **no new actor** either — D8's trigger is
   unmet a third time: the per-session speed is one field on the existing
   `@MainActor` `AVMediaPlayback` conformance, and nothing crosses isolation; the
-  `@MainActor`-seam pattern of D25 carries unchanged.
+  `@MainActor`-seam pattern of D25 carries unchanged. E5-S1 ships **no new actor**
+  either — D8's trigger is unmet a fourth time: the selection is one
+  `MediaListSelection` value (plus the presentation, snapshot, and activation
+  state) on one `@MainActor` `MediaListViewModel`, and nothing crosses isolation;
+  the `@MainActor`-seam pattern of D25 carries unchanged.
 - **E1-S1 ADR renumbering:** parked story E1-S1 renumbers its planned ADR batch because
   this story took D7–D10 — expected and stakeholder-acknowledged (backlog sequencing
   note); no action in this document beyond this record.

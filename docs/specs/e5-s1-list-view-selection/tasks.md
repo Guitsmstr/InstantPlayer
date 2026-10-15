@@ -309,7 +309,7 @@ precedent: the standing reference is updated by its own docs commit once the cod
 (tasks 1–7). **This task needs docs write access outside `docs/specs/`** (the design could not write
 this file — the coordinator assigns it accordingly).
 
-- [ ] **8.1** Update `docs/architecture.md` per design §12(1): **§3 source tree** — add
+- [x] **8.1** Update `docs/architecture.md` per design §12(1): **§3 source tree** — add
   `Features/MediaList/Domain/MediaListSelection.swift`, `Features/MediaList/Data/Data.md` (placement
   note), `Features/MediaList/Presentation/{MediaListViewModel,MediaListView,MediaListRowView,ViewToggleControl}.swift`;
   re-annotate `App/AppDependencies.swift` (list-model factory + weak registration),
@@ -319,8 +319,8 @@ this file — the coordinator assigns it accordingly).
   feature reaches no framework capability (empty Data layer — §1.1) and no new kind crosses a seam —
   record the verdict so the check does not look overlooked. **§8 evolution note:** no new actor
   (D8's trigger unmet — the selection is one value on one `@MainActor` view model).
-- [ ] **8.2** Internal links must resolve (the gate checks them) — link only to existing files.
-- [ ] **8.3** Stage, then gate `./scripts/validate.sh --staged`; fix; commit:
+- [x] **8.2** Internal links must resolve (the gate checks them) — link only to existing files.
+- [x] **8.3** Stage, then gate `./scripts/validate.sh --staged`; fix; commit:
   `docs(e5-s1): task 8 — architecture reference updates`.
 
 ## Task 9 — ADR batch: D39–D40 · design §10
