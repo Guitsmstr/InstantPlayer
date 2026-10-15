@@ -23,7 +23,7 @@ its own commit (bookkeeping — not a second deliverable). Evidence lives in a p
    entitlements, no Info.plist keys, no build settings — the D21 audit expects a **zero
    project-config diff** (checked in task 11). If anything appears to need one, **stop and report —
    a coordinator escalation (D21), never an implementer edit.**
-5. **Gate:** code/test tasks 1–7 run the **full** `./scripts/validate.sh` — build + unit tests,
+5. **Gate:** code/test tasks 1–7b run the **full** `./scripts/validate.sh` — build + unit tests,
    never `--staged`. Docs tasks 8–10 stage first, then run `./scripts/validate.sh --staged`. Task 11
    runs the full gate with `--json` for evidence. Fix every failure before moving on; the pre-commit
    hook re-runs the gate on every commit. `--no-verify` is forbidden. **Default gate scope
@@ -37,7 +37,8 @@ its own commit (bookkeeping — not a second deliverable). Evidence lives in a p
    contract change; list rows only while the list is presented; feed rows only while the feed is
    presented and behavior-frozen; welcome passes through; every other ⌘/⌥/⌃ combo still passes
    through), §5.2's toggle surface ("List"/"Feed" + system icon; minimal top bar in the list;
-   demand-driven strip over the feed), §5.3's playback continuation (a list↔feed switch is
+   standalone floating top-left, demand-driven control over video AND image pages, independent of the
+   control bar — the binding stakeholder amendment of 2026-10-14, task 7b), §5.3's playback continuation (a list↔feed switch is
    **neither teardown nor revisit** — no `stop()`, no `startPlayback`, no `restart()` on any such
    switch), §6.1's wiring shape, the §7 budgets (switch ≤ 100 ms p95 to 10k items / ≤ 300 ms p95 at
    50k; selection ≤ 16 ms; 60 fps scroll with ≤ 1 ms row body; the 10k `measure`), and the §8.1
@@ -55,7 +56,11 @@ its own commit (bookkeeping — not a second deliverable). Evidence lives in a p
    exactly as shipped (S5's "no feed contract altered" is structural). This story's `App/` touch
    points are `FeedKeyCommand`, `AppDelegate`, `AppDependencies`, `RootView`. If any Feed edit
    appears necessary (e.g. the feed-side toggle placement), **stop and report** — a design
-   amendment, not an implementer call.
+   amendment, not an implementer call. **Sanctioned exception (binding stakeholder decision
+   2026-10-14, design §12(7)):** task 7b's minimal Feed-side edit — exposing the demand signal (or
+   an equivalent trigger) so the floating toggle mounts over image pages — is allowed and expected;
+   it is the ONLY permitted Feed edit (no control-bar changes), and any further Feed need is still
+   stop-and-report.
 
 ## Sequencing & parallelism
 
@@ -262,6 +267,40 @@ XCTest `measure`, the E3-S2 §8 deliberate-exception pattern). **Covers:** S15.
   ≤ 1 ms at 60 fps. Measured numbers are recorded in task 11 **from tooling, never from memory**.
 - [x] **7.4** **Done:** full gate green with the `measure` output captured for evidence. Commit:
   `test(e5-s1): task 7 — 10k-item budget measure`.
+
+## Task 7b — Floating top-left list toggle: standalone demand-driven control on video AND image pages (sanctioned minimal Feed edit) · design §5.2, §10 (D41), §12(7)
+
+Sequential after task 6 (not `[P]`) — one task, one commit. **Intent:** implement the binding
+stakeholder decision (2026-10-14): the on-screen list toggle is a **standalone floating control in
+the top-left corner of the window/feed area** — NOT inside the video control bar — appearing **on
+demand** via the same trigger mechanism as the control bar/progress bar (the existing demand signal)
+but **independent** of it, on **both video pages and image pages**. The Feed-side change is the
+sanctioned minimal edit (standing rule 8's exception): expose the demand signal (or an equivalent
+trigger) for image pages so the toggle can mount there — no control-bar behavior change. Deliverable
+(code): `InstantPlayer/Features/MediaList/Presentation/ViewToggleControl.swift` (reworked as the
+floating control), `InstantPlayer/App/RootView.swift` (mounting/trigger wiring),
+`InstantPlayer/Features/Feed/**` (minimal — demand-signal presentation only). **Covers:** S4
+(placement/visibility per the 2026-10-14 amendment), S3/S5 (one toggle method; ⌘L unaffected), S16.
+
+- [ ] **7b.1** Load `swift-security` + `swift-performance` before editing (floating chrome over
+  playback/image pages — both pillars in play).
+- [ ] **7b.2** Floating toggle per amended design §5.2: standalone control at the top-left of the
+  window/feed area, demand-driven on the existing demand signal (same trigger as the control
+  bar/progress bar) but independent of the control bar — the control bar's behavior and layout are
+  unchanged; visible over video pages AND image pages; in the list's minimal top bar unchanged. The
+  one `togglePresentation()` binding and ⌘L routing (§5.1) are untouched.
+- [ ] **7b.3** Sanctioned minimal Feed edit only: extend the demand-signal presentation (or expose
+  an equivalent trigger) so the floating toggle mounts over image pages — nothing else in
+  `Features/Feed/**`, no control-bar changes (standing rule 8's exception).
+- [ ] **7b.4** Tests as applicable per design §9: unit coverage where the trigger/demand path is
+  testable (the §9 house pattern); the §9 UI-test-mandate decision carries (default gate scope, no
+  `--uitests` obligation) and the over-image visibility is exercised in the functional-review
+  checklist.
+- [ ] **7b.5** **Done:** full gate `./scripts/validate.sh` green (code task — rule 5's full-gate
+  discipline), and in the running app (`./scripts/app.sh run`) the button is visible on demand over
+  both a video page and an image page (top-left, outside the control bar), ⌘L is unaffected, and no
+  control-bar behavior changed. Commit:
+  `feat(e5-s1): task 7b — floating top-left list toggle`.
 
 ## Task 8 — Architecture reference updates `[P]` · design §12(1)
 

@@ -120,8 +120,12 @@ existence and behavior were settled regardless of the final key.
 - **S4:** WHEN the user clicks the on-screen view-toggle button in the main window
   THE SYSTEM SHALL perform the same switch between the list view and the feed (settled answer 1)
 
-*Note (S4):* the button's placement, wording, and styling are UI detail, design-phase output; S3 and
-S4 are two surfaces over one toggle. The button and shortcut live only in the folder-open state.
+*Note (S4):* the button's wording and styling are UI detail, design-phase output; S3 and
+S4 are two surfaces over one toggle. Placement is pinned by the binding stakeholder decision of
+2026-10-14: the button is a **standalone floating control in the top-left corner of the window/feed
+area** (never inside the video control bar), **demand-driven** on the same trigger as the control
+bar/progress bar but independent of it, and present on **both video pages and image pages**. The
+button and shortcut live only in the folder-open state.
 
 - **S5:** WHEN the view is switched by either surface
   THE SYSTEM SHALL keep showing the same opened collection in the same single window — the switch

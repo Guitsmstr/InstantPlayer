@@ -214,16 +214,29 @@ button — rejected for consistency and testability (the D22 lesson favors the m
 table keeps all keyboard behavior in one testable place). ⌘L is **confirmed** by the stakeholder (binding answer 2 — the spec's proposed key stands, the veto
 point is closed); no fallback key is planned.
 
-### 5.2 The on-screen button (S4)
+### 5.2 The on-screen button (S4) — floating top-left toggle (binding stakeholder decision 2026-10-14)
 
-One `ViewToggleControl` (MediaList Presentation) rendered in the folder-open state in both views:
-in the list it sits in the list's minimal top bar (always visible); over the feed it joins the
-existing demand-driven overlay strip (D33/E3-S1's control bar — the precedent that overlay chrome
-over the chrome-free viewport is already established) so the feed's idle chrome-free contract
-(E2-S2 S14) is preserved. Both instances bind to the same `togglePresentation()`. Button wording is
-one standard label flipping with state ("List" / "Feed" with the corresponding system icon) — UI
-detail left to implementation within these bounds. **Flagged for the ADR plan (§10):** extending
-the demand-driven strip is a deliberate, minor extension of the chrome policy.
+One `ViewToggleControl` (MediaList Presentation) rendered in the folder-open state in both views,
+as a **standalone floating control in the top-left corner of the window/feed area** — it must
+**not** live inside the video control bar (binding stakeholder decision, 2026-10-14; supersedes the
+earlier "rides the demand-driven overlay strip" plan). Over the feed the floating toggle:
+
+- appears **on demand** — the same trigger mechanism as the control bar/progress bar (the existing
+demand signal; D33/E3-S1's precedent that demand-driven overlay chrome over the chrome-free
+viewport is established), so the feed's idle chrome-free contract (E2-S2 S14) is preserved — but it
+is **independent** of the control bar: not part of it, and no control-bar behavior or layout change;
+- appears on **both video pages and image pages**. The demand signal currently exists only on
+live-player video pages (the current implementation surfaces the toggle only there), so mounting the
+toggle over image pages requires a **minimal, sanctioned Feed-side edit**: extend the demand-signal
+presentation (or expose an equivalent trigger) for image pages — nothing else, no control-bar
+changes (§12; standing rule 8's sanctioned exception, task 7b).
+
+In the list it sits in the list's minimal top bar (always visible) — unchanged. Both surfaces bind
+to the same `togglePresentation()`. Button wording is one standard label flipping with state
+("List" / "Feed" with the corresponding system icon) — UI detail left to implementation within
+these bounds. **Recorded in the ADR plan (§10) as D41:** the floating, demand-driven, cross-page
+toggle (plus the sanctioned Feed-side demand-signal extension) is a deliberate, minor extension of
+the chrome policy.
 
 ### 5.3 Playback across a view switch — decided (binding stakeholder answer 1)
 
@@ -423,8 +436,11 @@ Candidates for the converge ADRs (the coordinator records them in
 - **D40 (planned) — List surface: custom `ScrollView` + `LazyVStack` with a view-model-owned
   Finder-semantics selection**, over `List`/`NSTableView` (§11); includes the `MediaListSelection`
   Domain machine and the root-owned presentation switch (§1.1, §3).
-- **D41 (planned, minor) — Chrome policy extension:** the view-toggle button rides the demand-driven
-  overlay strip on the feed and a minimal top bar in the list (§5.2).
+- **D41 (planned, minor) — Chrome policy extension:** the view-toggle button is a standalone
+  floating control in the top-left corner of the window/feed area, demand-driven by the same signal
+  as the control bar/progress bar but **independent of it** (never inside the video control bar —
+  binding stakeholder decision 2026-10-14), visible on both video and image pages via a minimal,
+  sanctioned Feed-side demand-signal extension; in the list it keeps the minimal top bar (§5.2).
 - **D42 (planned) — Playback continues across the list↔feed switch (§5.3):** the presentation
   switch is neither a teardown point nor a D25 revisit — the session survives the hidden surface,
   same item and position on return, and activation of the already-current row is presentation-only
@@ -475,6 +491,14 @@ Candidates for the converge ADRs (the coordinator records them in
    already-current row; nothing in this design is left undecided.
 6. **E5-S2 inherits a clean seam** (§6.2) and its own security delta (read-write entitlement,
    D16's never-rewrite guard, confirmation UX) — none of it leaks into this story's diff.
+7. **The "zero `Features/Feed/**` diff" rule is relaxed for ONE sanctioned edit (binding
+   stakeholder decision 2026-10-14):** task 7b's minimal Feed-side change — exposing the demand
+   signal (or an equivalent trigger) so the floating toggle can mount over image pages — is allowed
+   and expected; scope stays minimal (no control-bar changes, nothing beyond the demand-signal
+   extension). **Risk:** this story now touches `Features/Feed/**` while the parallel **E3-S3**
+   story also edits Feed — a merge-conflict risk, **resolved at merge time** (the two branches are
+   reconciled during the `git merge --no-ff` convergence); keeping the Feed edit to the smallest
+   possible surface shrinks the conflict window.
 
 ## 13 · Requirement traceability (S1–S18)
 
@@ -483,7 +507,7 @@ Candidates for the converge ADRs (the coordinator records them in
 | S1 | Rows = `collection.items` in snapshot order, `item.name` shown | §2 |
 | S2 | Immutable rows per snapshot; stale rows stay; no self-reordering | §2, §6.3 |
 | S3 | ⌘L row on the App-owned router → `togglePresentation()` | §5.1 |
-| S4 | `ViewToggleControl` in both views over the one toggle method | §5.2 |
+| S4 | `ViewToggleControl` — standalone floating top-left toggle, demand-driven (independent of the control bar) over video AND image pages; minimal top bar in the list; one toggle method | §5.2 |
 | S5 | Root-owned presentation switch; feed contracts untouched; one presented view; playback continues across the switch — no teardown, no restart | §1.1, §5.1, §5.3 |
 | S6 | `select(_:)` — sets selection, never activates | §3.1 |
 | S7 | `toggle(_:)` — membership flip, rest preserved | §3.1 |
