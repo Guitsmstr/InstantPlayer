@@ -304,9 +304,14 @@ is supporting material, never the approval. Nothing here is ticked by task 11.
    which guards the activation's auto-play start out (the same dead-item symptom). Activation must
    cancel/clear stale gesture state before applying arrive-on-item auto-play; settle-gating for
    ordinary scroll paging stays untouched (the feed's gesture semantics remain). Recorded in design
-   §4 (with the §10 note that it sits inside D39/D42's scope, no new ADR); clause (b)'s code fix is a
-   required follow-up and is **not claimed as landed here**. §7's double-click/Enter checklist item
-   is unchanged — the contract sat in R11/S12/S13 all along.
+   §4 (with the §10 note that it sits inside D39/D42's scope, no new ADR); clause (b)'s code fix
+   landed: `b20df5e` clears `gestureStartIndex` in `FeedViewModel.moveTo(…, isExplicitActivation:)`
+   before `setIndex`/`syncPlayback`, and `07a9d57` adds `cancelStaleGestureState()` (clearing
+   `gestureStartIndex` only — `FeedViewModel.swift:383`) fired from `MediaListViewModel.presentFeed()`
+   via the injected `onPresentFeed` hook bound in `RootView` — so both activation routes clear it, and
+   the pure-flip route touches no playback state. That is exactly what landed; nothing further is
+   claimed here. §7's double-click/Enter checklist item is unchanged — the contract sat in
+   R11/S12/S13 all along.
 
 No other deviation from the approved design exists: signatures, the `MediaListSelection` API and
 semantics, the route table, the file inventory, and the budgets match the design §1–§13 as approved
