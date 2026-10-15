@@ -777,6 +777,76 @@ struct FeedViewModelTests {
         )
     }
 
+    /// §10.1 — arrive-on-item auto-play at an at-rest `moveTo` (S1; R11,
+    /// E5-S1 design §4/§5.3 — the inherited positioning/auto-play
+    /// contract): `moveTo` is the list's row-activation route (RootView
+    /// binds `onActivate` to it, E5-S1 design §6.1) and an activation has
+    /// no scroll gesture and no settle to follow — the landed video must
+    /// auto-play on arrival. Regression pin for the functional-review
+    /// blocker: activation landed a dead item (space/clicks no-op on a
+    /// missing session) and only paging away and back healed it.
+    @Test func atRestMoveToAutoPlaysTheLandedItem() async {
+        let folder = Self.uniqueFolder("activation-arrival")
+        let item0 = Self.makeItem(folder, named: "a.mp4", kind: .video)
+        let item1 = Self.makeItem(folder, named: "b.mp4", kind: .video)
+        let collection = Self.makeCollection(folderURL: folder, items: [item0, item1], startIndex: 0)
+        let handle0 = ScriptedMediaPlayback()
+        let handle1 = ScriptedMediaPlayback()
+        let players = ScriptedMediaPlayerService(answers: [handle0, handle1])
+        let viewModel = await Self.openCollection(
+            collection,
+            mediaPlayerService: players,
+            previews: StubMediaPreviewService()
+        )
+        guard await Self.installPlayback(item0, handle: handle0, in: viewModel, service: players) else { return }
+
+        viewModel.moveTo(itemID: item1.id) // list activation of a different row — no gesture, no settle follows
+
+        let started = await Self.waitFor(
+            { players.calls == [item0, item1] },
+            "activation must auto-play the landed item (R11 arrive-on-item; E5-S1 design §4/§5.3)"
+        )
+        guard started else { return }
+        #expect(handle0.stopCount == 1, "the departed session is stopped synchronously (S9)")
+        #expect(viewModel.currentItemID == item1.id, "the feed is positioned on the activated item (S12/S13)")
+
+        handle1.emit(.readyForDisplay)
+        let painted = await Self.waitFor(
+            { viewModel.displayStates[item1.id] == .player(handle1) },
+            "the landed session must install and paint"
+        )
+        guard painted else { return }
+        viewModel.togglePlayback()
+        #expect(handle1.pauseCount == 1, "space reaches the landed item (the functional-review symptom)")
+    }
+
+    /// §10.1 — the at-rest arrival never restarts a live session (E5-S1
+    /// design §4/§5.3's no-restart rule at the feed level): an at-rest
+    /// `moveTo` for the current item leaves the playing/paused session
+    /// exactly where it is — no `stop()`, no second start.
+    @Test func atRestMoveToTheCurrentItemNeverRestartsTheLiveSession() async {
+        let folder = Self.uniqueFolder("activation-same")
+        let item0 = Self.makeItem(folder, named: "a.mp4", kind: .video)
+        let item1 = Self.makeItem(folder, named: "b.mp4", kind: .video)
+        let collection = Self.makeCollection(folderURL: folder, items: [item0, item1], startIndex: 0)
+        let handle0 = ScriptedMediaPlayback()
+        let players = ScriptedMediaPlayerService(answers: [handle0])
+        let viewModel = await Self.openCollection(
+            collection,
+            mediaPlayerService: players,
+            previews: StubMediaPreviewService()
+        )
+        guard await Self.installPlayback(item0, handle: handle0, in: viewModel, service: players) else { return }
+
+        viewModel.moveTo(itemID: item0.id) // same-item at-rest move (activation/binding write-back)
+        for _ in 0 ..< 50 {
+            await Task.yield()
+        }
+
+        #expect(players.calls == [item0], "an at-rest move to the current item never starts a second session (§4/§5.3)")
+        #expect(handle0.stopCount == 0, "the live session is untouched (§5.3 — no stop on the switch path)")
+    }
+
     /// §10.1 — the arrow-key page is its own settle (design §3's taken
     /// fallback): `pageForward()` starts the clamped landing item
     /// immediately — programmatic page animations emit no phase signals,

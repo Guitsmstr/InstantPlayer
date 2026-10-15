@@ -348,7 +348,15 @@ final class FeedViewModel {
 
     /// The two-way `scrollPosition(id:)` projection's write side (design
     /// §5.1): the view's binding calls this with the item the scroll
-    /// surface reports. Unknown/`nil` ids are ignored.
+    /// surface reports. Unknown/`nil` ids are ignored. It is also the
+    /// list's row-activation route (E5-S1 design §4/§6.1 — RootView binds
+    /// `onActivate` here), so this is an arrive-on-item path: the landed
+    /// item's auto-play runs through the settle-gated sync (S1; R11 —
+    /// design §4's "ordinary arrive-on-item semantics apply unchanged",
+    /// §5.3's inherited positioning/auto-play contract). An activation
+    /// has no scroll gesture and no settle to follow, so its start lives
+    /// here; mid-gesture binding writes stay start-free because
+    /// `syncPlayback()` itself gates on being at rest (S2).
     func moveTo(itemID: MediaItem.ID?) {
         guard case let .folderOpen(collection) = state, let itemID,
               let index = collection.items.firstIndex(where: { $0.id == itemID })
@@ -356,6 +364,7 @@ final class FeedViewModel {
             return
         }
         setIndex(index)
+        syncPlayback()
     }
 
     // MARK: Gesture guard (S4 — design §5.2, pure logic)
@@ -851,12 +860,14 @@ final class FeedViewModel {
     /// when the feed is at rest — no paging in flight — for the current
     /// `.video` item without sticky playback failure. Call sites are the
     /// become-current paths: folder open at `startIndex` and
-    /// replace-in-place (both via `adopt`, already at rest) and paging
-    /// settle (`scrollGestureDidSettle`). A mid-gesture `moveTo` never
-    /// reaches a start — index changes mid-gesture don't call this, so
-    /// the incoming item keeps its poster (S2); images never start (S4);
-    /// an already-live session for the current item is left alone (a
-    /// settle that never left the item must not restart it).
+    /// replace-in-place (both via `adopt`, already at rest), paging
+    /// settle (`scrollGestureDidSettle`), and `moveTo` (the at-rest
+    /// arrival — list activation and the binding write side, E5-S1
+    /// design §4/§5.3). A mid-gesture `moveTo` never reaches a start —
+    /// the at-rest gate skips it, so the incoming item keeps its poster
+    /// (S2); images never start (S4); an already-live session for the
+    /// current item is left alone (a settle that never left the item
+    /// must not restart it — E5-S1 §4/§5.3's no-restart rule).
     private func syncPlayback() {
         guard case let .folderOpen(collection) = state else { return }
         guard gestureStartIndex == nil, let index = currentIndex else { return } // at rest (S2)
