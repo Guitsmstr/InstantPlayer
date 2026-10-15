@@ -2312,6 +2312,149 @@ struct FeedViewModelTests {
         #expect(viewModel.controlBarModel == nil, "the departed page has no bar (S12)")
     }
 
+    // MARK: Chrome demand signal (E5-S1 design §5.2 — S4, D41)
+
+    /// Demand signal (S4, design §5.2 — §12(7)'s sanctioned extension):
+    /// mouse movement over the settled current IMAGE page raises the
+    /// demand — and leaves the control bar untouched (an image page
+    /// keeps no bar: D41, no control-bar behavior change).
+    @Test func movementOnTheCurrentImagePageRaisesTheDemand() async {
+        let folder = Self.uniqueFolder("demand-image")
+        let image = Self.makeItem(folder, named: "pic.png", kind: .image)
+        let collection = Self.makeCollection(folderURL: folder, items: [image], startIndex: 0)
+        let viewModel = await Self.openCollection(
+            collection,
+            mediaPlayerService: ScriptedMediaPlayerService(answers: []),
+            previews: RecordingPreviewService(result: Self.knownPreview)
+        )
+
+        viewModel.noteMouseMoved(itemID: image.id)
+
+        #expect(viewModel.isChromeDemanded, "movement over an image page raises the demand (S4)")
+        #expect(viewModel.controlBarModel == nil, "the control bar is untouched on image pages (D41)")
+    }
+
+    /// Demand signal (S4, design §5.2): the same trigger over a video
+    /// page raises the demand alongside the bar — the bar half keeps its
+    /// exact contract (D41: independent, unchanged).
+    @Test func movementOnTheCurrentVideoPageRaisesTheDemandAlongsideTheBar() async {
+        let clock = ManualClock()
+        let handle = ScriptedMediaPlayback()
+        let (viewModel, _, collection) = await Self.arrangeSeekRow(
+            handle: handle, duration: 100, clock: clock
+        )
+
+        viewModel.noteMouseMoved(itemID: collection.items[0].id)
+
+        #expect(viewModel.isChromeDemanded, "the same trigger raises the demand over a video page (S4)")
+        #expect(viewModel.controlBarModel?.isVisible == true, "the bar half is unchanged (D41)")
+    }
+
+    /// Demand signal (S4, design §5.2): the shared 3 s idle hide clears
+    /// the demand over a video page — the feed stays chrome-free at rest
+    /// (E2-S2 S14).
+    @Test func theSharedIdleHideClearsTheDemandOverAVideoPage() async {
+        let clock = ManualClock()
+        let handle = ScriptedMediaPlayback()
+        let (viewModel, _, collection) = await Self.arrangeSeekRow(
+            handle: handle, duration: 100, clock: clock
+        )
+
+        viewModel.noteMouseMoved(itemID: collection.items[0].id)
+        #expect(viewModel.isChromeDemanded)
+
+        clock.time += 4 // past the 3 s deadline — then let the task observe it
+        let cleared = await Self.waitFor(
+            { !viewModel.isChromeDemanded },
+            "the shared 3 s idle hide must clear the demand (design §5.2)"
+        )
+        guard cleared else { return }
+    }
+
+    /// Demand signal (S4, design §5.2 — §12(7)'s sanctioned extension):
+    /// the idle hide clears the demand over an image page too — the
+    /// chrome-free idle contract holds on both page kinds.
+    @Test func theSharedIdleHideClearsTheDemandOverAnImagePage() async {
+        let clock = ManualClock()
+        let folder = Self.uniqueFolder("demand-image-idle")
+        let image = Self.makeItem(folder, named: "pic.png", kind: .image)
+        let collection = Self.makeCollection(folderURL: folder, items: [image], startIndex: 0)
+        let viewModel = FeedViewModel(
+            mediaPlayerService: StubMediaPlayerService(),
+            mediaFolderRepository: ScriptedMediaFolderRepository(results: [collection]),
+            mediaPreviewService: RecordingPreviewService(result: Self.knownPreview),
+            now: { clock.time }
+        )
+        await viewModel.handle(entryAction: EntryAction(enteredURL: folder))
+
+        viewModel.noteMouseMoved(itemID: image.id)
+        #expect(viewModel.isChromeDemanded, "movement over the image page raises the demand (S4)")
+
+        clock.time += 4
+        let cleared = await Self.waitFor(
+            { !viewModel.isChromeDemanded },
+            "the demand clears at idle over image pages too (E2-S2 S14)"
+        )
+        guard cleared else { return }
+    }
+
+    /// Demand signal (S4, S12): movement on anything but the settled
+    /// current page raises nothing — a neighbor page's id.
+    @Test func movementOnNonCurrentPagesRaisesNoDemand() async {
+        let clock = ManualClock()
+        let handle = ScriptedMediaPlayback()
+        let (viewModel, _, collection) = await Self.arrangeSeekRow(
+            handle: handle, duration: 100, clock: clock, itemCount: 2
+        )
+
+        viewModel.noteMouseMoved(itemID: collection.items[1].id)
+
+        #expect(!viewModel.isChromeDemanded, "movement on a non-current page raises nothing (S4, S12)")
+    }
+
+    /// Demand signal (S12's premise): a paging gesture in flight drops
+    /// the demand at once — the floating toggle travels the bar's
+    /// structural-absence rule.
+    @Test func pagingGestureDropsTheDemandAtOnce() async {
+        let clock = ManualClock()
+        let handle = ScriptedMediaPlayback()
+        let (viewModel, _, collection) = await Self.arrangeSeekRow(
+            handle: handle, duration: 100, clock: clock
+        )
+
+        viewModel.noteMouseMoved(itemID: collection.items[0].id)
+        #expect(viewModel.isChromeDemanded)
+        viewModel.scrollGestureDidStart()
+
+        #expect(!viewModel.isChromeDemanded, "mid-paging the demand is gone (S12's premise)")
+    }
+
+    /// Demand signal hygiene (design §5.2): the paths that kill the
+    /// page context clear the demand too — an arrow page turn away from
+    /// a playing video tears its session down synchronously, and the
+    /// demand must never wedge on screen without an idle task to clear
+    /// it (D41).
+    @Test func sessionTeardownNeverWedgesTheDemand() async {
+        let folder = Self.uniqueFolder("demand-teardown")
+        let video = Self.makeItem(folder, named: "a.mp4", kind: .video)
+        let image = Self.makeItem(folder, named: "b.png", kind: .image)
+        let collection = Self.makeCollection(folderURL: folder, items: [video, image], startIndex: 0)
+        let viewModel = await Self.openCollection(
+            collection,
+            mediaPlayerService: ScriptedMediaPlayerService(answers: [ScriptedMediaPlayback()]),
+            previews: RecordingPreviewService(result: Self.knownPreview)
+        )
+
+        viewModel.noteMouseMoved(itemID: video.id)
+        #expect(viewModel.isChromeDemanded)
+        viewModel.pageForward() // the arrow page is its own settle — the video's session dies
+
+        #expect(
+            !viewModel.isChromeDemanded,
+            "the departed video's teardown clears the demand — it can never wedge (D41)"
+        )
+    }
+
     // MARK: Playback speed policy (E3-S2 design §10.1 — S1–S18 policy)
 
     /// Preset ladder (S2): `MediaPlaybackSpeed` has exactly the five cases

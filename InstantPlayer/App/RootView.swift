@@ -98,18 +98,22 @@ struct RootView: View {
     }
 
     /// The feed surface (S5): the feed exactly as shipped, with the one
-    /// on-screen toggle riding the demand-driven strip (S4, design §5.2):
-    /// shown exactly while the feed's control bar is visible (mouse
-    /// demand) and gone with it at idle — the E2-S2 S14 idle chrome-free
-    /// viewport contract is preserved without any `Features/Feed/**` edit
-    /// (standing rule 8).
+    /// on-screen toggle as a standalone floating control at the top-left
+    /// of the window/feed area (S4, design §5.2 — the binding
+    /// stakeholder amendment of 2026-10-14; D41: never inside the video
+    /// control bar). Demand-driven on the feed's chrome demand signal —
+    /// mouse movement over the settled current page of either kind
+    /// (video or image; §12(7)'s sanctioned Feed-side extension) — and
+    /// gone with it at the shared 3 s idle: the E2-S2 S14 idle
+    /// chrome-free viewport contract is preserved. Independent of the
+    /// control bar (D41): no control-bar behavior or layout change.
     private var feedSurface: some View {
         FeedView(viewModel: viewModel, isDropTargeted: isDropTargeted)
-            .overlay(alignment: .topTrailing) {
-                if viewModel.controlBarModel?.isVisible == true, let listModel {
+            .overlay(alignment: .topLeading) {
+                if viewModel.isChromeDemanded, let listModel {
                     ViewToggleControl(viewModel: listModel)
                         .padding(.top, 12)
-                        .padding(.trailing, 12)
+                        .padding(.leading, 12)
                 }
             }
     }

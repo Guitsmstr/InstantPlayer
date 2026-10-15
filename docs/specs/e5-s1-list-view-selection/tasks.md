@@ -282,21 +282,21 @@ floating control), `InstantPlayer/App/RootView.swift` (mounting/trigger wiring),
 `InstantPlayer/Features/Feed/**` (minimal — demand-signal presentation only). **Covers:** S4
 (placement/visibility per the 2026-10-14 amendment), S3/S5 (one toggle method; ⌘L unaffected), S16.
 
-- [ ] **7b.1** Load `swift-security` + `swift-performance` before editing (floating chrome over
+- [x] **7b.1** Load `swift-security` + `swift-performance` before editing (floating chrome over
   playback/image pages — both pillars in play).
-- [ ] **7b.2** Floating toggle per amended design §5.2: standalone control at the top-left of the
+- [x] **7b.2** Floating toggle per amended design §5.2: standalone control at the top-left of the
   window/feed area, demand-driven on the existing demand signal (same trigger as the control
   bar/progress bar) but independent of the control bar — the control bar's behavior and layout are
   unchanged; visible over video pages AND image pages; in the list's minimal top bar unchanged. The
   one `togglePresentation()` binding and ⌘L routing (§5.1) are untouched.
-- [ ] **7b.3** Sanctioned minimal Feed edit only: extend the demand-signal presentation (or expose
+- [x] **7b.3** Sanctioned minimal Feed edit only: extend the demand-signal presentation (or expose
   an equivalent trigger) so the floating toggle mounts over image pages — nothing else in
   `Features/Feed/**`, no control-bar changes (standing rule 8's exception).
-- [ ] **7b.4** Tests as applicable per design §9: unit coverage where the trigger/demand path is
+- [x] **7b.4** Tests as applicable per design §9: unit coverage where the trigger/demand path is
   testable (the §9 house pattern); the §9 UI-test-mandate decision carries (default gate scope, no
   `--uitests` obligation) and the over-image visibility is exercised in the functional-review
   checklist.
-- [ ] **7b.5** **Done:** full gate `./scripts/validate.sh` green (code task — rule 5's full-gate
+- [x] **7b.5** **Done:** full gate `./scripts/validate.sh` green (code task — rule 5's full-gate
   discipline), and in the running app (`./scripts/app.sh run`) the button is visible on demand over
   both a video page and an image page (top-left, outside the control bar), ⌘L is unaffected, and no
   control-bar behavior changed. Commit:

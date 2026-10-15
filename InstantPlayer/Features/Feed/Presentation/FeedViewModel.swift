@@ -227,6 +227,16 @@ final class FeedViewModel {
     /// the hidden-at-rest state. Recomputed by `refreshControlBar`.
     private(set) var controlBarModel: PlaybackControlBarModel?
 
+    /// The chrome demand signal (E5-S1 design §5.2 — S4, D41): the
+    /// floating view toggle's trigger. Raised by mouse movement over the
+    /// settled current page of EITHER kind — video or image (§12(7)'s
+    /// sanctioned Feed-side extension) — cleared by the shared 3 s idle
+    /// hide and by the paths that kill the page context (paging start,
+    /// session teardown), so it can never wedge. Deliberately independent
+    /// of `controlBarModel` (D41): same trigger mechanism as the control
+    /// bar, but no control-bar behavior or layout change.
+    private(set) var isChromeDemanded = false
+
     /// The scrub drag flag (design §5): true from `beginScrub` until
     /// `scrubEnded` (or the session dying — `stopPlayback` resets it).
     /// Guards every tick and mid-drag keyboard seek (S12).
@@ -364,6 +374,7 @@ final class FeedViewModel {
         isScrubbing = false
         wasPlayingBeforeDrag = false
         controlBarModel = nil
+        isChromeDemanded = false // S12's premise extends to the floating toggle (E5-S1 §5.2)
         suspendIdlePolicy()
     }
 
@@ -626,18 +637,26 @@ final class FeedViewModel {
         stepSeek(by: Self.keyboardStepSeconds)
     }
 
-    /// The bar's trigger (S3): mouse movement over the settled current
-    /// video page shows the bar and arms the 3 s idle deadline.
-    /// Movement anywhere else — neighbors, welcome, image pages — shows
-    /// nothing (S4, S12), movement during a scrub drag changes nothing
-    /// (the drag suspended the idle policy — S3(a)), and a paging gesture
-    /// in flight drops the model to `nil` before this can run.
+    /// The demand signal's trigger (S3; E5-S1 design §5.2 — §12(7)'s
+    /// sanctioned Feed edit): mouse movement over the settled current
+    /// page raises the chrome demand — video or image alike — and arms
+    /// the 3 s idle deadline. The bar half keeps its exact contract:
+    /// only the settled current video's live player page shows the bar
+    /// (S4, S12); movement on neighbors or welcome shows nothing,
+    /// movement during a scrub drag changes nothing (the drag suspended
+    /// the idle policy — S3(a)), and a paging gesture in flight drops
+    /// both before this can run.
     func noteMouseMoved(itemID: MediaItem.ID) {
         guard !isScrubbing else { return } // S3(a): the drag owns the bar
         guard itemID == currentItemID, gestureStartIndex == nil else { return } // S4, S12
+        // E5-S1 (design §5.2, §12(7)): the demand covers both page kinds
+        // so the floating toggle mounts over video and image pages alike
+        // (D41). The live-player gate below is untouched — no
+        // control-bar behavior change.
+        isChromeDemanded = true
+        extendIdleCountdown()
         guard playbackItemID == itemID, isShowingPlayer(itemID) else { return } // live player page only
         refreshControlBar(visible: true)
-        extendIdleCountdown()
     }
 
     // MARK: Scrub & seek internals (E3-S1 design §5 — one decision surface)
@@ -811,6 +830,7 @@ final class FeedViewModel {
             return
         }
         idleTask = nil
+        isChromeDemanded = false // the shared idle hide clears the demand too (E5-S1 §5.2)
         refreshControlBar(visible: false)
     }
 
@@ -940,6 +960,7 @@ final class FeedViewModel {
         displayedPosition = 0
         exactSeekSuppressUntil = nil
         controlBarModel = nil
+        isChromeDemanded = false // the demand never outlives its page context (E5-S1 §5.2)
         suspendIdlePolicy()
     }
 

@@ -11,8 +11,12 @@ import SwiftUI
 /// The one on-screen view toggle (S4 — the button surface over the same
 /// `togglePresentation()` the ⌘L row routes to, design §5.1/§5.2). One
 /// instance is rendered in the list's minimal top bar (always visible);
-/// the feed-side instance joins the demand-driven overlay strip in task
-/// 6's root wiring — placed without any `Features/Feed/**` edit (§5.2).
+/// the feed-side instance is a **standalone floating control in the
+/// top-left corner of the window/feed area** (design §5.2 — the binding
+/// stakeholder amendment of 2026-10-14, D41): not part of the video
+/// control bar, demand-driven on the feed's chrome demand signal
+/// (independent of the control bar) over video AND image pages
+/// (§12(7)'s sanctioned Feed-side extension), mounted by `RootView`.
 /// Both instances bind to the same toggle method. The label flips with
 /// state between the two constant copies ("List" / "Feed") with the
 /// corresponding system icon.
