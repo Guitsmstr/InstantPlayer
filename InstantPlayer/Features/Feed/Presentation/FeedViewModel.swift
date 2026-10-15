@@ -380,6 +380,21 @@ final class FeedViewModel {
         syncPlayback()
     }
 
+    /// Cancels stale in-flight scroll-gesture state — and touches nothing
+    /// else (E5-S1 design §4, 2026-10-15 clause; validator delta-gap 1).
+    /// The activation's presentation-switch entrance (`presentFeed`'s
+    /// `onPresentFeed` hook, bound at composition) invokes this on every
+    /// row activation — including the already-current row, whose pure
+    /// presentation flip emits no `moveTo` (§4/§5.3's no-restart rule):
+    /// a list opened mid-gesture leaves `gestureStartIndex` recorded, and
+    /// the feed's guards (S7's toggle, S12's chrome demand) wedge on it
+    /// once the feed returns. Clearing the record is the whole job: no
+    /// start, stop, pause, or index change. Ordinary scroll paging never
+    /// enters here (S2's settle-gating keeps its gesture semantics).
+    func cancelStaleGestureState() {
+        gestureStartIndex = nil
+    }
+
     // MARK: Gesture guard (S4 — design §5.2, pure logic)
 
     /// Scroll onset (scroll leaves rest): record the settled index as

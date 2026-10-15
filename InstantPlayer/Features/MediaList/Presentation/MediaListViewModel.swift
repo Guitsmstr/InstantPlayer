@@ -69,6 +69,18 @@ final class MediaListViewModel {
     /// no-restart rule, §5.3).
     var onActivate: ((MediaItem.ID) -> Void)?
 
+    /// The presentation-switch entrance hook (E5-S1 design §4,
+    /// 2026-10-15 clause; validator delta-gap 1): injected at
+    /// composition — RootView binds it to
+    /// `FeedViewModel.cancelStaleGestureState()`. Fired by `presentFeed()`
+    /// (the S12/S13 landing) on every activation — including the
+    /// already-current row, which emits no `onActivate` intent (§4/§5.3's
+    /// no-restart rule) yet must still cancel the stale in-flight
+    /// gesture state a mid-gesture list open left behind. Presentation
+    /// scope only: no playback state is reachable here (D7 keeps this
+    /// model free of `FeedViewModel`).
+    var onPresentFeed: (() -> Void)?
+
     /// The row identities of the applied snapshot, in snapshot order —
     /// the `rows` value every range/arrow op runs over. Rebuilt only when
     /// a new snapshot applies (S2: rows never change after build), so no
@@ -105,9 +117,12 @@ final class MediaListViewModel {
 
     /// Lands on the feed without touching the selection (the S12/S13
     /// landing; §5.3 — a pure presentation flip, neither a teardown nor
-    /// a revisit).
+    /// a revisit). The landing fires `onPresentFeed` (E5-S1 design §4's
+    /// stale-gesture cancellation entrance — validator delta-gap 1):
+    /// presentation scope only, no playback state reachable (D7).
     func presentFeed() {
         isListPresented = false
+        onPresentFeed?()
     }
 
     /// The welcome fallback (S16, S18): a failed entry action leaves no

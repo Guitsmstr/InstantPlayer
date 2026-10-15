@@ -863,6 +863,57 @@ struct FeedViewModelTests {
         #expect(players.calls == [item0, item1], "the stale settle never starts a second session")
     }
 
+    /// §10.1 — explicit activation outranks stale gesture state on the
+    /// already-current route too (E5-S1 design §4, 2026-10-15 clause;
+    /// validator delta-gap 1): activating the highlighted
+    /// (already-current) row is a pure presentation flip — no
+    /// `onActivate`/`moveTo` fires (§4/§5.3's no-restart rule) — so the
+    /// presentation-switch entrance must cancel the stale in-flight
+    /// gesture state instead: a list opened mid-gesture leaves
+    /// `gestureStartIndex` recorded, which wedges the returned feed
+    /// (space/click and chrome demand are guarded on it). The clearing
+    /// touches no playback state — no restart, no start, no stop, no
+    /// pause.
+    @Test func alreadyCurrentActivationAfterAMidGestureListOpenClearsTheStaleGestureAndLeavesPlaybackUntouched() async {
+        let folder = Self.uniqueFolder("stale-gesture-same-row")
+        let item0 = Self.makeItem(folder, named: "a.mp4", kind: .video)
+        let collection = Self.makeCollection(folderURL: folder, items: [item0], startIndex: 0)
+        let handle0 = ScriptedMediaPlayback()
+        let players = ScriptedMediaPlayerService(answers: [handle0])
+        let viewModel = await Self.openCollection(
+            collection,
+            mediaPlayerService: players,
+            previews: StubMediaPreviewService()
+        )
+        guard await Self.installPlayback(item0, handle: handle0, in: viewModel, service: players) else { return }
+
+        viewModel.scrollGestureDidStart() // in flight when the list opens — its start stays recorded
+
+        // Composition seam exactly as RootView binds it (E5-S1 design §6.1).
+        let list = MediaListViewModel()
+        list.apply(collection: collection)
+        list.highlightItemID = item0.id
+        list.onActivate = { [weak viewModel] itemID in
+            viewModel?.moveTo(itemID: itemID, isExplicitActivation: true)
+        }
+        list.onPresentFeed = { [weak viewModel] in
+            viewModel?.cancelStaleGestureState()
+        }
+        list.togglePresentation() // open the list mid-gesture
+        list.activate(itemID: item0.id) // the already-current row: pure presentation flip, no intent
+
+        #expect(!list.isListPresented, "the activation lands on the feed")
+        for _ in 0 ..< 50 {
+            await Task.yield()
+        }
+        #expect(players.calls == [item0], "the pure flip never starts or restarts anything (§4/§5.3)")
+        #expect(handle0.stopCount == 0, "the live session is not stopped (§5.3)")
+        #expect(handle0.pauseCount == 0, "playback state is untouched — no pause either")
+
+        viewModel.togglePlayback() // space on the returned feed — dead while the stale gesture lingered
+        #expect(handle0.pauseCount == 1, "the stale gesture is cleared: space reaches the live session again")
+    }
+
     /// §10.1 — the at-rest arrival never restarts a live session (E5-S1
     /// design §4/§5.3's no-restart rule at the feed level): an at-rest
     /// `moveTo` for the current item leaves the playing/paused session

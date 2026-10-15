@@ -141,7 +141,12 @@ struct RootView: View {
     /// explicit-activation entrance, which cancels stale in-flight
     /// gesture state first, E5-S1 §4 2026-10-15 — the model
     /// has already flipped presentation by the time it emits, and the
-    /// already-current row never emits at all, §4/§5.3), and the S17
+    /// already-current row never emits at all, §4/§5.3). The
+    /// presentation flip itself is bound separately (`onPresentFeed` →
+    /// `cancelStaleGestureState()`): every activation entrance —
+    /// including the already-current row's pure flip — cancels stale
+    /// in-flight gesture state at the switch (E5-S1 §4, 2026-10-15;
+    /// validator delta-gap 1), touching no playback state. The S17
     /// highlight is seeded from the feed's current item. Re-entry with the
     /// same snapshot is a model-level no-op (S18: only a new snapshot
     /// value resets the selection). The non-`folderOpen` answer (the
@@ -162,6 +167,9 @@ struct RootView: View {
         }
         model.onActivate = { [weak feedModel = viewModel] itemID in
             feedModel?.moveTo(itemID: itemID, isExplicitActivation: true)
+        }
+        model.onPresentFeed = { [weak feedModel = viewModel] in
+            feedModel?.cancelStaleGestureState()
         }
         model.apply(collection: collection)
         model.highlightItemID = viewModel.currentItemID
