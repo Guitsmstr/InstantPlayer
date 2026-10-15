@@ -1,8 +1,8 @@
 # E5-S1 · List view & selection — Evidence
 
 Verification record for the story's implementation tasks (1–7b, plus the docs tasks 8–10 and this
-task 11). Converge-owned evidence (functional review, validator PASS, closure) is **not** recorded
-here. Gate usage per [docs/development.md](../../development.md) §3; conventions per the
+task 11). Converge-owned evidence (functional review, validator PASS, closure) was **not** recorded
+here by task 11; the 2026-10-15 stakeholder functional-review result is recorded in §7.1. Gate usage per [docs/development.md](../../development.md) §3; conventions per the
 [SDD README](../README.md) and the [E3-S2 precedent](../e3-s2-playback-speed/evidence.md).
 
 ## 1 · Full gate — machine-readable record (task 11.3)
@@ -210,26 +210,39 @@ house suites: "machine suite" = `InstantPlayerTests/Features/MediaList/MediaList
 The stakeholder exercises this in the running app (`./scripts/app.sh run`); agent-recorded evidence
 is supporting material, never the approval. Nothing here is ticked by task 11.
 
-- [ ] a mixed folder listed by file name in the feed's order, with non-media files absent;
-- [ ] ⌘L and the on-screen button both toggling list↔feed in the same single window and on the same
+- [x] a mixed folder listed by file name in the feed's order, with non-media files absent;
+- [x] ⌘L and the on-screen button both toggling list↔feed in the same single window and on the same
       collection;
-- [ ] the floating toggle appearing **on demand** at the top-left of the window/feed area (outside
+- [x] the floating toggle appearing **on demand** at the top-left of the window/feed area (outside
       the video control bar, gone with the same idle as the bar) over **both a video page and an
       image page** (the 2026-10-14 amendment; task 7b);
-- [ ] a single click selecting without activating; ⌘-click toggling membership; ⇧-click extending
+- [x] a single click selecting without activating; ⌘-click toggling membership; ⇧-click extending
       from the anchor; arrow keys moving and ⇧-arrows extending the selection with clamping at both
       ends and no wrap; a click on empty space clearing the selection;
-- [ ] double-click and Enter each switching to the feed positioned on that item;
-- [ ] the list opening scrolled to and highlighting the feed's current item — and that highlight
+- [x] double-click and Enter each switching to the feed positioned on that item;
+- [x] the list opening scrolled to and highlighting the feed's current item — and that highlight
       neither counting as nor modifying the selection;
-- [ ] the selection surviving list↔feed switches and resetting when a new folder is opened;
-- [ ] large folders (10k+) scrolling, selecting, and switching without stalls (design §7(2): 60 fps
+- [x] the selection surviving list↔feed switches and resetting when a new folder is opened;
+- [x] large folders (10k+) scrolling, selecting, and switching without stalls (design §7(2): 60 fps
       scroll with ≤ 1 ms row `body` — Instruments on escalation, skill §6);
-- [ ] switching to the list mid-playback keeping the audio playing, and returning to the feed
+- [x] switching to the list mid-playback keeping the audio playing, and returning to the feed
       landing on the same item at the same position, still playing (design §5.3);
-- [ ] activating the already-current row **not** restarting its playback (design §4);
-- [ ] and the media files byte-identical on disk after all of the above (S14 — this is a UI story,
+- [x] activating the already-current row **not** restarting its playback (design §4);
+- [x] and the media files byte-identical on disk after all of the above (S14 — this is a UI story,
       so functional review is part of the done gate).
+
+### 7.1 · Review result — 2026-10-15 (stakeholder functional review; AC8, converge-owned)
+
+The stakeholder exercised the app (`./scripts/app.sh run`). First pass: the checklist items 1–7 above
+all behaved as specified (7/7), with the playback-activation blocker noted against list activation
+(double-click/Enter) — activating a row did not start playback, and a stale in-flight scroll gesture
+could guard the auto-play start out. After the approved fixes (`fcb1de2`, `b20df5e`, `07a9d57`) and
+the design amendments recorded in §8 item 10, a retest of the fresh build (app pid 82706) passed
+items 1–10 outright; final acceptance then closed the remaining item 11 (media files byte-identical
+on disk) → **11/11 accepted**. This review is the approval for the items that were previously
+agent-only: the floating toggle's in-app visibility over **both a video page and an image page**, the
+mid-playback switch observation, and the list-opening scroll/highlight behavior. The §7 checklist
+above is ticked on that basis — agent evidence supports, stakeholder review approves.
 
 ## 8 · Deviations (task 11.7 — honest; marked for coordinator ratification)
 
@@ -321,8 +334,8 @@ records for the same reason).
 
 ## 9 · Acceptance criteria (task 11.8)
 
-Ticked here and mirrored in [tasks.md](tasks.md); AC8–AC10 stay converge-owned (unticked there and
-not claimed here).
+Ticked here and mirrored in [tasks.md](tasks.md); AC8 is ticked from the 2026-10-15 functional review
+(§7.1); AC9–AC10 stay converge-owned (unticked there and not claimed here).
 
 - **AC1 · product R27 / S1, S2** — the list shows every collected item by file name in the snapshot
   order and nothing else: rows == `collection.items` (count, order, names), non-media files absent,
@@ -370,9 +383,9 @@ not claimed here).
 
 Converge-owned — the coordinator ticks these; task 11 never does:
 
-- [ ] **AC8 · stakeholder functional review** (this is a UI story): in the running app
+- [x] **AC8 · stakeholder functional review** (this is a UI story): in the running app
       (`./scripts/app.sh run`) — the §7 checklist carried from the spec's AC list and design §9.5.
-      Explicit approval required.
+      Explicit approval required. — **passed 2026-10-15; 11/11 accepted (§7.1)**.
 - [ ] **AC9 · validator review** — adversarial PASS over spec S1–S18 and the product R-map, the
       design §8.1 review table, §9's test tables, and both pillar-skill checklists.
 - [ ] **AC10 · story closure** — backlog E5-S1 → `done`; `git merge --no-ff` into `main`; delete
