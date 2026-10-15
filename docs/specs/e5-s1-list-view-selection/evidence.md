@@ -244,11 +244,13 @@ is supporting material, never the approval. Nothing here is ticked by task 11.
    **Demand-trigger superset (validator gap 3, 2026-10-15):** the 7b flag described demand rising
    only over `.loading`/`.unavailable` placeholders; the shipped code is broader and is recorded
    here as the truth. The tracker wraps **every** `.preview` poster page
-   (`FeedItemView.swift:96-119`) — image pages **and video pages at rest** — and
+   (`FeedItemView.swift:97-119`) — image pages **and video pages at rest** — and
    `FeedViewModel.noteMouseMoved` writes `isChromeDemanded` **before** the live-player gate
    (`FeedViewModel.swift:651-658`), so demand also rises on the pre-wrap placeholder frame ahead of
-   that gate; the `.loading`/`.unavailable` branches mount no tracker
-   (`FeedItemView.swift:120-140`). The product outcome still matches D41/S4 (toggle on demand over
+   that gate; the `.unavailable` (`FeedItemView.swift:120-131`) and `.loading`
+   (`FeedItemView.swift:177-181`) case arms mount no tracker. *(Line citations corrected
+   2026-10-15, validator review-2 gap 2: 96 is the `switch` line and 120-140 wrongly included the
+   head of `.player`.)* The product outcome still matches D41/S4 (toggle on demand over
    both page kinds) — only the previously recorded trigger scope was wrong. No code change follows;
    D41 carries the dated amendment line.
 2. **Design §12(4)'s SwiftUI `scrollPosition(id:)` fallback was NOT taken; the jump's in-app
