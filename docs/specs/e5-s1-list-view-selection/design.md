@@ -196,7 +196,7 @@ selection consistency together).
   position (`gestureStartIndex`) before applying arrive-on-item auto-play**, so the `moveTo` →
   `syncPlayback` path above always runs at rest when entered from explicit activation. Cleared is
   `gestureStartIndex` alone: chrome-demand/idle state deliberately persists across the flip — gesture
-  precedence does not extend to chrome state (D41's amendment). Settle-gating for ordinary scroll
+  precedence does not extend to chrome state (D42's amendment). Settle-gating for ordinary scroll
   paging stays untouched — the feed's gesture semantics for paging remain exactly as designed; the
   clearing is scoped to the explicit activation path only. This is HOW (R11/S12/S13 already require
   the behavior); no spec requirement changes.
