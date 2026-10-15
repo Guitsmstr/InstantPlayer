@@ -820,6 +820,49 @@ struct FeedViewModelTests {
         #expect(handle1.pauseCount == 1, "space reaches the landed item (the functional-review symptom)")
     }
 
+    /// §10.1 — explicit activation outranks stale gesture state (E5-S1
+    /// design §4, 2026-10-15 clause): opening the list mid-gesture can
+    /// leave the feed's gesture start recorded (`gestureStartIndex`),
+    /// which must never guard the activation's arrive-on-item auto-play
+    /// out. The explicit-activation entrance clears/consumes that stale
+    /// in-flight gesture state before the `moveTo` → `syncPlayback`
+    /// path, so the landed item starts (the same dead-item symptom the
+    /// `7e73a14` blocker fixed) and the stale gesture's late settle is
+    /// inert — never a second start. Settle-gating for ordinary scroll
+    /// paging is untouched (`midGestureMoveToNeverStartsSettleDoes`).
+    @Test func explicitActivationAfterAMidGestureListOpenAutoPlaysTheLandedItem() async {
+        let folder = Self.uniqueFolder("stale-gesture-activation")
+        let item0 = Self.makeItem(folder, named: "a.mp4", kind: .video)
+        let item1 = Self.makeItem(folder, named: "b.mp4", kind: .video)
+        let collection = Self.makeCollection(folderURL: folder, items: [item0, item1], startIndex: 0)
+        let handle0 = ScriptedMediaPlayback()
+        let handle1 = ScriptedMediaPlayback()
+        let players = ScriptedMediaPlayerService(answers: [handle0, handle1])
+        let viewModel = await Self.openCollection(
+            collection,
+            mediaPlayerService: players,
+            previews: StubMediaPreviewService()
+        )
+        guard await Self.installPlayback(item0, handle: handle0, in: viewModel, service: players) else { return }
+
+        viewModel.scrollGestureDidStart() // in flight when the list opens — its start stays recorded
+        viewModel.moveTo(itemID: item1.id, isExplicitActivation: true) // row activation after the mid-gesture list open
+
+        let started = await Self.waitFor(
+            { players.calls == [item0, item1] },
+            "activation must outrank the stale gesture state and auto-play the landed item (E5-S1 design §4)"
+        )
+        guard started else { return }
+        #expect(handle0.stopCount == 1, "the departed session is stopped synchronously (S9)")
+        #expect(viewModel.currentItemID == item1.id, "the feed is positioned on the activated item (S12/S13)")
+
+        viewModel.scrollGestureDidSettle() // the stale gesture's late settle is consumed
+        for _ in 0 ..< 50 {
+            await Task.yield()
+        }
+        #expect(players.calls == [item0, item1], "the stale settle never starts a second session")
+    }
+
     /// §10.1 — the at-rest arrival never restarts a live session (E5-S1
     /// design §4/§5.3's no-restart rule at the feed level): an at-rest
     /// `moveTo` for the current item leaves the playing/paused session

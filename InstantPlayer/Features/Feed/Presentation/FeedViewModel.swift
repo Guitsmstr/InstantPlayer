@@ -357,11 +357,24 @@ final class FeedViewModel {
     /// has no scroll gesture and no settle to follow, so its start lives
     /// here; mid-gesture binding writes stay start-free because
     /// `syncPlayback()` itself gates on being at rest (S2).
-    func moveTo(itemID: MediaItem.ID?) {
+    ///
+    /// `isExplicitActivation` marks the row-activation entrance (S12/S13
+    /// — RootView's `onActivate`): explicit activation outranks stale
+    /// in-flight scroll-gesture state (E5-S1 design §4, 2026-10-15), so
+    /// that entrance cancels/clears any recorded gesture start *before*
+    /// the arrive-on-item auto-play and the `moveTo` → `syncPlayback`
+    /// path always runs at rest when entered from explicit activation.
+    /// The clearing is scoped to this entrance only — the binding write
+    /// side never clears (S2's settle-gating for ordinary scroll paging
+    /// is untouched).
+    func moveTo(itemID: MediaItem.ID?, isExplicitActivation: Bool = false) {
         guard case let .folderOpen(collection) = state, let itemID,
               let index = collection.items.firstIndex(where: { $0.id == itemID })
         else {
             return
+        }
+        if isExplicitActivation {
+            gestureStartIndex = nil // activation cancels stale gesture state (E5-S1 design §4)
         }
         setIndex(index)
         syncPlayback()
@@ -863,9 +876,11 @@ final class FeedViewModel {
     /// replace-in-place (both via `adopt`, already at rest), paging
     /// settle (`scrollGestureDidSettle`), and `moveTo` (the at-rest
     /// arrival — list activation and the binding write side, E5-S1
-    /// design §4/§5.3). A mid-gesture `moveTo` never reaches a start —
-    /// the at-rest gate skips it, so the incoming item keeps its poster
-    /// (S2); images never start (S4); an already-live session for the
+    /// design §4/§5.3). A mid-gesture binding-write `moveTo` never
+    /// reaches a start — the at-rest gate skips it, so the incoming item
+    /// keeps its poster (S2); the explicit-activation entrance arrives
+    /// at rest instead (stale gesture state cleared first, E5-S1 §4,
+    /// 2026-10-15); images never start (S4); an already-live session for the
     /// current item is left alone (a settle that never left the item
     /// must not restart it — E5-S1 §4/§5.3's no-restart rule).
     private func syncPlayback() {

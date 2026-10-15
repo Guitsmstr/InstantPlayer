@@ -137,7 +137,9 @@ struct RootView: View {
     /// run on the entry route's completion: the settled folder-open
     /// snapshot is applied to the list model (created on demand here —
     /// nothing at launch, §7(6)), the activation callback is bound to the
-    /// feed's positioning contract (a pure `moveTo(itemID:)` — the model
+    /// feed's positioning contract (a pure `moveTo(itemID:)` — its
+    /// explicit-activation entrance, which cancels stale in-flight
+    /// gesture state first, E5-S1 §4 2026-10-15 — the model
     /// has already flipped presentation by the time it emits, and the
     /// already-current row never emits at all, §4/§5.3), and the S17
     /// highlight is seeded from the feed's current item. Re-entry with the
@@ -159,7 +161,7 @@ struct RootView: View {
             listModel = model
         }
         model.onActivate = { [weak feedModel = viewModel] itemID in
-            feedModel?.moveTo(itemID: itemID)
+            feedModel?.moveTo(itemID: itemID, isExplicitActivation: true)
         }
         model.apply(collection: collection)
         model.highlightItemID = viewModel.currentItemID
