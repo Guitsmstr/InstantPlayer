@@ -26,8 +26,9 @@ import UniformTypeIdentifiers
 /// playback session lives below the switch and survives it (§5.3 — a
 /// list↔feed switch is neither a teardown point nor a revisit). The three
 /// root routings: each new `MediaCollection` (the funnel is the entry
-/// route's completion) is applied to the list model (S18's single reset
-/// point); row activation is mediated into the existing
+/// route's completion) is applied to the list model (S18's reset
+/// funnel — a new snapshot resets the selection, the welcome fallback
+/// dismisses and resets the model); row activation is mediated into the existing
 /// `FeedViewModel.moveTo(itemID:)` positioning contract (S12/S13 — the
 /// no-restart rule for the already-current row lives in the list model,
 /// §4); the feed's current item is mirrored into the list model as the
@@ -91,10 +92,14 @@ struct RootView: View {
 
     /// The presented view (S3–S5): the list only while its model says so —
     /// the same value the App-owned key monitor consults (AppDelegate,
-    /// D10). No model (the welcome state) ⇒ the feed surface: no list, no
-    /// toggle, and no selection exist structurally in welcome (S16).
+    /// D10) — and only in the folder-open state (S16's structural gate:
+    /// no list chrome is ever mounted over welcome, whatever a stale
+    /// model value could carry). No model (the welcome state) ⇒ the feed
+    /// surface: no list, no toggle, and no selection exist structurally
+    /// in welcome (S16).
     private var isListPresented: Bool {
-        listModel?.isListPresented ?? false
+        guard case .folderOpen = viewModel.state else { return false }
+        return listModel?.isListPresented ?? false
     }
 
     /// The feed surface (S5): the feed exactly as shipped, with the one
@@ -128,7 +133,7 @@ struct RootView: View {
         }
     }
 
-    /// The snapshot funnel (E5-S1 design §6.1 — S18's single reset point),
+    /// The snapshot funnel (E5-S1 design §6.1 — S18's reset funnel),
     /// run on the entry route's completion: the settled folder-open
     /// snapshot is applied to the list model (created on demand here —
     /// nothing at launch, §7(6)), the activation callback is bound to the
@@ -137,9 +142,18 @@ struct RootView: View {
     /// already-current row never emits at all, §4/§5.3), and the S17
     /// highlight is seeded from the feed's current item. Re-entry with the
     /// same snapshot is a model-level no-op (S18: only a new snapshot
-    /// value resets the selection).
+    /// value resets the selection). The non-`folderOpen` answer (the
+    /// welcome fallback — a failed entry action, E2-S1 S7) is never a
+    /// silent early return: the list model is dismissed and reset (S16 —
+    /// no stale list UI over the welcome surface; S18 — no selection
+    /// outlives its rows).
     private func mediateListSnapshot() {
-        guard case let .folderOpen(collection) = viewModel.state else { return }
+        guard case let .folderOpen(collection) = viewModel.state else {
+            // S16, S18 — welcome fallback: the rows and the selection
+            // belonged to the closed folder, so the model goes with it.
+            listModel?.dismissToWelcome()
+            return
+        }
         let model = listModel ?? dependencies.makeMediaListViewModel()
         if listModel == nil {
             listModel = model

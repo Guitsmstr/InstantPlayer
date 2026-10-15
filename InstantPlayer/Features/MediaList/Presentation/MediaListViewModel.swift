@@ -18,10 +18,13 @@ import Observation
 /// Lifetime & reset (S18, design §3.2): the selection survives every
 /// list↔feed switch — switching presentation and mutating selection are
 /// different methods, so survival is structural — and the machine's
-/// `reset()` runs at exactly one point: `apply(collection:)` when a *new*
-/// snapshot value arrives (a new entry action replaces the collection in
-/// place, E2-S2 S9). Nothing about the selection, the highlight, or the
-/// presentation is ever written anywhere (S11, S14).
+/// `reset()` runs whenever the rows it refers to are gone: at
+/// `apply(collection:)` when a *new* snapshot value arrives (a new entry
+/// action replaces the collection in place, E2-S2 S9) and at
+/// `dismissToWelcome()` when the folder closes (the welcome fallback —
+/// either way S18's derivation holds: no selection outlives its rows).
+/// Nothing about the selection, the highlight, or the presentation is
+/// ever written anywhere (S11, S14).
 ///
 /// Cross-feature discipline (D7, design §4): this model never references
 /// `FeedViewModel` — the feed's current item arrives as the read-only
@@ -72,7 +75,7 @@ final class MediaListViewModel {
     /// per-gesture row-array work exists (design §7(3)).
     private var rowIDs: [MediaItem.ID] = []
 
-    // MARK: Snapshot funnel (S18's single reset point — design §3.2)
+    // MARK: Snapshot funnel (S18's reset point — design §3.2)
 
     /// Applies one snapshot (S1). A *new* snapshot value — a different
     /// capture moment (`MediaCollection.capturedAt` is the snapshot
@@ -105,6 +108,23 @@ final class MediaListViewModel {
     /// a revisit).
     func presentFeed() {
         isListPresented = false
+    }
+
+    /// The welcome fallback (S16, S18): a failed entry action leaves no
+    /// open folder (E2-S1 S7 — no folder stays open). The rows and the
+    /// selection belonged to the now-closed folder, so both go together:
+    /// presentation is dismissed (S16 — no list chrome outside the
+    /// folder-open state) and the selection is reset with its rows and
+    /// highlight (S18's derivation — no selection outlives its rows; the
+    /// highlight dies with the snapshot, design §3.3). Playback is out
+    /// of reach here: the welcome fallback discards the display state on
+    /// the feed's side (E2-S1 S7), and D7 keeps this model free of it.
+    func dismissToWelcome() {
+        isListPresented = false
+        highlightItemID = nil
+        collection = nil
+        rowIDs = []
+        selection.reset()
     }
 
     // MARK: Selection gesture forwarding (S6–S10 — design §3.1)

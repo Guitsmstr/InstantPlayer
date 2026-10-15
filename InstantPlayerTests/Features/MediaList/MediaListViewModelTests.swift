@@ -96,6 +96,58 @@ struct MediaListViewModelTests {
         #expect(model.collection?.items == second.items)
     }
 
+    // MARK: §9.2 — the welcome fallback (S16, S18 — validator gap 2)
+
+    /// S16, S18 — the welcome fallback while the list is presented (a
+    /// failed entry action lands on the welcome state, E2-S1 S7): the
+    /// list is dismissed and the selection reset with its rows — no list
+    /// chrome outside the folder-open state (S16) and no selection
+    /// outlives its rows (S18's derivation).
+    @Test func welcomeFallbackDismissesTheListAndResetsTheSelection() {
+        let model = MediaListViewModel()
+        let collection = Self.makeCollection(
+            "wf",
+            itemNames: ["a.mp4", "b.mp4", "c.mp4"],
+            capturedAt: Date(timeIntervalSinceReferenceDate: 1)
+        )
+        model.apply(collection: collection)
+        model.selectRow(collection.items[1].id)
+        model.extendToRow(collection.items[2].id)
+        model.highlightItemID = collection.items[0].id
+        model.togglePresentation()
+        #expect(model.isListPresented)
+        #expect(!model.selection.selectedIDs.isEmpty)
+
+        model.dismissToWelcome()
+
+        #expect(!model.isListPresented)
+        #expect(model.selection.selectedIDs.isEmpty)
+        #expect(model.selection.anchorID == nil)
+        #expect(model.selection.leadID == nil)
+        #expect(model.collection == nil)
+        #expect(model.highlightItemID == nil)
+    }
+
+    /// S18 — the funnel stays live after the welcome fallback: an `apply`
+    /// afterwards is a fresh open — even the same snapshot value rebuilds
+    /// the rows (the dismissed snapshot was dropped, never cached for a
+    /// no-op) and lands in the reset selection state.
+    @Test func applyingASnapshotAgainAfterTheWelcomeFallbackRebuildsTheRows() {
+        let model = MediaListViewModel()
+        let collection = Self.makeCollection(
+            "wa",
+            itemNames: ["a.mp4", "b.mp4"],
+            capturedAt: Date(timeIntervalSinceReferenceDate: 1)
+        )
+        model.apply(collection: collection)
+        model.selectRow(collection.items[1].id)
+        model.dismissToWelcome()
+
+        model.apply(collection: collection)
+        #expect(model.collection?.items == collection.items)
+        #expect(model.selection.selectedIDs.isEmpty)
+    }
+
     /// S17 — the highlight projection is read-only: writing it (the
     /// feed's current item changing) can never count as or modify the
     /// selection — asserted as selection equality across highlight
