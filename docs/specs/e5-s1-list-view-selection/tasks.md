@@ -327,7 +327,7 @@ this file — the coordinator assigns it accordingly).
 
 Deliverable (docs): `docs/decisions.md` — append the first two ADRs of design §10.
 
-- [ ] **9.1** Append **D39 and D40** continuing the numbering from the log's current end (AGENTS.md
+- [x] **9.1** Append **D39 and D40** continuing the numbering from the log's current end (AGENTS.md
   rule 6). The design §10 plans D39–D42 and at authoring the log ends at **D38**, so the next free
   numbers are **D39, D40**; if the log moves before this task runs, use the next free numbers and
   record the shift in task 11's deviations list (the E3-S1/E3-S2 renumber precedent). House heading
@@ -340,13 +340,13 @@ Deliverable (docs): `docs/decisions.md` — append the first two ADRs of design 
   **D40 — List surface: custom `ScrollView` + `LazyVStack` with a view-model-owned Finder-semantics
   selection, over `List`/`NSTableView`; includes the `MediaListSelection` Domain machine and the
   root-owned presentation switch** (→ S1, S2, S6–S11, S17, S18).
-- [ ] **9.2** Alternatives from the matching design rows — D39: `.keyboardShortcut` on the toggle
+- [x] **9.2** Alternatives from the matching design rows — D39: `.keyboardShortcut` on the toggle
   button and SwiftUI focus delivery (§5.1, §11, §0 fact 3 — rejected for consistency and
   testability, the D22 lesson); D40: `List` with its built-in selection, `NSTableView` behind
   `NSViewRepresentable` (the named §12(3) fallback), selection state inside `FeedViewModel`,
   diffing/observing the folder for live rows (E4-S2's scope), persisting the selection (§11 —
   foreclosed by product R29).
-- [ ] **9.3** Stage, then gate `./scripts/validate.sh --staged` (docs-only mode: ADR format +
+- [x] **9.3** Stage, then gate `./scripts/validate.sh --staged` (docs-only mode: ADR format +
   internal links); fix; commit:
   `docs(e5-s1): task 9 — ADRs D39–D40 — list keyboard routing and list surface`.
 
@@ -355,14 +355,14 @@ Deliverable (docs): `docs/decisions.md` — append the first two ADRs of design 
 Deliverable (docs): `docs/decisions.md` — append the remaining two ADRs of design §10. Follows
 task 9 in numbering order (the log is one file — not parallel with task 9).
 
-- [ ] **10.1** Append **D41 and D42** (same numbering rule as 9.1 — if the log moved, next free
+- [x] **10.1** Append **D41 and D42** (same numbering rule as 9.1 — if the log moved, next free
   numbers, shift recorded in task 11). **Titles and one-line decisions exactly per design §10:**
   **D41 (minor) — Chrome policy extension: the view-toggle button rides the demand-driven overlay
   strip on the feed and a minimal top bar in the list** (→ S4) · **D42 — Playback continues across
   the list↔feed switch: the presentation switch is neither a teardown point nor a D25 revisit — the
   session survives the hidden surface, same item and position on return, and activation of the
   already-current row is presentation-only (no restart)** (→ S5, S12, S13; §5.3).
-- [ ] **10.2** Alternatives from the matching design rows — D41: a keyboard-only toggle (rejected —
+- [x] **10.2** Alternatives from the matching design rows — D41: a keyboard-only toggle (rejected —
   S4 demands a visible button), always-visible chrome over the feed (rejected — the chrome-free /
   demand-driven policy of D27, E2-S2 S14, D33 that §5.2 preserves), a second window or palette
   (rejected — D18's one window); D42: the former planning default — teardown-on-disappear +
@@ -370,7 +370,7 @@ task 9 in numbering order (the log is one file — not parallel with task 9).
   Each entry cites its implementing task commits in its consequences; D39 records the frozen-table
   contract change (⌘L claimed from the pass-through set); D42 records the no-restart rule for the
   already-current row.
-- [ ] **10.3** Stage, then gate `./scripts/validate.sh --staged`; fix; commit:
+- [x] **10.3** Stage, then gate `./scripts/validate.sh --staged`; fix; commit:
   `docs(e5-s1): task 10 — ADRs D41–D42 — chrome extension and playback continuation`.
 
 ## Task 11 — Verification & evidence · spec acceptance criteria, design §7–§10, §13
@@ -378,23 +378,23 @@ task 9 in numbering order (the log is one file — not parallel with task 9).
 Deliverable (docs): `docs/specs/e5-s1-list-view-selection/evidence.md` (new — the E3-S2 precedent)
 + acceptance-criteria ticks in this file.
 
-- [ ] **11.1** Load `swift-security` + `swift-performance` (the walk covers the pillar rows).
-- [ ] **11.2** Traceability walk: **S1–S18 row by row** — for each row name the shipped artifact
+- [x] **11.1** Load `swift-security` + `swift-performance` (the walk covers the pillar rows).
+- [x] **11.2** Traceability walk: **S1–S18 row by row** — for each row name the shipped artifact
   (file, test, or ADR) that satisfies it, with its design section — and then the **product R-map**
   of the spec's acceptance table (product R27–R29 → story outcome → verified by; product R37,
   R9–R10, R34–R36, R16, R17 carried as context/inherited notes, never claimed). Record both tables
   in evidence.md.
-- [ ] **11.3** Run the full gate with machine-readable evidence:
+- [x] **11.3** Run the full gate with machine-readable evidence:
   `./scripts/validate.sh --json <tmp>/gate.json` (`<tmp>` = session temp dir outside the repo; the
   JSON is never committed). Quote it **verbatim** into evidence.md — `result` plus every step name
   and status — and confirm the SwiftLint and SwiftFormat steps read `pass`.
-- [ ] **11.4** **UI-test mandate (spec Story context; R14 of E1-S2):** record the decision — flows
+- [x] **11.4** **UI-test mandate (spec Story context; R14 of E1-S2):** record the decision — flows
   are **not** affected, the converge run keeps the **default gate scope with no `--uitests`
   obligation** ([docs/development.md](../../development.md) §3) — together with the spec's honest
   caveat (even a `--uitests` run could not open the list view: no media is open in the launch tests)
   and the fact that `testLaunchPerformance` and the launch tests run green unchanged within 11.3's
   gate.
-- [ ] **11.5** Record from tooling, never from memory: (a) the design §7 budget measurements —
+- [x] **11.5** Record from tooling, never from memory: (a) the design §7 budget measurements —
   task 7's `measure` numbers against §7(1) (switch ≤ 100 ms p95 to 10k, ≤ 300 ms at 50k), §7(3)
   (selection ≤ 16 ms; arrow-repeat step path backlog-free), with §7(2)'s 60 fps / ≤ 1 ms row-body
   verified by functional review (Instruments on escalation — skill §6); (b) the **D21 audit**
@@ -403,7 +403,7 @@ Deliverable (docs): `docs/specs/e5-s1-list-view-selection/evidence.md` (new — 
   the `codesign -d --entitlements` output showing D19's four read-only keys unchanged; (c) the
   design §8.1 sandbox/media-read review table walked row by row (no new access paths, no writes, no
   persistence, no bookmarks, no pasteboard, no logging, no dependencies, no required-reason API).
-- [ ] **11.6** Functional-review checklist: carry the spec's AC list and the design §9.5 list
+- [x] **11.6** Functional-review checklist: carry the spec's AC list and the design §9.5 list
   verbatim into evidence.md (the mixed folder listed by name in the feed's order with non-media
   files absent; ⌘L and the button toggling both ways in the same window; click/⌘-click/⇧-click/
   arrows/⇧-arrows/empty-click selection with clamping at both ends; double-click and Enter each
@@ -416,17 +416,17 @@ Deliverable (docs): `docs/specs/e5-s1-list-view-selection/evidence.md` (new — 
   `./scripts/app.sh run` — functional evidence is recorded as what was exercised and observed in the
   running app (screenshot paths may be recorded, never read back into context); agent-recorded
   evidence is supporting material, never the approval.
-- [ ] **11.7** Deviations honest: list every deviation from the approved design (files, signatures,
+- [x] **11.7** Deviations honest: list every deviation from the approved design (files, signatures,
   fixtures, budgets) with its impact, marked for coordinator ratification — silently deviating is
   forbidden (standing rule 6). Specifically watch for: the §12(4) scroll-position fallback if taken
   (an escalation/ADR, never a silent swap); any `@testable` internals used in conformance-style
   assertions; and the ADR numbering (D39–D42 vs the log's next free numbers if it moved — tasks
   9.1/10.1).
-- [ ] **11.8** Tick AC1–AC7 below and mirror them in evidence.md; leave the converge-owned AC8–AC10
+- [x] **11.8** Tick AC1–AC7 below and mirror them in evidence.md; leave the converge-owned AC8–AC10
   unticked. Confirm the spec's acceptance checklist is mirrored into evidence.md with its tick state
   (the spec-side items met; the functional-review and approval-gate boxes are coordinator-owned and
   stay unticked).
-- [ ] **11.9** Commit (docs-only; stage first, the hook runs the gate):
+- [x] **11.9** Commit (docs-only; stage first, the hook runs the gate):
   `docs(e5-s1): task 11 — evidence and acceptance`.
 
 ---
@@ -435,30 +435,30 @@ Deliverable (docs): `docs/specs/e5-s1-list-view-selection/evidence.md` (new — 
 
 Ticked by task 11, each backed by quoted tooling evidence:
 
-- [ ] **AC1 · product R27 / S1, S2** — the list shows every collected item by file name in the
+- [x] **AC1 · product R27 / S1, S2** — the list shows every collected item by file name in the
   snapshot order and nothing else: rows == `collection.items` (count, order, names), non-media files
   absent, stale rows kept honestly with no self-reordering — parity suite + functional review.
-- [ ] **AC2 · product R28 / S6–S10** — Finder-grade selection: single click sets without activating,
+- [x] **AC2 · product R28 / S6–S10** — Finder-grade selection: single click sets without activating,
   ⌘-click toggles membership, ⇧-click extends from the anchor, arrows move and ⇧-arrows extend with
   clamping at both ends and no wrap, empty-click clears — machine suite + functional review.
-- [ ] **AC3 · product R29 / S11, S18 / S14** — one ephemeral ad-hoc group: selection survives
+- [x] **AC3 · product R29 / S11, S18 / S14** — one ephemeral ad-hoc group: selection survives
   list↔feed switches within the opened folder, resets only when a new folder is opened, and nothing
   is written or persisted anywhere (D21 audit + §8.1 walk + files byte-identical in review).
-- [ ] **AC4 · S3–S5, S12, S13, S17 / product R37 (context)** — ⌘L and the on-screen button both flip
+- [x] **AC4 · S3–S5, S12, S13, S17 / product R37 (context)** — ⌘L and the on-screen button both flip
   list/feed in the same single window with the collection unchanged; double-click and Enter each
   switch to the feed positioned on that item, and activating the already-current row is
   presentation-only (no playback restart); the list opens scrolled to and highlighting the feed's
   current item without that highlight counting as or modifying the selection — routing pins +
   view-model suite + functional review.
-- [ ] **AC5 · S15 / product R16 share / RNF-02** — budgets met and measured: the 10k-item `measure`
+- [x] **AC5 · S15 / product R16 share / RNF-02** — budgets met and measured: the 10k-item `measure`
   recorded from tooling against §7 (switch ≤ 100 ms p95 / ≤ 300 ms at 50k; selection ≤ 16 ms;
   60 fps scroll with ≤ 1 ms row body per functional review); large folders fluid in review.
-- [ ] **AC6 · S16 / product R17 via S14 / RNF-04 + UI-test decision** — welcome state byte-for-byte
+- [x] **AC6 · S16 / product R17 via S14 / RNF-04 + UI-test decision** — welcome state byte-for-byte
   unchanged with no list/toggle/selection reachable from it; display-only listing with zero writes
   and no new access paths (D19 session not re-derived); the UI-test-mandate decision recorded
   (default gate scope, no `--uitests` obligation, honest caveat); full gate `--json` quoted verbatim
   (lint/format `pass`).
-- [ ] **AC7 · evidence & coverage** — the S1–S18 + product R-map walk recorded; ADRs D39–D42 in
+- [x] **AC7 · evidence & coverage** — the S1–S18 + product R-map walk recorded; ADRs D39–D42 in
   `docs/decisions.md` house format with the design §10 titles; `docs/architecture.md` updated per
   §12(1) (incl. the §4 verdict and the no-new-actor note); all deviations listed honestly.
 
