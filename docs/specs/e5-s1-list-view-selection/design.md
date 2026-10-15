@@ -183,8 +183,21 @@ selection consistency together).
   calls `present(.feed)` only and never `moveTo(itemID:)`, `startPlayback`, or `restart()`; the live
   session (playing or paused) continues at its exact position. Only activating a **different** row
   runs the inherited positioning contract, where the feed's ordinary arrive-on-item semantics apply
-  unchanged. This keeps the input-delivery decision (§5.1) and the playback-continuation decision
+  unchanged — literally so since the blocker fix (commit `fcb1de2`, 2026-10-15): `moveTo(itemID:)`
+  runs `syncPlayback()` after `setIndex`, so the landed item auto-plays (mechanism only; no contract
+  change — the inherited arrive-on-item semantics are simply now true in code). This keeps the
+  input-delivery decision (§5.1) and the playback-continuation decision
   (§5.3) consistent: no activation path may restart playback that the switch deliberately kept alive.
+- **Explicit activation outranks stale gesture state (binding stakeholder decision, 2026-10-15):**
+  activation (S12/S13) is an explicit user action and must never be suppressed by stale in-flight
+  scroll-gesture state. Opening the list mid-gesture can leave the feed's gesture start recorded
+  (`gestureStartIndex`), which currently guards the activation's auto-play start out — the same
+  dead-item symptom the `fcb1de2` blocker fixed. The contract: **activation cancels/clears any stale
+  gesture state before applying arrive-on-item auto-play**, so the `moveTo` → `syncPlayback` path
+  above always runs at rest when entered from explicit activation. Settle-gating for ordinary scroll
+  paging stays untouched — the feed's gesture semantics for paging remain exactly as designed; the
+  clearing is scoped to the explicit activation path only. This is HOW (R11/S12/S13 already require
+  the behavior); no spec requirement changes.
 - **Cross-feature mediation:** `MediaListViewModel` never references `FeedViewModel` (features are
   peers); the activation callback is injected at composition (`RootView` binds it to
   `moveTo(itemID:)` + `present(.feed)`), keeping D7's dependency rule intact.
@@ -453,6 +466,10 @@ Candidates for the converge ADRs (the coordinator records them in
   same item and position on return, and activation of the already-current row is presentation-only
   (no restart). The former planning default (teardown-on-disappear + restart-on-revisit) is rejected
   by the stakeholder.
+
+Note (2026-10-15): the two activation amendments of §4 — `moveTo` → `syncPlayback` auto-play on
+arrival (commit `fcb1de2`) and explicit activation clearing stale gesture state — landed within
+D39/D42's recorded scope (activation routing and activation semantics); no new ADR is warranted.
 
 ## 11 · Alternatives considered
 

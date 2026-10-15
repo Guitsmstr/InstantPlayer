@@ -294,11 +294,25 @@ is supporting material, never the approval. Nothing here is ticked by task 11.
    nothing is persisted at either point — so this is a recorded artifact correction, not a spec or
    code change (the EARS S18 text is unchanged). Design §3.2/§6.1, D40's amendment line, and §5's
    S16/S18 rows carry the corrected invariant.
+10. **Post-review activation amendments (stakeholder-approved 2026-10-15)** — two related records,
+   both design-contract level (R11/S12/S13 already require the behavior; this is HOW):
+   (a) the functional-review blocker fix (commit `fcb1de2`) made `FeedViewModel.moveTo` run
+   `syncPlayback()` after `setIndex`, so list activation auto-plays the landed item — design §4's
+   "ordinary arrive-on-item semantics" is now literally true; no contract change, only the mechanism
+   recorded (design §4); (b) the new approved contract — **explicit activation outranks stale
+   in-flight scroll-gesture state**: opening the list mid-gesture can leave `gestureStartIndex` set,
+   which guards the activation's auto-play start out (the same dead-item symptom). Activation must
+   cancel/clear stale gesture state before applying arrive-on-item auto-play; settle-gating for
+   ordinary scroll paging stays untouched (the feed's gesture semantics remain). Recorded in design
+   §4 (with the §10 note that it sits inside D39/D42's scope, no new ADR); clause (b)'s code fix is a
+   required follow-up and is **not claimed as landed here**. §7's double-click/Enter checklist item
+   is unchanged — the contract sat in R11/S12/S13 all along.
 
 No other deviation from the approved design exists: signatures, the `MediaListSelection` API and
 semantics, the route table, the file inventory, and the budgets match the design §1–§13 as approved
 (the two amendments — §5.2/D41's floating toggle and the sanctioned Feed edit — are the approved
-amendments, not deviations).
+amendments, not deviations; item 10's post-review activation amendments of 2026-10-15 are approved
+records for the same reason).
 
 ## 9 · Acceptance criteria (task 11.8)
 
