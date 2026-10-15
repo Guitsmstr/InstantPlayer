@@ -54,6 +54,11 @@ struct MediaListView: View {
                             MediaListRowView(item: item, viewModel: viewModel)
                         }
                     }
+                    // The `scrollPosition(id:)` target layout (the feed's
+                    // exact idiom, `FeedView`): without it no id-binding
+                    // target resolves and S17's jump has nothing to
+                    // scroll to.
+                    .scrollTargetLayout()
                 }
                 // S10 — a click with no row under the pointer clears the
                 // selection; row gestures take precedence over this

@@ -189,7 +189,7 @@ house suites: "machine suite" = `InstantPlayerTests/Features/MediaList/MediaList
 | S14 | Display-only rows (`Text(name)`, no I/O, empty Data layer); the §4.1 walk — no writes, no persistence, no bookmarks, no pasteboard, no logging; media-file byte-identity rides the functional review (§7) | §1.1, §8 |
 | S15 | `MediaListPerformanceTests` (§3: 10k switch ≤ 100 ms p95, 50k ≤ 300 ms p95, selection ≤ 16 ms, no backlog) + the lazy surface with stable identities + §7(2)'s functional-review/Instruments escalation; ADR D40's recorded perf risks | §7 |
 | S16 | `RootView` creates/holds `listModel` only on the folder-open funnel, so welcome mounts no list view and no toggle; the router's welcome rows pass through (key tests `welcomePassesCommandLThrough`, `welcomePassesArrowsThrough`, …); the string value list/selection machinery is unreachable (§2) | §2, §5.1 |
-| S17 | `MediaListViewModel.highlightItemID` (a read-only projection; the machine has **no** API to accept it) + `RootView.onChange(of: viewModel.currentItemID)` mirroring + `MediaListView`'s `scrollPosition(id:)` direct jump; VM suite `highlightProjectionIsReadOnly` | §3.3 |
+| S17 | `MediaListViewModel.highlightItemID` (a read-only projection; the machine has **no** API to accept it) + `RootView.onChange(of: viewModel.currentItemID)` mirroring + `MediaListView`'s `scrollPosition(id:)` + `.scrollTargetLayout()` wiring (the target resolves; **the in-app jump itself is not unit-verifiable** — it rides the AC8 functional review); VM suite `highlightProjectionIsReadOnly` (the projection pin only) | §3.3 |
 | S18 | `togglePresentation()` is a different method from every selection op (survival is structural); `apply(collection:)` calls `selection.reset()` only when a new snapshot value (`capturedAt`) arrives; VM suite `toggleFlipsPresentationOnlyAndLeavesSelectionUntouched`, `applyResetsOnlyOnANewSnapshotValue`, `togglingPresentationNeverTouchesThePlaybackSession` | §3.2 |
 
 ## 6 · Product R-map (task 11.2; the spec's acceptance table carried)
@@ -241,10 +241,15 @@ is supporting material, never the approval. Nothing here is ticked by task 11.
    behavior changed (`PlaybackControlBarView.swift` has an empty diff). The story's original "zero
    Feed diff" rule is relaxed for exactly this one edit — recorded here and in D41, not a silent
    change.
-2. **Design §12(4)'s SwiftUI `scrollPosition(id:)` fallback was NOT taken**: the list ships the
-   programmatic direct jump as designed; no escalation, no ADR, no silent swap. Its correctness on
-   macOS 26 (and the floating toggle's over-image visibility) therefore rides the stakeholder
-   functional review (§7, AC8) — the risk is open, not closed by tooling.
+2. **Design §12(4)'s SwiftUI `scrollPosition(id:)` fallback was NOT taken; the jump's in-app
+   behavior is not unit-verifiable**: no escalation, no ADR, no silent swap. The first cut
+   over-claimed — the `scrollPosition(id:)` binding sat over a bare `LazyVStack` with no
+   `.scrollTargetLayout()`, so the id target never resolved and no test could contradict it (the VM
+   suite pins only `highlightProjectionIsReadOnly`). The validator's gap-1 finding is fixed by
+   adding `.scrollTargetLayout()` (the feed's exact idiom, `FeedView`). The actual in-app jump —
+   and its correctness on macOS 26 — remains **not verifiable by tooling** (a unit test cannot
+   mount the list or observe a scroll) and therefore rides the stakeholder functional review (§7,
+   AC8) — the risk is open, not closed by tests.
 3. **`@testable` internals**: the machine suite asserts the `private(set)` reads
    `selectedIDs`/`anchorID`/`leadID`; the perf suite reads view-model state (`collection`,
    `togglePresentation()`). This is the house pattern (`@testable import InstantPlayer`); the
