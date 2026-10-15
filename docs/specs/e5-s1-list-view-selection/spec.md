@@ -216,6 +216,13 @@ and never carried over, so no selection outlives the rows it referred to. Nothin
 product R29: the selection stays in-memory state of the opened folder, written nowhere and never
 restored across relaunch (S14).
 
+*Clarification (2026-10-15, E5-S1 validator review-2 gap 1):* the EARS text above is unchanged; the
+recorded derivation is completed with the second reset point. The reset also runs when the opened
+folder is left — a failed entry action dismisses to the welcome state (S16; E2-S1 S7's "no folder
+stays open"), and `MediaListViewModel.dismissToWelcome()` resets the selection together with the rows
+it referred to. The opened folder's lifetime is thus the selection's lifetime at both ends — a new
+folder opened or the folder left — and no selection outlives its rows either way (design §3.2).
+
 ### Row activation (settled answer 2)
 
 - **S12:** WHEN the user double-clicks a row in the list

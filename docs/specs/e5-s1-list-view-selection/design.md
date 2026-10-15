@@ -147,10 +147,15 @@ wholesale (S8, S9 derivations); the functional review is the arbiter of "Finder-
 The view model holds the one `MediaListSelection` value for the one open folder. Ordinary view
 switches (S3–S5) and activation switches (S12–S13) never touch it — switching presentation state
 and mutating selection are different methods on the view model, so S18 is structural. `reset()`
-runs at exactly one point: `MediaListViewModel.apply(collection:)` when a **new** snapshot value
-arrives (a new entry action replaces the collection in place, E2-S2 S9) — the old rows the
-selection referred to are replaced wholesale, and no selection outlives its rows (S18 derivation).
-Nothing about the selection is ever written anywhere (S11, S14 — §8).
+runs at two sanctioned reset points: `MediaListViewModel.apply(collection:)` when a **new** snapshot
+value arrives (a new entry action replaces the collection in place, E2-S2 S9) — the old rows the
+selection referred to are replaced wholesale, and no selection outlives its rows (S18 derivation) —
+and `MediaListViewModel.dismissToWelcome()` when the opened folder is left (a failed entry action →
+the welcome fallback, S16), where the rows and the selection belonged to the now-closed folder and
+go together. Both points satisfy S18's derivation, and nothing about the selection is ever written
+anywhere (S11, S14 — §8). *(2026-10-15, E5-S1 validator review-2 gap 1: the earlier "runs at exactly
+one point" reading is amended to these two sanctioned points; the code was already correct as
+validated — only the artifact is aligned.)*
 
 ### 3.3 The position highlight is not selection (S17)
 
@@ -267,7 +272,9 @@ reason (the answer keeps playback running). Recorded for the ADR plan (§10) as 
 `AppDependencies.makeMediaListViewModel()` (allocation-only, the sanctioned factory pattern) records
 the instance weakly as `activeListModel` for the key monitor. `RootView` owns three routings: each
 new `MediaCollection` (the funnel is the existing entry route — `handle(entryAction:)` completion)
-→ `MediaListViewModel.apply(collection:)` (the S18 reset point); row activation →
+→ `MediaListViewModel.apply(collection:)`, and the welcome fallback (failed entry action) →
+`MediaListViewModel.dismissToWelcome()` (the two sanctioned S18 reset points — new-folder snapshot and
+welcome fallback/folder closed; 2026-10-15, validator review-2 gap 1); row activation →
 `FeedViewModel.moveTo(itemID:)` (§4); presentation state → which feature view is mounted (§1.1) — the playback session lives below this
 switch and survives it (§5.3).
 The list model receives the feed's `currentItemID` as a read-only value for the S17 highlight.

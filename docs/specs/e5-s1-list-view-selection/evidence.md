@@ -188,9 +188,9 @@ house suites: "machine suite" = `InstantPlayerTests/Features/MediaList/MediaList
 | S13 | The `.activateLeadRow` route rows (Enter 36, keypad 76) + `activateLeadRow()` (the machine's `leadID`); key test `listPresentedEnterActivatesTheLeadRow`; VM suite `activateLeadRowEmitsTheLeadRow` | §4, §5.1 |
 | S14 | Display-only rows (`Text(name)`, no I/O, empty Data layer); the §4.1 walk — no writes, no persistence, no bookmarks, no pasteboard, no logging; media-file byte-identity rides the functional review (§7) | §1.1, §8 |
 | S15 | `MediaListPerformanceTests` (§3: 10k switch ≤ 100 ms p95, 50k ≤ 300 ms p95, selection ≤ 16 ms, no backlog) + the lazy surface with stable identities + §7(2)'s functional-review/Instruments escalation; ADR D40's recorded perf risks | §7 |
-| S16 | `RootView` creates/holds `listModel` only on the folder-open funnel, so welcome mounts no list view and no toggle; the router's welcome rows pass through (key tests `welcomePassesCommandLThrough`, `welcomePassesArrowsThrough`, …); the string value list/selection machinery is unreachable (§2) | §2, §5.1 |
+| S16 | `RootView` creates/holds `listModel` only on the folder-open funnel, so welcome mounts no list view and no toggle; the router's welcome rows pass through (key tests `welcomePassesCommandLThrough`, `welcomePassesArrowsThrough`, …); the welcome fallback dismisses the list and resets the selection with its rows (VM suite `welcomeFallbackDismissesTheListAndResetsTheSelection`); the string value list/selection machinery is unreachable (§2) | §2, §5.1 |
 | S17 | `MediaListViewModel.highlightItemID` (a read-only projection; the machine has **no** API to accept it) + `RootView.onChange(of: viewModel.currentItemID)` mirroring + `MediaListView`'s `scrollPosition(id:)` + `.scrollTargetLayout()` wiring (the target resolves; **the in-app jump itself is not unit-verifiable** — it rides the AC8 functional review); VM suite `highlightProjectionIsReadOnly` (the projection pin only) | §3.3 |
-| S18 | `togglePresentation()` is a different method from every selection op (survival is structural); `apply(collection:)` calls `selection.reset()` only when a new snapshot value (`capturedAt`) arrives; VM suite `toggleFlipsPresentationOnlyAndLeavesSelectionUntouched`, `applyResetsOnlyOnANewSnapshotValue`, `togglingPresentationNeverTouchesThePlaybackSession` | §3.2 |
+| S18 | `togglePresentation()` is a different method from every selection op (survival is structural); `selection.reset()` runs at two sanctioned reset points — `apply(collection:)` when a new snapshot value (`capturedAt`) arrives, and `dismissToWelcome()` when the opened folder is left (the welcome fallback, S16); VM suite `toggleFlipsPresentationOnlyAndLeavesSelectionUntouched`, `applyResetsOnlyOnANewSnapshotValue`, `togglingPresentationNeverTouchesThePlaybackSession`, `welcomeFallbackDismissesTheListAndResetsTheSelection`, `applyingASnapshotAgainAfterTheWelcomeFallbackRebuildsTheRows` | §3.2 |
 
 ## 6 · Product R-map (task 11.2; the spec's acceptance table carried)
 
@@ -284,6 +284,14 @@ is supporting material, never the approval. Nothing here is ticked by task 11.
 8. **Unowned branch commits**: the branch also carries two `chore(harness)` provider-repoint commits
    (`90d2a82`, `801c2c0`) and the parked E3-S3 spec (`1482e5c`) — harness/parked-story housekeeping
    outside this story's implementation; the D21 audit is unaffected (xcodeproj/Config diff empty).
+9. **The S18 reset has a second sanctioned point** (validator review-2 gap 1, 2026-10-15): the
+   design originally said `reset()` "runs at exactly one point" (`apply(collection:)`). The gap-2
+   fix (`79d7071`, `MediaListViewModel.dismissToWelcome()`) added the welcome-fallback reset when
+   the opened folder is left (a failed entry action, E2-S1 S7/S16), so the machine's `reset()` now
+   runs at two points. S18's derivation holds unchanged — no selection outlives its rows, and
+   nothing is persisted at either point — so this is a recorded artifact correction, not a spec or
+   code change (the EARS S18 text is unchanged). Design §3.2/§6.1, D40's amendment line, and §5's
+   S16/S18 rows carry the corrected invariant.
 
 No other deviation from the approved design exists: signatures, the `MediaListSelection` API and
 semantics, the route table, the file inventory, and the budgets match the design §1–§13 as approved
@@ -306,7 +314,9 @@ not claimed here).
   selection budget; functional review is converge-owned. ✔ for the implementation evidence.
 - **AC3 · product R29 / S11, S18 / S14** — one ephemeral ad-hoc group: selection survives
   list↔feed switches within the opened folder (VM suite `toggleFlipsPresentationOnlyAndLeavesSelectionUntouched`),
-  resets only when a new folder is opened (`applyResetsOnlyOnANewSnapshotValue`), and nothing is
+  resets only at the two sanctioned points — a new folder opened (`applyResetsOnlyOnANewSnapshotValue`)
+  and the opened folder left for the welcome fallback (`welcomeFallbackDismissesTheListAndResetsTheSelection`,
+  `applyingASnapshotAgainAfterTheWelcomeFallbackRebuildsTheRows`) — and nothing is
   written or persisted anywhere (D21 audit §4 + §8.1 walk §4.1 — empty config diff, no
   `UserDefaults`/bookmark/pasteboard/write anywhere); files byte-identical in review is
   converge-owned. ✔ for the implementation walk.
