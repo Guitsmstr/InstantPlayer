@@ -464,12 +464,13 @@ Ticked by task 11, each backed by quoted tooling evidence:
 
 Converge-owned — the coordinator ticks these; task 11 never does:
 
-- [ ] **AC8 · stakeholder functional review** (this is a UI story): in the running app
+- [x] **AC8 · stakeholder functional review** (this is a UI story): in the running app
   (`./scripts/app.sh run`) — the task 11.6 checklist carried from the spec's AC list and design
-  §9.5. Explicit approval required.
-- [ ] **AC9 · validator review** — adversarial PASS over spec S1–S18 and the product R-map, the
-  design §8.1 review table, §9's test tables, and both pillar-skill checklists.
-- [ ] **AC10 · story closure** — backlog E5-S1 → `done`; `git merge --no-ff` into `main`; delete
+  §9.5. Explicit approval required. — passed 2026-10-15, 11/11 accepted (evidence §7.1).
+- [x] **AC9 · validator review** — adversarial PASS over spec S1–S18 and the product R-map, the
+  design §8.1 review table, §9's test tables, and both pillar-skill checklists. — PASS recorded
+  2026-10-15 (review 3 closed the initial gaps; delta passes confirmed the review-fix commits).
+- [x] **AC10 · story closure** — backlog E5-S1 → `done`; `git merge --no-ff` into `main`; delete
   `feat/e5-s1-list-view-selection`.
 
 ## Converge (coordinator)

@@ -335,7 +335,7 @@ records for the same reason).
 ## 9 · Acceptance criteria (task 11.8)
 
 Ticked here and mirrored in [tasks.md](tasks.md); AC8 is ticked from the 2026-10-15 functional review
-(§7.1); AC9–AC10 stay converge-owned (unticked there and not claimed here).
+(§7.1); AC9–AC10 are converge-owned and were ticked by the coordinator at converge (2026-10-15).
 
 - **AC1 · product R27 / S1, S2** — the list shows every collected item by file name in the snapshot
   order and nothing else: rows == `collection.items` (count, order, names), non-media files absent,
@@ -386,10 +386,13 @@ Converge-owned — the coordinator ticks these; task 11 never does:
 - [x] **AC8 · stakeholder functional review** (this is a UI story): in the running app
       (`./scripts/app.sh run`) — the §7 checklist carried from the spec's AC list and design §9.5.
       Explicit approval required. — **passed 2026-10-15; 11/11 accepted (§7.1)**.
-- [ ] **AC9 · validator review** — adversarial PASS over spec S1–S18 and the product R-map, the
-      design §8.1 review table, §9's test tables, and both pillar-skill checklists.
-- [ ] **AC10 · story closure** — backlog E5-S1 → `done`; `git merge --no-ff` into `main`; delete
-      `feat/e5-s1-list-view-selection`.
+- [x] **AC9 · validator review** — adversarial PASS over spec S1–S18 and the product R-map, the
+      design §8.1 review table, §9's test tables, and both pillar-skill checklists. — **PASS,
+      2026-10-15** (initial gaps closed via fix loops 1–2; review 3 PASS; delta passes confirmed
+      the functional-review fixes).
+- [x] **AC10 · story closure** — backlog E5-S1 → `done`; `git merge --no-ff` into `main`; delete
+      `feat/e5-s1-list-view-selection`. — **executed at converge, 2026-10-15** (backlog updated in
+      the final branch commit; merge + branch deletion by the coordinator immediately after).
 
 ## 10 · Spec acceptance checklist — mirrored state (task 11.8)
 
