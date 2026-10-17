@@ -95,18 +95,28 @@ struct FeedItemView: View {
     private var content: some View {
         switch displayState ?? .loading {
         case let .preview(preview):
-            if let poster {
-                Image(nsImage: poster)
-                    .resizable()
-                    .aspectRatio(
-                        CGFloat(preview.pixelWidth) / CGFloat(max(preview.pixelHeight, 1)),
-                        contentMode: .fit
-                    )
-            } else {
-                // One frame at most: the wrap lands in `onAppear` before
-                // the cell is displayed.
-                ProgressView()
-            }
+            // E5-S1 (design §5.2 — §12(7)'s sanctioned Feed edit): a
+            // poster page — an image page or a video at rest — reports
+            // mouse movement through the same tracking mechanism as the
+            // live surface (`PlayerSurfaceView`), so the demand signal
+            // reaches both page kinds. The wrap is transparent and
+            // full-bleed (letterbox included), adds no chrome (S14),
+            // and renders the memoized poster exactly as before.
+            PosterMouseMoveTracker(onMouseMoved: { actions?.mouseMoved() })
+                .overlay {
+                    if let poster {
+                        Image(nsImage: poster)
+                            .resizable()
+                            .aspectRatio(
+                                CGFloat(preview.pixelWidth) / CGFloat(max(preview.pixelHeight, 1)),
+                                contentMode: .fit
+                            )
+                    } else {
+                        // One frame at most: the wrap lands in `onAppear` before
+                        // the cell is displayed.
+                        ProgressView()
+                    }
+                }
         case .unavailable:
             // The neutral unavailable state (design §7): one system symbol
             // and one neutral English word — no file name, no error codes,
@@ -179,5 +189,73 @@ struct FeedItemView: View {
         guard case let .preview(preview)? = displayState, wrappedFor != preview else { return }
         wrappedFor = preview
         poster = NSImage(data: preview.imageData)
+    }
+}
+
+/// The poster-page mouse-move tracker (E5-S1 design §5.2 — §12(7)'s
+/// sanctioned Feed edit): a transparent, full-bleed `NSTrackingArea`
+/// wrap reporting pointer movement over a poster page, so the demand
+/// signal covers image pages and videos at rest exactly as
+/// `PlayerSurfaceView` covers the live surface — same area options,
+/// same explicit `@objc(mouseMoved:)` selector (see
+/// `PlayerSurfaceView.Coordinator`'s pitfall note), same window flag.
+/// AppKit-only plumbing, no chrome, no state: the sink is the page's
+/// drilled `FeedPageActions.mouseMoved` closure, so the id capture
+/// stays at the drill site.
+private struct PosterMouseMoveTracker: NSViewRepresentable {
+    /// The mouse-moved sink — `FeedPageActions.mouseMoved`; unwired
+    /// movement (a `nil` actions value) reports nothing.
+    var onMouseMoved: () -> Void
+
+    func makeNSView(context: Context) -> NSView {
+        let view = TrackingView()
+        view.addTrackingArea(
+            NSTrackingArea(
+                rect: .zero,
+                options: [.mouseMoved, .activeInKeyWindow, .inVisibleRect],
+                owner: context.coordinator,
+                userInfo: nil
+            )
+        )
+        return view
+    }
+
+    func updateNSView(_: NSView, context: Context) {
+        // The coordinator-held sink is the only mutable part — refreshed
+        // every update so `mouseMoved` always reaches the current page's
+        // actions.
+        context.coordinator.onMouseMoved = onMouseMoved
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onMouseMoved: onMouseMoved)
+    }
+
+    /// The tracking view: besides hosting the area it re-asserts
+    /// `NSWindow.acceptsMouseMovedEvents` the moment it joins a window —
+    /// AppKit gates `mouseMoved` delivery on that flag, and on a
+    /// poster-only feed no `PlayerSurfaceView` ever sets it.
+    private final class TrackingView: NSView {
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            window?.acceptsMouseMovedEvents = true
+        }
+    }
+
+    /// The tracking area's owner (`PlayerSurfaceView.Coordinator`'s
+    /// pattern): the explicit `@objc(mouseMoved:)` lands the method on
+    /// the selector AppKit actually dispatches; AppKit delivers on the
+    /// main thread.
+    @MainActor
+    final class Coordinator: NSObject {
+        var onMouseMoved: () -> Void
+
+        init(onMouseMoved: @escaping () -> Void) {
+            self.onMouseMoved = onMouseMoved
+        }
+
+        @objc(mouseMoved:) func mouseMoved(with _: NSEvent) {
+            onMouseMoved()
+        }
     }
 }

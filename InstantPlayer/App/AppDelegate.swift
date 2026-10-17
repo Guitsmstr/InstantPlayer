@@ -6,7 +6,9 @@
 //  feed-key delivery (E2-S2 round 4 — S5; coordinator-ratified design
 //  §5.3 amendment, D22; extended into a feed-key router in E2-S3 —
 //  design §6 — S5; E3-S1, design §6 — S2: the two seek cases; E3-S2,
-//  design §6 — S5: the two speed cases).
+//  design §6 — S5: the two speed cases; E5-S1, design §5.1 — S3, S9,
+//  S13: the ⌘L toggle and the list rows dispatch to the registered list
+//  model).
 //
 
 import AppKit
@@ -56,7 +58,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 keyCode: event.keyCode,
                 modifiers: event.modifierFlags,
                 isRepeat: event.isARepeat,
-                hasOpenFeed: Self.hasOpenFeed(on: dependencies.activeFeedModel)
+                hasOpenFeed: Self.hasOpenFeed(on: dependencies.activeFeedModel),
+                isListPresented: Self.hasListPresented(on: dependencies.activeListModel)
             )
             switch command {
             case .pageForward:
@@ -89,6 +92,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             case .speedUp:
                 dependencies.activeFeedModel?.stepSpeedUpByKeyboard()
                 return nil
+            case .toggleView:
+                // E5-S1 (design §5.1 — S3): the ⌘L row flips the presented
+                // view through the registered list model's one toggle (the
+                // same method the on-screen button calls — two surfaces
+                // over one toggle).
+                dependencies.activeListModel?.togglePresentation()
+                return nil
+            case let .moveSelection(direction):
+                // E5-S1 (design §5.1 — S9): the list-presented arrows move
+                // the selection; the machine's boundary clamp keeps
+                // auto-repeat idempotent.
+                dependencies.activeListModel?.moveSelection(direction)
+                return nil
+            case let .extendSelection(direction):
+                // E5-S1 (design §5.1 — S9): ⇧-arrows extend from the
+                // anchor (in the list ⇧ IS the extend modifier).
+                dependencies.activeListModel?.extendSelection(direction)
+                return nil
+            case .activateLeadRow:
+                // E5-S1 (design §5.1 — S13): Enter activates the lead row
+                // through the view model's activation path (§4's
+                // no-restart rule for the already-current row lives in the
+                // model).
+                dependencies.activeListModel?.activateLeadRow()
+                return nil
             case .ignore:
                 // Consumed and ignored — space auto-repeat (no flap).
                 return nil
@@ -106,5 +134,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private static func hasOpenFeed(on model: FeedViewModel?) -> Bool {
         guard let model, case .folderOpen = model.state else { return false }
         return true
+    }
+
+    /// The routing input's list half (E5-S1 design §5.1): the list is
+    /// "presented" only while its registered model says so — welcome never
+    /// routes (S16), and while the feed is presented the list rows stay
+    /// inert (S5's never-compete rule: one presented view, one active row
+    /// set). Synchronous on the main thread (no awaits between this read
+    /// and the dispatch), so the decision cannot race the presented state.
+    private static func hasListPresented(on model: MediaListViewModel?) -> Bool {
+        model?.isListPresented ?? false
     }
 }

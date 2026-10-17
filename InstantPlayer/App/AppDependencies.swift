@@ -40,6 +40,17 @@ final class AppDependencies {
     /// discarded models — those must not steal the registration.
     private(set) weak var activeFeedModel: FeedViewModel?
 
+    /// The active MediaList view model — the list twin of
+    /// `activeFeedModel` (the same D10 registration pattern, E5-S1 design
+    /// §6.1): the App-owned key monitor consults it for the list rows and
+    /// the ⌘L dispatch, exactly as it consults `activeFeedModel` for the
+    /// feed rows. Weak on purpose — the view layer's `@State` owns the
+    /// instance, and the container must not extend a superseded model's
+    /// lifetime. This property is task 5's compile enabler for the
+    /// monitor's dispatch switch; the recording factory lands with task
+    /// 6 (`makeMediaListViewModel()`, design §6.1).
+    private(set) weak var activeListModel: MediaListViewModel?
+
     /// Binding API: production uses the defaults; tests and previews inject
     /// conformances through the same initializer. The default folder seam
     /// is the real security-scoped actor (E2-S1 design §1); the default
@@ -70,6 +81,23 @@ final class AppDependencies {
         // `activeFeedModel`): once, on the instance the view tree keeps.
         if activeFeedModel == nil {
             activeFeedModel = viewModel
+        }
+        return viewModel
+    }
+
+    /// Feature factory (E5-S1 design §6.1): the list model is constructed
+    /// only here, on demand with the folder-open state — nothing runs at
+    /// launch (design §7(6); `testLaunchPerformance` stays the guard). The
+    /// instance is recorded weakly as `activeListModel` for the App-owned
+    /// key monitor (the `activeFeedModel` registration pattern above —
+    /// record-once, so transient factory calls never steal the
+    /// registration). It holds no seams of its own: the list reads the
+    /// in-memory snapshot and leaves through the injected activation
+    /// callback (design §4 — D7 keeps the model free of `FeedViewModel`).
+    func makeMediaListViewModel() -> MediaListViewModel {
+        let viewModel = MediaListViewModel()
+        if activeListModel == nil {
+            activeListModel = viewModel
         }
         return viewModel
     }

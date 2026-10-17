@@ -777,6 +777,170 @@ struct FeedViewModelTests {
         )
     }
 
+    /// §10.1 — arrive-on-item auto-play at an at-rest `moveTo` (S1; R11,
+    /// E5-S1 design §4/§5.3 — the inherited positioning/auto-play
+    /// contract): `moveTo` is the list's row-activation route (RootView
+    /// binds `onActivate` to it, E5-S1 design §6.1) and an activation has
+    /// no scroll gesture and no settle to follow — the landed video must
+    /// auto-play on arrival. Regression pin for the functional-review
+    /// blocker: activation landed a dead item (space/clicks no-op on a
+    /// missing session) and only paging away and back healed it.
+    @Test func atRestMoveToAutoPlaysTheLandedItem() async {
+        let folder = Self.uniqueFolder("activation-arrival")
+        let item0 = Self.makeItem(folder, named: "a.mp4", kind: .video)
+        let item1 = Self.makeItem(folder, named: "b.mp4", kind: .video)
+        let collection = Self.makeCollection(folderURL: folder, items: [item0, item1], startIndex: 0)
+        let handle0 = ScriptedMediaPlayback()
+        let handle1 = ScriptedMediaPlayback()
+        let players = ScriptedMediaPlayerService(answers: [handle0, handle1])
+        let viewModel = await Self.openCollection(
+            collection,
+            mediaPlayerService: players,
+            previews: StubMediaPreviewService()
+        )
+        guard await Self.installPlayback(item0, handle: handle0, in: viewModel, service: players) else { return }
+
+        viewModel.moveTo(itemID: item1.id) // list activation of a different row — no gesture, no settle follows
+
+        let started = await Self.waitFor(
+            { players.calls == [item0, item1] },
+            "activation must auto-play the landed item (R11 arrive-on-item; E5-S1 design §4/§5.3)"
+        )
+        guard started else { return }
+        #expect(handle0.stopCount == 1, "the departed session is stopped synchronously (S9)")
+        #expect(viewModel.currentItemID == item1.id, "the feed is positioned on the activated item (S12/S13)")
+
+        handle1.emit(.readyForDisplay)
+        let painted = await Self.waitFor(
+            { viewModel.displayStates[item1.id] == .player(handle1) },
+            "the landed session must install and paint"
+        )
+        guard painted else { return }
+        viewModel.togglePlayback()
+        #expect(handle1.pauseCount == 1, "space reaches the landed item (the functional-review symptom)")
+    }
+
+    /// §10.1 — explicit activation outranks stale gesture state (E5-S1
+    /// design §4, 2026-10-15 clause): opening the list mid-gesture can
+    /// leave the feed's gesture start recorded (`gestureStartIndex`),
+    /// which must never guard the activation's arrive-on-item auto-play
+    /// out. The explicit-activation entrance clears/consumes that stale
+    /// in-flight gesture state before the `moveTo` → `syncPlayback`
+    /// path, so the landed item starts (the same dead-item symptom the
+    /// `7e73a14` blocker fixed) and the stale gesture's late settle is
+    /// inert — never a second start. Settle-gating for ordinary scroll
+    /// paging is untouched (`midGestureMoveToNeverStartsSettleDoes`).
+    @Test func explicitActivationAfterAMidGestureListOpenAutoPlaysTheLandedItem() async {
+        let folder = Self.uniqueFolder("stale-gesture-activation")
+        let item0 = Self.makeItem(folder, named: "a.mp4", kind: .video)
+        let item1 = Self.makeItem(folder, named: "b.mp4", kind: .video)
+        let collection = Self.makeCollection(folderURL: folder, items: [item0, item1], startIndex: 0)
+        let handle0 = ScriptedMediaPlayback()
+        let handle1 = ScriptedMediaPlayback()
+        let players = ScriptedMediaPlayerService(answers: [handle0, handle1])
+        let viewModel = await Self.openCollection(
+            collection,
+            mediaPlayerService: players,
+            previews: StubMediaPreviewService()
+        )
+        guard await Self.installPlayback(item0, handle: handle0, in: viewModel, service: players) else { return }
+
+        viewModel.scrollGestureDidStart() // in flight when the list opens — its start stays recorded
+        viewModel.moveTo(itemID: item1.id, isExplicitActivation: true) // row activation after the mid-gesture list open
+
+        let started = await Self.waitFor(
+            { players.calls == [item0, item1] },
+            "activation must outrank the stale gesture state and auto-play the landed item (E5-S1 design §4)"
+        )
+        guard started else { return }
+        #expect(handle0.stopCount == 1, "the departed session is stopped synchronously (S9)")
+        #expect(viewModel.currentItemID == item1.id, "the feed is positioned on the activated item (S12/S13)")
+
+        viewModel.scrollGestureDidSettle() // the stale gesture's late settle is consumed
+        for _ in 0 ..< 50 {
+            await Task.yield()
+        }
+        #expect(players.calls == [item0, item1], "the stale settle never starts a second session")
+    }
+
+    /// §10.1 — explicit activation outranks stale gesture state on the
+    /// already-current route too (E5-S1 design §4, 2026-10-15 clause;
+    /// validator delta-gap 1): activating the highlighted
+    /// (already-current) row is a pure presentation flip — no
+    /// `onActivate`/`moveTo` fires (§4/§5.3's no-restart rule) — so the
+    /// presentation-switch entrance must cancel the stale in-flight
+    /// gesture state instead: a list opened mid-gesture leaves
+    /// `gestureStartIndex` recorded, which wedges the returned feed
+    /// (space/click and chrome demand are guarded on it). The clearing
+    /// touches no playback state — no restart, no start, no stop, no
+    /// pause.
+    @Test func alreadyCurrentActivationAfterAMidGestureListOpenClearsTheStaleGestureAndLeavesPlaybackUntouched() async {
+        let folder = Self.uniqueFolder("stale-gesture-same-row")
+        let item0 = Self.makeItem(folder, named: "a.mp4", kind: .video)
+        let collection = Self.makeCollection(folderURL: folder, items: [item0], startIndex: 0)
+        let handle0 = ScriptedMediaPlayback()
+        let players = ScriptedMediaPlayerService(answers: [handle0])
+        let viewModel = await Self.openCollection(
+            collection,
+            mediaPlayerService: players,
+            previews: StubMediaPreviewService()
+        )
+        guard await Self.installPlayback(item0, handle: handle0, in: viewModel, service: players) else { return }
+
+        viewModel.scrollGestureDidStart() // in flight when the list opens — its start stays recorded
+
+        // Composition seam exactly as RootView binds it (E5-S1 design §6.1).
+        let list = MediaListViewModel()
+        list.apply(collection: collection)
+        list.highlightItemID = item0.id
+        list.onActivate = { [weak viewModel] itemID in
+            viewModel?.moveTo(itemID: itemID, isExplicitActivation: true)
+        }
+        list.onPresentFeed = { [weak viewModel] in
+            viewModel?.cancelStaleGestureState()
+        }
+        list.togglePresentation() // open the list mid-gesture
+        list.activate(itemID: item0.id) // the already-current row: pure presentation flip, no intent
+
+        #expect(!list.isListPresented, "the activation lands on the feed")
+        for _ in 0 ..< 50 {
+            await Task.yield()
+        }
+        #expect(players.calls == [item0], "the pure flip never starts or restarts anything (§4/§5.3)")
+        #expect(handle0.stopCount == 0, "the live session is not stopped (§5.3)")
+        #expect(handle0.pauseCount == 0, "playback state is untouched — no pause either")
+
+        viewModel.togglePlayback() // space on the returned feed — dead while the stale gesture lingered
+        #expect(handle0.pauseCount == 1, "the stale gesture is cleared: space reaches the live session again")
+    }
+
+    /// §10.1 — the at-rest arrival never restarts a live session (E5-S1
+    /// design §4/§5.3's no-restart rule at the feed level): an at-rest
+    /// `moveTo` for the current item leaves the playing/paused session
+    /// exactly where it is — no `stop()`, no second start.
+    @Test func atRestMoveToTheCurrentItemNeverRestartsTheLiveSession() async {
+        let folder = Self.uniqueFolder("activation-same")
+        let item0 = Self.makeItem(folder, named: "a.mp4", kind: .video)
+        let item1 = Self.makeItem(folder, named: "b.mp4", kind: .video)
+        let collection = Self.makeCollection(folderURL: folder, items: [item0, item1], startIndex: 0)
+        let handle0 = ScriptedMediaPlayback()
+        let players = ScriptedMediaPlayerService(answers: [handle0])
+        let viewModel = await Self.openCollection(
+            collection,
+            mediaPlayerService: players,
+            previews: StubMediaPreviewService()
+        )
+        guard await Self.installPlayback(item0, handle: handle0, in: viewModel, service: players) else { return }
+
+        viewModel.moveTo(itemID: item0.id) // same-item at-rest move (activation/binding write-back)
+        for _ in 0 ..< 50 {
+            await Task.yield()
+        }
+
+        #expect(players.calls == [item0], "an at-rest move to the current item never starts a second session (§4/§5.3)")
+        #expect(handle0.stopCount == 0, "the live session is untouched (§5.3 — no stop on the switch path)")
+    }
+
     /// §10.1 — the arrow-key page is its own settle (design §3's taken
     /// fallback): `pageForward()` starts the clamped landing item
     /// immediately — programmatic page animations emit no phase signals,
@@ -2310,6 +2474,149 @@ struct FeedViewModelTests {
 
         #expect(viewModel.displayedPosition == 0, "the displayed position resets (S15)")
         #expect(viewModel.controlBarModel == nil, "the departed page has no bar (S12)")
+    }
+
+    // MARK: Chrome demand signal (E5-S1 design §5.2 — S4, D41)
+
+    /// Demand signal (S4, design §5.2 — §12(7)'s sanctioned extension):
+    /// mouse movement over the settled current IMAGE page raises the
+    /// demand — and leaves the control bar untouched (an image page
+    /// keeps no bar: D41, no control-bar behavior change).
+    @Test func movementOnTheCurrentImagePageRaisesTheDemand() async {
+        let folder = Self.uniqueFolder("demand-image")
+        let image = Self.makeItem(folder, named: "pic.png", kind: .image)
+        let collection = Self.makeCollection(folderURL: folder, items: [image], startIndex: 0)
+        let viewModel = await Self.openCollection(
+            collection,
+            mediaPlayerService: ScriptedMediaPlayerService(answers: []),
+            previews: RecordingPreviewService(result: Self.knownPreview)
+        )
+
+        viewModel.noteMouseMoved(itemID: image.id)
+
+        #expect(viewModel.isChromeDemanded, "movement over an image page raises the demand (S4)")
+        #expect(viewModel.controlBarModel == nil, "the control bar is untouched on image pages (D41)")
+    }
+
+    /// Demand signal (S4, design §5.2): the same trigger over a video
+    /// page raises the demand alongside the bar — the bar half keeps its
+    /// exact contract (D41: independent, unchanged).
+    @Test func movementOnTheCurrentVideoPageRaisesTheDemandAlongsideTheBar() async {
+        let clock = ManualClock()
+        let handle = ScriptedMediaPlayback()
+        let (viewModel, _, collection) = await Self.arrangeSeekRow(
+            handle: handle, duration: 100, clock: clock
+        )
+
+        viewModel.noteMouseMoved(itemID: collection.items[0].id)
+
+        #expect(viewModel.isChromeDemanded, "the same trigger raises the demand over a video page (S4)")
+        #expect(viewModel.controlBarModel?.isVisible == true, "the bar half is unchanged (D41)")
+    }
+
+    /// Demand signal (S4, design §5.2): the shared 3 s idle hide clears
+    /// the demand over a video page — the feed stays chrome-free at rest
+    /// (E2-S2 S14).
+    @Test func theSharedIdleHideClearsTheDemandOverAVideoPage() async {
+        let clock = ManualClock()
+        let handle = ScriptedMediaPlayback()
+        let (viewModel, _, collection) = await Self.arrangeSeekRow(
+            handle: handle, duration: 100, clock: clock
+        )
+
+        viewModel.noteMouseMoved(itemID: collection.items[0].id)
+        #expect(viewModel.isChromeDemanded)
+
+        clock.time += 4 // past the 3 s deadline — then let the task observe it
+        let cleared = await Self.waitFor(
+            { !viewModel.isChromeDemanded },
+            "the shared 3 s idle hide must clear the demand (design §5.2)"
+        )
+        guard cleared else { return }
+    }
+
+    /// Demand signal (S4, design §5.2 — §12(7)'s sanctioned extension):
+    /// the idle hide clears the demand over an image page too — the
+    /// chrome-free idle contract holds on both page kinds.
+    @Test func theSharedIdleHideClearsTheDemandOverAnImagePage() async {
+        let clock = ManualClock()
+        let folder = Self.uniqueFolder("demand-image-idle")
+        let image = Self.makeItem(folder, named: "pic.png", kind: .image)
+        let collection = Self.makeCollection(folderURL: folder, items: [image], startIndex: 0)
+        let viewModel = FeedViewModel(
+            mediaPlayerService: StubMediaPlayerService(),
+            mediaFolderRepository: ScriptedMediaFolderRepository(results: [collection]),
+            mediaPreviewService: RecordingPreviewService(result: Self.knownPreview),
+            now: { clock.time }
+        )
+        await viewModel.handle(entryAction: EntryAction(enteredURL: folder))
+
+        viewModel.noteMouseMoved(itemID: image.id)
+        #expect(viewModel.isChromeDemanded, "movement over the image page raises the demand (S4)")
+
+        clock.time += 4
+        let cleared = await Self.waitFor(
+            { !viewModel.isChromeDemanded },
+            "the demand clears at idle over image pages too (E2-S2 S14)"
+        )
+        guard cleared else { return }
+    }
+
+    /// Demand signal (S4, S12): movement on anything but the settled
+    /// current page raises nothing — a neighbor page's id.
+    @Test func movementOnNonCurrentPagesRaisesNoDemand() async {
+        let clock = ManualClock()
+        let handle = ScriptedMediaPlayback()
+        let (viewModel, _, collection) = await Self.arrangeSeekRow(
+            handle: handle, duration: 100, clock: clock, itemCount: 2
+        )
+
+        viewModel.noteMouseMoved(itemID: collection.items[1].id)
+
+        #expect(!viewModel.isChromeDemanded, "movement on a non-current page raises nothing (S4, S12)")
+    }
+
+    /// Demand signal (S12's premise): a paging gesture in flight drops
+    /// the demand at once — the floating toggle travels the bar's
+    /// structural-absence rule.
+    @Test func pagingGestureDropsTheDemandAtOnce() async {
+        let clock = ManualClock()
+        let handle = ScriptedMediaPlayback()
+        let (viewModel, _, collection) = await Self.arrangeSeekRow(
+            handle: handle, duration: 100, clock: clock
+        )
+
+        viewModel.noteMouseMoved(itemID: collection.items[0].id)
+        #expect(viewModel.isChromeDemanded)
+        viewModel.scrollGestureDidStart()
+
+        #expect(!viewModel.isChromeDemanded, "mid-paging the demand is gone (S12's premise)")
+    }
+
+    /// Demand signal hygiene (design §5.2): the paths that kill the
+    /// page context clear the demand too — an arrow page turn away from
+    /// a playing video tears its session down synchronously, and the
+    /// demand must never wedge on screen without an idle task to clear
+    /// it (D41).
+    @Test func sessionTeardownNeverWedgesTheDemand() async {
+        let folder = Self.uniqueFolder("demand-teardown")
+        let video = Self.makeItem(folder, named: "a.mp4", kind: .video)
+        let image = Self.makeItem(folder, named: "b.png", kind: .image)
+        let collection = Self.makeCollection(folderURL: folder, items: [video, image], startIndex: 0)
+        let viewModel = await Self.openCollection(
+            collection,
+            mediaPlayerService: ScriptedMediaPlayerService(answers: [ScriptedMediaPlayback()]),
+            previews: RecordingPreviewService(result: Self.knownPreview)
+        )
+
+        viewModel.noteMouseMoved(itemID: video.id)
+        #expect(viewModel.isChromeDemanded)
+        viewModel.pageForward() // the arrow page is its own settle — the video's session dies
+
+        #expect(
+            !viewModel.isChromeDemanded,
+            "the departed video's teardown clears the demand — it can never wedge (D41)"
+        )
     }
 
     // MARK: Playback speed policy (E3-S2 design §10.1 — S1–S18 policy)

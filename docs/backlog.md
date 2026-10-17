@@ -59,8 +59,9 @@ All E2–E5 feature stories implement on the architecture per [docs/architecture
 
 All E2–E5 feature stories implement on the architecture per [docs/architecture.md](architecture.md) (D7–D10) — Clean layering per feature (see the preamble under E2).
 
-- [ ] **E5-S1 · List view & selection** (every media item listed by file name per the current ordering; ad-hoc multi-select, nothing persisted) · `draft`
+- [x] **E5-S1 · List view & selection** (every media item listed by file name per the current ordering; ad-hoc multi-select, nothing persisted) · `done`
   - Requirements: R27–R29 (list view & operations)
+  - Delivered per [docs/specs/e5-s1-list-view-selection/](specs/e5-s1-list-view-selection/spec.md) (S1–S18): Finder-standard selection model, ⌘L + floating top-left demand-driven toggle (video AND image pages), jump-to-item activation with auto-play, highlight-current-item on open, session-lifetime selection (ADRs D39–D42). Ran in parallel with E3-S3 (2026-10-15). Validator PASS after 2 fix loops; functional review 11/11 accepted (2026-10-15) after three playback-activation fixes (`fcb1de2`, `b20df5e`, `07a9d57`).
 - [ ] **E5-S2 · File operations** (zip the selection; move to a chosen destination; reveal in Finder; trash after confirmation, recoverably) · `draft`
   - Requirements: R30–R33 (list view & operations)
 

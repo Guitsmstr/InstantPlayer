@@ -227,6 +227,16 @@ final class FeedViewModel {
     /// the hidden-at-rest state. Recomputed by `refreshControlBar`.
     private(set) var controlBarModel: PlaybackControlBarModel?
 
+    /// The chrome demand signal (E5-S1 design §5.2 — S4, D41): the
+    /// floating view toggle's trigger. Raised by mouse movement over the
+    /// settled current page of EITHER kind — video or image (§12(7)'s
+    /// sanctioned Feed-side extension) — cleared by the shared 3 s idle
+    /// hide and by the paths that kill the page context (paging start,
+    /// session teardown), so it can never wedge. Deliberately independent
+    /// of `controlBarModel` (D41): same trigger mechanism as the control
+    /// bar, but no control-bar behavior or layout change.
+    private(set) var isChromeDemanded = false
+
     /// The scrub drag flag (design §5): true from `beginScrub` until
     /// `scrubEnded` (or the session dying — `stopPlayback` resets it).
     /// Guards every tick and mid-drag keyboard seek (S12).
@@ -338,14 +348,51 @@ final class FeedViewModel {
 
     /// The two-way `scrollPosition(id:)` projection's write side (design
     /// §5.1): the view's binding calls this with the item the scroll
-    /// surface reports. Unknown/`nil` ids are ignored.
-    func moveTo(itemID: MediaItem.ID?) {
+    /// surface reports. Unknown/`nil` ids are ignored. It is also the
+    /// list's row-activation route (E5-S1 design §4/§6.1 — RootView binds
+    /// `onActivate` here), so this is an arrive-on-item path: the landed
+    /// item's auto-play runs through the settle-gated sync (S1; R11 —
+    /// design §4's "ordinary arrive-on-item semantics apply unchanged",
+    /// §5.3's inherited positioning/auto-play contract). An activation
+    /// has no scroll gesture and no settle to follow, so its start lives
+    /// here; mid-gesture binding writes stay start-free because
+    /// `syncPlayback()` itself gates on being at rest (S2).
+    ///
+    /// `isExplicitActivation` marks the row-activation entrance (S12/S13
+    /// — RootView's `onActivate`): explicit activation outranks stale
+    /// in-flight scroll-gesture state (E5-S1 design §4, 2026-10-15), so
+    /// that entrance cancels/clears any recorded gesture start *before*
+    /// the arrive-on-item auto-play and the `moveTo` → `syncPlayback`
+    /// path always runs at rest when entered from explicit activation.
+    /// The clearing is scoped to this entrance only — the binding write
+    /// side never clears (S2's settle-gating for ordinary scroll paging
+    /// is untouched).
+    func moveTo(itemID: MediaItem.ID?, isExplicitActivation: Bool = false) {
         guard case let .folderOpen(collection) = state, let itemID,
               let index = collection.items.firstIndex(where: { $0.id == itemID })
         else {
             return
         }
+        if isExplicitActivation {
+            gestureStartIndex = nil // activation cancels stale gesture state (E5-S1 design §4)
+        }
         setIndex(index)
+        syncPlayback()
+    }
+
+    /// Cancels stale in-flight scroll-gesture state — and touches nothing
+    /// else (E5-S1 design §4, 2026-10-15 clause; validator delta-gap 1).
+    /// The activation's presentation-switch entrance (`presentFeed`'s
+    /// `onPresentFeed` hook, bound at composition) invokes this on every
+    /// row activation — including the already-current row, whose pure
+    /// presentation flip emits no `moveTo` (§4/§5.3's no-restart rule):
+    /// a list opened mid-gesture leaves `gestureStartIndex` recorded, and
+    /// the feed's guards (S7's toggle, S12's chrome demand) wedge on it
+    /// once the feed returns. Clearing the record is the whole job: no
+    /// start, stop, pause, or index change. Ordinary scroll paging never
+    /// enters here (S2's settle-gating keeps its gesture semantics).
+    func cancelStaleGestureState() {
+        gestureStartIndex = nil
     }
 
     // MARK: Gesture guard (S4 — design §5.2, pure logic)
@@ -364,6 +411,7 @@ final class FeedViewModel {
         isScrubbing = false
         wasPlayingBeforeDrag = false
         controlBarModel = nil
+        isChromeDemanded = false // S12's premise extends to the floating toggle (E5-S1 §5.2)
         suspendIdlePolicy()
     }
 
@@ -626,18 +674,26 @@ final class FeedViewModel {
         stepSeek(by: Self.keyboardStepSeconds)
     }
 
-    /// The bar's trigger (S3): mouse movement over the settled current
-    /// video page shows the bar and arms the 3 s idle deadline.
-    /// Movement anywhere else — neighbors, welcome, image pages — shows
-    /// nothing (S4, S12), movement during a scrub drag changes nothing
-    /// (the drag suspended the idle policy — S3(a)), and a paging gesture
-    /// in flight drops the model to `nil` before this can run.
+    /// The demand signal's trigger (S3; E5-S1 design §5.2 — §12(7)'s
+    /// sanctioned Feed edit): mouse movement over the settled current
+    /// page raises the chrome demand — video or image alike — and arms
+    /// the 3 s idle deadline. The bar half keeps its exact contract:
+    /// only the settled current video's live player page shows the bar
+    /// (S4, S12); movement on neighbors or welcome shows nothing,
+    /// movement during a scrub drag changes nothing (the drag suspended
+    /// the idle policy — S3(a)), and a paging gesture in flight drops
+    /// both before this can run.
     func noteMouseMoved(itemID: MediaItem.ID) {
         guard !isScrubbing else { return } // S3(a): the drag owns the bar
         guard itemID == currentItemID, gestureStartIndex == nil else { return } // S4, S12
+        // E5-S1 (design §5.2, §12(7)): the demand covers both page kinds
+        // so the floating toggle mounts over video and image pages alike
+        // (D41). The live-player gate below is untouched — no
+        // control-bar behavior change.
+        isChromeDemanded = true
+        extendIdleCountdown()
         guard playbackItemID == itemID, isShowingPlayer(itemID) else { return } // live player page only
         refreshControlBar(visible: true)
-        extendIdleCountdown()
     }
 
     // MARK: Scrub & seek internals (E3-S1 design §5 — one decision surface)
@@ -811,6 +867,7 @@ final class FeedViewModel {
             return
         }
         idleTask = nil
+        isChromeDemanded = false // the shared idle hide clears the demand too (E5-S1 §5.2)
         refreshControlBar(visible: false)
     }
 
@@ -831,12 +888,16 @@ final class FeedViewModel {
     /// when the feed is at rest — no paging in flight — for the current
     /// `.video` item without sticky playback failure. Call sites are the
     /// become-current paths: folder open at `startIndex` and
-    /// replace-in-place (both via `adopt`, already at rest) and paging
-    /// settle (`scrollGestureDidSettle`). A mid-gesture `moveTo` never
-    /// reaches a start — index changes mid-gesture don't call this, so
-    /// the incoming item keeps its poster (S2); images never start (S4);
-    /// an already-live session for the current item is left alone (a
-    /// settle that never left the item must not restart it).
+    /// replace-in-place (both via `adopt`, already at rest), paging
+    /// settle (`scrollGestureDidSettle`), and `moveTo` (the at-rest
+    /// arrival — list activation and the binding write side, E5-S1
+    /// design §4/§5.3). A mid-gesture binding-write `moveTo` never
+    /// reaches a start — the at-rest gate skips it, so the incoming item
+    /// keeps its poster (S2); the explicit-activation entrance arrives
+    /// at rest instead (stale gesture state cleared first, E5-S1 §4,
+    /// 2026-10-15); images never start (S4); an already-live session for the
+    /// current item is left alone (a settle that never left the item
+    /// must not restart it — E5-S1 §4/§5.3's no-restart rule).
     private func syncPlayback() {
         guard case let .folderOpen(collection) = state else { return }
         guard gestureStartIndex == nil, let index = currentIndex else { return } // at rest (S2)
@@ -940,6 +1001,7 @@ final class FeedViewModel {
         displayedPosition = 0
         exactSeekSuppressUntil = nil
         controlBarModel = nil
+        isChromeDemanded = false // the demand never outlives its page context (E5-S1 §5.2)
         suspendIdlePolicy()
     }
 
